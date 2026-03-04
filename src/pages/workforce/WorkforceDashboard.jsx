@@ -1,5 +1,5 @@
 import { UserPlus, Key, ClipboardCheck, CalendarOff } from "lucide-react";
-import DashShell from "../../components/DashShell";
+import DashShell from "../../components/DashShell.jsx";
 const WorkforceDashboard = () => (
   <DashShell role="Workforce / VA" colorClass="bg-cyan-600" stats={[
     { icon: UserPlus,       label: "New Starters",      value: "3",  sub: "This month" },

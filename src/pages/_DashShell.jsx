@@ -1,5 +1,5 @@
 import { ShieldCheck } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const DashShell = ({ role, colorClass, stats }) => {
   const { user } = useAuth();

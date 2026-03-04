@@ -1,18 +1,18 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import ProtectedRoute      from "../components/ProtectedRoute";
-import DashboardLayout     from "../layouts/DashboardLayout";
-import Login               from "../pages/auth/Login";
-import ForgotPassword      from "../pages/auth/ForgotPassword";
-import SuperAdminDashboard from "../pages/super-admin/SuperAdminDashboard";
-import ManageUsers         from "../pages/super-admin/ManageUsers";
-import DirectorDashboard   from "../pages/director/DirectorDashboard";
-import OpsDashboard        from "../pages/ops/OpsDashboard";
-import FinanceDashboard    from "../pages/finance/FinanceDashboard";
-import TrainingDashboard   from "../pages/training/TrainingDashboard";
-import WorkforceDashboard  from "../pages/workforce/WorkforceDashboard";
-import ClinicianDashboard  from "../pages/clinician/ClinicianDashboard";
-import Unauthorized        from "../pages/errors/Unauthorized";
-import NotFound            from "../pages/errors/NotFound";
+import ProtectedRoute      from "../components/ProtectedRoute.jsx";
+import DashboardLayout     from "../layouts/DashboardLayout.jsx";
+import Login               from "../pages/auth/Login.jsx";
+import ForgotPassword      from "../pages/auth/ForgotPassword.jsx";
+import SuperAdminDashboard from "../pages/super-admin/SuperAdminDashboard.jsx";
+import ManageUsers         from "../pages/super-admin/ManageUsers.jsx";
+import DirectorDashboard   from "../pages/director/DirectorDashboard.jsx";
+import OpsDashboard        from "../pages/ops/OpsDashboard.jsx";
+import FinanceDashboard    from "../pages/finance/FinanceDashboard.jsx";
+import TrainingDashboard   from "../pages/training/TrainingDashboard.jsx";
+import WorkforceDashboard  from "../pages/workforce/WorkforceDashboard.jsx";
+import ClinicianDashboard  from "../pages/clinician/ClinicianDashboard.jsx";
+import Unauthorized        from "../pages/errors/Unauthorized.jsx";
+import NotFound            from "../pages/errors/NotFound.jsx";
 
 const P = ({ roles, children }) => (
   <ProtectedRoute allowedRoles={roles}>

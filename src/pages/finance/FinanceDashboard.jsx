@@ -1,5 +1,5 @@
 import { Clock, Receipt, Hash, TrendingUp } from "lucide-react";
-import DashShell from "../../components/DashShell";
+import DashShell from "../../components/DashShell.jsx";
 const FinanceDashboard = () => (
   <DashShell role="Finance" colorClass="bg-yellow-500" stats={[
     { icon: Clock,      label: "Pending Timesheets",   value: "14",    sub: "Awaiting approval" },
