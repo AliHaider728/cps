@@ -12,6 +12,7 @@ const DashboardLayout = ({ children }) => {
     if (saved === "dark") { setIsDark(true); document.documentElement.classList.add("dark"); }
   }, []);
 
+  
   const handleThemeToggle = () => {
     const next = !isDark;
     setIsDark(next);
