@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import Sidebar from "./Sidebar/Sidebar";
-import Header  from "./Header/Header";
+import Sidebar from "./Sidebar/Sidebar.jsx";
+import Header  from "./Header/Header.jsx";
 
 const DashboardLayout = ({ children }) => {
   const [sidebarOpen,  setSidebarOpen]  = useState(false);
@@ -12,7 +12,7 @@ const DashboardLayout = ({ children }) => {
     if (saved === "dark") { setIsDark(true); document.documentElement.classList.add("dark"); }
   }, []);
 
-  
+
   const handleThemeToggle = () => {
     const next = !isDark;
     setIsDark(next);

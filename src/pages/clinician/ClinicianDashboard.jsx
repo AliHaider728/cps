@@ -1,5 +1,5 @@
 import { Clock, CalendarCheck, ClipboardCheck, GraduationCap } from "lucide-react";
-import DashShell from "../../components/DashShell";
+import DashShell from "../../components/DashShell.jsx";
 const ClinicianDashboard = () => (
   <DashShell role="Clinician Portal" colorClass="bg-slate-600" stats={[
     { icon: Clock,          label: "Timesheet Status",  value: "Due",    sub: "March 2026" },

@@ -1,5 +1,5 @@
 import { Menu, Bell, Sun, Moon, Search } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const Header = ({ onMenuClick, onThemeToggle, isDark }) => {
   const { user } = useAuth();

@@ -1,5 +1,5 @@
 import { TrendingUp, DollarSign, Users, BarChart3 } from "lucide-react";
-import DashShell from "../../components/DashShell";
+import DashShell from "../../components/DashShell.jsx";
 const DirectorDashboard = () => (
   <DashShell role="Director" colorClass="bg-purple-600" stats={[
     { icon: DollarSign, label: "Annual Spend",    value: "£2.4M", sub: "YTD" },

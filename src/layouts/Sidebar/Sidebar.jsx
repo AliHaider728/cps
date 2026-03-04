@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import * as Icons from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-import { sidebarConfig } from "../../data/sidebarConfig";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { sidebarConfig } from "../../data/sidebarConfig.js";
 
 const ROLE_LABELS = {
   super_admin: "Super Admin", director: "Director", ops_manager: "Ops Manager",
