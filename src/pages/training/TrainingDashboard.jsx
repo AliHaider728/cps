@@ -9,3 +9,4 @@ const TrainingDashboard = () => (
   ]} />
 );
 export default TrainingDashboard;
+
