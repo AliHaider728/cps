@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 const DashShell = ({ role, colorClass, stats }) => {
   const { user } = useAuth();
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-full mx-auto">
       <div className={`${colorClass} rounded-2xl p-6 mb-6 text-white`}>
         <p className="text-sm font-semibold opacity-80 mb-1">{role} Dashboard</p>
         <h1 className="text-2xl font-bold">Welcome back, {user?.name?.split(" ")[0]} 👋</h1>

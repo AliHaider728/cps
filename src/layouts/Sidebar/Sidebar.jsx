@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { sidebarConfig } from "../../data/sidebarConfig.js";
 
-/* ── Role metadata ── */
+/*  Role metadata  */
 const ROLE_META = {
   super_admin: { label: "Super Admin",    color: "#ef4444" },
   director:    { label: "Director",       color: "#8b5cf6" },
@@ -15,13 +15,13 @@ const ROLE_META = {
   clinician:   { label: "Clinician",      color: "#64748b" },
 };
 
-/* ── Dynamic icon ── */
+/*  Dynamic icon  */
 const DynIcon = ({ name, size = 16 }) => {
   const Icon = Icons[name] || Icons.Circle;
   return <Icon size={size} />;
 };
 
-/* ── Tooltip for collapsed mode ── */
+/*  Tooltip for collapsed mode  */
 const Tooltip = ({ label, children }) => (
   <div className="relative group/tip">
     {children}
@@ -38,7 +38,7 @@ const Tooltip = ({ label, children }) => (
   </div>
 );
 
-/* ── Nav item with optional dropdown ── */
+/*  Nav item with optional dropdown  */
 const NavItem = ({ item, isCollapsed, closeDrawer, depth = 0 }) => {
   const location = useLocation();
   const hasChildren = Array.isArray(item.children) && item.children.length > 0;
@@ -165,9 +165,9 @@ const NavItem = ({ item, isCollapsed, closeDrawer, depth = 0 }) => {
   );
 };
 
-/* ══════════════════════════════════════
+/* 
    Main Sidebar
-══════════════════════════════════════ */
+  */
 const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -196,7 +196,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
         style={{ width: isCollapsed ? 68 : 256 }}
       >
 
-        {/* ── Logo + Name ── */}
+        {/*  Logo + Name  */}
         <div className="flex items-center justify-between px-3 min-h-[64px] shrink-0
           border-b border-slate-100">
 
@@ -219,13 +219,13 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
             </div>
           )}
 
-          {/* Collapsed: logo only */}
+          {/* Collapsed: logo only */}  
           {isCollapsed && (
             <div className="w-full flex justify-center">
               <img
                 src="https://coreprescribingsolutions.co.uk/wp-content/themes/core-prescribing/images/core-prescribing-logo.png"
                 alt="CPS"
-                className="h-16 w-16 object-contain rounded-lg"
+                className="h-8 w-8 object-contain rounded-lg"
               />
             </div>
           )}
@@ -254,7 +254,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
           </button>
         </div>
 
-        {/* ── User card ── */}
+        {/*  User card  */}
         {user && (
           <div className="px-3 py-3 shrink-0 border-b border-slate-100">
             {isCollapsed ? (
@@ -308,7 +308,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
           </div>
         )}
 
-        {/* ── Nav ── */}
+        {/*  Nav  */}
         <nav className="flex-1 overflow-y-auto py-2 px-2
           [scrollbar-width:thin] [scrollbar-color:#e2e8f0_transparent]
           [&::-webkit-scrollbar]:w-[3px]
@@ -339,7 +339,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
           ))}
         </nav>
 
-        {/* ── Footer ── */}
+        {/*  Footer  */}
         <div className="shrink-0 px-2 pb-3 pt-2 border-t border-slate-100">
           {isCollapsed ? (
             <Tooltip label="Logout">
