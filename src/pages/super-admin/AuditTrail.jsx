@@ -22,6 +22,18 @@ const STATUS_COLORS = {
 
 const ACTIONS = ["", "LOGIN", "LOGOUT", "LOGIN_FAILED", "CREATE_USER", "UPDATE_USER", "DELETE_USER", "GDPR_ANONYMISE"];
 
+// ── 12-hour format: "25 Mar 2026, 3:45 pm" ───────────────────────
+const fmt = (d) => {
+  const date = new Date(d);
+  const datePart = date.toLocaleDateString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+  const timePart = date.toLocaleTimeString("en-GB", {
+    hour: "numeric", minute: "2-digit", hour12: true,
+  });
+  return `${datePart}, ${timePart}`;
+};
+
 export default function AuditTrail() {
   const [logs,    setLogs]    = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,8 +72,6 @@ export default function AuditTrail() {
       )
     : logs;
 
-  const fmt = (d) => new Date(d).toLocaleString("en-GB", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
-
   return (
     <div>
       {/* Header */}
@@ -87,7 +97,6 @@ export default function AuditTrail() {
 
       {/* Filters */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-5 flex flex-wrap gap-3">
-        {/* Search */}
         <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 flex-1 min-w-[200px]">
           <Search size={14} className="text-slate-400 shrink-0" />
           <input
@@ -97,7 +106,6 @@ export default function AuditTrail() {
             className="text-sm text-slate-700 placeholder-slate-400 outline-none w-full bg-transparent"
           />
         </div>
-        {/* Action filter */}
         <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2">
           <Filter size={14} className="text-slate-400" />
           <select
@@ -108,7 +116,6 @@ export default function AuditTrail() {
             {ACTIONS.map(a => <option key={a} value={a}>{a || "All Actions"}</option>)}
           </select>
         </div>
-        {/* Status filter */}
         <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2">
           <select
             value={status}
@@ -191,7 +198,6 @@ export default function AuditTrail() {
           </table>
         </div>
 
-        {/* Pagination */}
         {pages > 1 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/50">
             <p className="text-xs text-slate-500">Page <span className="font-bold">{page}</span> of <span className="font-bold">{pages}</span></p>
