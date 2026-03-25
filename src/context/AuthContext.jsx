@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // ── Login ────────────────────────────────────────────────────────
+  // ── Login 
   const login = useCallback(async (email, password) => {
     const { data } = await axios.post(`${API}/auth/login`, { email, password });
     const { token, user: u } = data;
