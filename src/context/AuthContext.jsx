@@ -28,21 +28,27 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // ── Login 
+  // ── Login ────────────────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
     const { data } = await axios.post(`${API}/auth/login`, { email, password });
     const { token, user: u } = data;
+
     setAxiosToken(token);
     localStorage.setItem("cps_token", token);
     localStorage.setItem("cps_user",  JSON.stringify(u));
     setUser(u);
-    return u.redirectTo;
+
+    // ← poora object return karo taake Login.jsx mustChangePassword check kar sake
+    return {
+      token,
+      redirectTo:         u.redirectTo,
+      mustChangePassword: u.mustChangePassword ?? false,
+    };
   }, []);
 
   // ── Logout ───────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     try {
-      // best-effort server logout (audit log)
       await axios.post(`${API}/auth/logout`);
     } catch {
       // ignore — local logout always proceeds

@@ -1,20 +1,26 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
+import ForceChangePassword from "./ForceChangePassword.jsx";
 
 const Login = () => {
   const { login }  = useAuth();
   const navigate   = useNavigate();
 
-  const [formData,     setFormData]     = useState({ email: "", password: "", rememberMe: false });
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isRateLimited, setIsRateLimited] = useState(false);   // ← NEW: lock UI on 429
-  const [countdown,     setCountdown]     = useState(0);        // ← NEW: 15-min timer
+  const [formData,      setFormData]      = useState({ email: "", password: "", rememberMe: false });
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState("");
+  const [showPassword,  setShowPassword]  = useState(false);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [countdown,     setCountdown]     = useState(0);
+
+  // ── Force change password state ───────────────────────────────
+  const [showForceChange, setShowForceChange] = useState(false);
+  const [tempToken,       setTempToken]       = useState("");
+  const [pendingRedirect, setPendingRedirect] = useState("");
+
   const timerRef = useRef(null);
 
-  // ── Countdown timer when rate limited ───────────────────────────
   useEffect(() => {
     if (isRateLimited && countdown > 0) {
       timerRef.current = setInterval(() => {
@@ -46,20 +52,25 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isRateLimited) return; // hard block while rate limited
+    if (isRateLimited) return;
     setLoading(true);
     setError("");
     try {
-      const redirectTo = await login(formData.email, formData.password);
-      navigate(redirectTo);
+      const result = await login(formData.email, formData.password);
+      // login() se { redirectTo, mustChangePassword, token } milega
+      if (result.mustChangePassword) {
+        setTempToken(result.token);
+        setPendingRedirect(result.redirectTo);
+        setShowForceChange(true);
+      } else {
+        navigate(result.redirectTo);
+      }
     } catch (err) {
       const status  = err.response?.status;
       const message = err.response?.data?.message || err.message || "Invalid email or password";
-
-      // ── 429: Rate limit hit ─────────────────────────────────────
       if (status === 429) {
         setIsRateLimited(true);
-        setCountdown(15 * 60); // 15 minutes
+        setCountdown(15 * 60);
         setError(message);
       } else {
         setError(message);
@@ -95,9 +106,20 @@ const Login = () => {
         @keyframes ring-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3);} 50%{box-shadow:0 0 0 8px rgba(239,68,68,0);} }
       `}</style>
 
+      {/* ── Force Change Password Modal ── */}
+      {showForceChange && (
+        <ForceChangePassword
+          token={tempToken}
+          onDone={() => {
+            setShowForceChange(false);
+            navigate(pendingRedirect);
+          }}
+        />
+      )}
+
       <div className="fn min-h-screen flex bg-gray-50 overflow-hidden">
 
-        {/* ── LEFT PANEL ── */}
+        {/* LEFT PANEL */}
         <div
           className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-end p-12"
           style={{
@@ -136,12 +158,11 @@ const Login = () => {
           </div>
         </div>
 
-        {/* ── RIGHT PANEL ── */}
+        {/* RIGHT PANEL */}
         <div className="flex-1 flex flex-col justify-center items-center px-5 sm:px-8 md:px-12 py-8 bg-white relative overflow-y-auto">
           <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 80% 60% at 70% 10%,rgba(37,99,235,0.04) 0%,transparent 60%)" }} />
           <div className="w-full max-w-md relative z-10">
 
-            {/* Mobile logo */}
             <div className="flex items-center justify-center mb-8 lg:hidden">
               <img src="https://coreprescribingsolutions.co.uk/wp-content/themes/core-prescribing/images/core-prescribing-logo.png" alt="CPS" className="h-14 w-auto object-contain" />
             </div>
@@ -152,15 +173,9 @@ const Login = () => {
               <p className="text-slate-500 text-sm sm:text-base">Sign in to your CPS Intranet account</p>
             </div>
 
-            {/* ── ERROR / RATE LIMIT BANNER ── */}
             {error && (
-              <div className={`mb-5 px-4 py-3 rounded-xl border shake ${
-                isRateLimited
-                  ? "bg-orange-50 border-orange-200"
-                  : "bg-red-50 border-red-200"
-              } flex items-start gap-3`}>
+              <div className={`mb-5 px-4 py-3 rounded-xl border shake ${isRateLimited ? "bg-orange-50 border-orange-200" : "bg-red-50 border-red-200"} flex items-start gap-3`}>
                 {isRateLimited ? (
-                  /* Lock icon for rate limit */
                   <svg className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
@@ -170,16 +185,11 @@ const Login = () => {
                   </svg>
                 )}
                 <div className="flex-1">
-                  <p className={`text-sm font-semibold ${isRateLimited ? "text-orange-700" : "text-red-700"}`}>
-                    {error}
-                  </p>
-                  {/* ── COUNTDOWN TIMER ── */}
+                  <p className={`text-sm font-semibold ${isRateLimited ? "text-orange-700" : "text-red-700"}`}>{error}</p>
                   {isRateLimited && countdown > 0 && (
                     <div className="flex items-center gap-2 mt-2">
-                      <div className={`w-2 h-2 rounded-full bg-orange-500 countdown-ring`} />
-                      <p className="text-xs text-orange-600 font-mono font-bold">
-                        Try again in {fmtCountdown(countdown)}
-                      </p>
+                      <div className="w-2 h-2 rounded-full bg-orange-500 countdown-ring" />
+                      <p className="text-xs text-orange-600 font-mono font-bold">Try again in {fmtCountdown(countdown)}</p>
                     </div>
                   )}
                 </div>
@@ -187,46 +197,26 @@ const Login = () => {
             )}
 
             <form onSubmit={handleSubmit}>
-              {/* Email */}
               <div className="mb-5">
                 <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Email Address</label>
                 <div className="relative">
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    disabled={isRateLimited}
+                  <input name="email" type="email" required value={formData.email} onChange={handleChange} disabled={isRateLimited}
                     placeholder="you@coreprescribing.co.uk"
-                    className="ci w-full pl-4 pr-11 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-slate-50 placeholder-slate-400 transition-all duration-200"
-                  />
+                    className="ci w-full pl-4 pr-11 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-slate-50 placeholder-slate-400 transition-all duration-200" />
                   <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
 
-              {/* Password */}
               <div className="mb-5">
                 <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Password</label>
                 <div className="relative">
-                  <input
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    disabled={isRateLimited}
+                  <input name="password" type={showPassword ? "text" : "password"} required value={formData.password} onChange={handleChange} disabled={isRateLimited}
                     placeholder="Enter your password"
-                    className="ci w-full pl-4 pr-11 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-slate-50 placeholder-slate-400 transition-all duration-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isRateLimited}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 transition-colors bg-transparent border-none cursor-pointer flex items-center disabled:cursor-not-allowed"
-                  >
+                    className="ci w-full pl-4 pr-11 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-slate-50 placeholder-slate-400 transition-all duration-200" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} disabled={isRateLimited}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 transition-colors bg-transparent border-none cursor-pointer flex items-center disabled:cursor-not-allowed">
                     {showPassword
                       ? <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" /></svg>
                       : <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -235,29 +225,20 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* Remember + Forgot */}
               <div className="flex items-center justify-between mb-7">
                 <div className="flex items-center gap-2">
                   <input name="rememberMe" type="checkbox" checked={formData.rememberMe} onChange={handleChange} className="w-4 h-4 cursor-pointer accent-blue-600" />
                   <label className="text-sm text-slate-500 cursor-pointer font-medium">Remember me</label>
                 </div>
-                <Link to="/forgot-password" className="text-sm text-blue-600 font-semibold hover:text-blue-800 hover:underline transition-colors">
-                  Forgot password?
-                </Link>
+                <a href="/forgot-password" className="text-sm text-blue-600 font-semibold hover:text-blue-800 hover:underline transition-colors">Forgot password?</a>
               </div>
 
-              {/* Submit button */}
-              <button
-                type="submit"
-                disabled={loading || isRateLimited}
+              <button type="submit" disabled={loading || isRateLimited}
                 className="btn-shine w-full py-3.5 text-white rounded-xl font-bold text-base tracking-wide relative overflow-hidden transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed hover:enabled:-translate-y-px"
                 style={{
-                  background: isRateLimited
-                    ? "linear-gradient(135deg,#9ca3af 0%,#6b7280 100%)"
-                    : "linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)",
+                  background: isRateLimited ? "linear-gradient(135deg,#9ca3af 0%,#6b7280 100%)" : "linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)",
                   boxShadow: (loading || isRateLimited) ? "none" : "0 4px 14px rgba(37,99,235,0.3)",
-                }}
-              >
+                }}>
                 <div className="flex items-center justify-center gap-2 relative z-10">
                   {loading ? (
                     <><div className="spinner" /><span>Signing in…</span></>
@@ -275,9 +256,7 @@ const Login = () => {
 
               <div className="text-center px-4 py-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-slate-500">
                 Don't have access?{" "}
-                <a href="mailto:admin@coreprescribingsolutions.co.uk" className="text-blue-600 font-bold hover:underline">
-                  Contact your administrator
-                </a>
+                <a href="mailto:admin@coreprescribingsolutions.co.uk" className="text-blue-600 font-bold hover:underline">Contact your administrator</a>
               </div>
             </form>
 
@@ -290,7 +269,6 @@ const Login = () => {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>

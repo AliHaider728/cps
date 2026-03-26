@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { UserPlus, Pencil, Trash2, X, Check, Loader2, ShieldCheck, Search } from "lucide-react";
+import { UserPlus, Pencil, Trash2, X, Check, Loader2, ShieldCheck, Search, KeyRound } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 const ROLES = [
@@ -101,11 +101,23 @@ export default function ManageUsers() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">{u.name.charAt(0).toUpperCase()}</div>
-                          <span className="font-semibold text-slate-800">{u.name}</span>
+                          <div>
+                            <p className="font-semibold text-slate-800">{u.name}</p>
+                            {/* ← Password change pending badge */}
+                            {u.mustChangePassword && (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full mt-0.5">
+                                <KeyRound size={10} /> Password not set
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-slate-600">{u.email}</td>
-                      <td className="px-5 py-3.5"><span className={`text-xs font-bold px-2.5 py-1 rounded-full ${meta?.color||"bg-slate-100 text-slate-600"}`}>{meta?.label||u.role}</span></td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${meta?.color||"bg-slate-100 text-slate-600"}`}>
+                          {meta?.label||u.role}
+                        </span>
+                      </td>
                       <td className="px-5 py-3.5">
                         <span className={`flex items-center gap-1.5 w-fit text-xs font-bold px-2.5 py-1 rounded-full ${u.isActive?"bg-green-100 text-green-700":"bg-red-100 text-red-600"}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${u.isActive?"bg-green-500":"bg-red-500"}`}/>
@@ -136,6 +148,15 @@ export default function ManageUsers() {
               <h2 className="text-lg font-bold text-slate-800">{modal==="add"?"Add New User":"Edit User"}</h2>
               <button onClick={close} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"><X size={18}/></button>
             </div>
+
+            {/* ← Add mode mein email info note */}
+            {modal==="add" && (
+              <div className="mb-4 px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 font-medium flex items-start gap-2">
+                <KeyRound size={13} className="shrink-0 mt-0.5" />
+                User will receive login credentials by email and will be asked to set a new password on first login.
+              </div>
+            )}
+
             {error&&<div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-medium">{error}</div>}
             <div className="space-y-4">
               {[{label:"Full Name",name:"name",type:"text",ph:"e.g. Stacey Middlemass"},{label:"Email Address",name:"email",type:"email",ph:"user@coreprescribing.co.uk"},{label:modal==="add"?"Password":"New Password (leave blank to keep)",name:"password",type:"password",ph:"Min 6 characters"}].map(f=>(

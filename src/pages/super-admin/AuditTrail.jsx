@@ -5,14 +5,15 @@ import { ScrollText, Search, RefreshCw, ChevronLeft, ChevronRight, Filter } from
 const API = import.meta.env.VITE_API_URL;
 
 const ACTION_COLORS = {
-  LOGIN:           "bg-green-100 text-green-700",
-  LOGOUT:          "bg-slate-100 text-slate-600",
-  LOGIN_FAILED:    "bg-red-100 text-red-700",
-  LOGIN_BLOCKED:   "bg-red-100 text-red-700",
-  CREATE_USER:     "bg-blue-100 text-blue-700",
-  UPDATE_USER:     "bg-yellow-100 text-yellow-700",
-  DELETE_USER:     "bg-red-100 text-red-700",
-  GDPR_ANONYMISE:  "bg-purple-100 text-purple-700",
+  LOGIN:             "bg-green-100 text-green-700",
+  LOGOUT:            "bg-slate-100 text-slate-600",
+  LOGIN_FAILED:      "bg-red-100 text-red-700",
+  LOGIN_BLOCKED:     "bg-red-100 text-red-700",
+  CREATE_USER:       "bg-blue-100 text-blue-700",
+  UPDATE_USER:       "bg-yellow-100 text-yellow-700",
+  DELETE_USER:       "bg-red-100 text-red-700",
+  GDPR_ANONYMISE:    "bg-purple-100 text-purple-700",
+  CHANGE_PASSWORD:   "bg-teal-100 text-teal-700",   // ← new
 };
 
 const STATUS_COLORS = {
@@ -20,9 +21,12 @@ const STATUS_COLORS = {
   fail:    "bg-red-100 text-red-700",
 };
 
-const ACTIONS = ["", "LOGIN", "LOGOUT", "LOGIN_FAILED", "CREATE_USER", "UPDATE_USER", "DELETE_USER", "GDPR_ANONYMISE"];
+const ACTIONS = [
+  "", "LOGIN", "LOGOUT", "LOGIN_FAILED",
+  "CREATE_USER", "UPDATE_USER", "DELETE_USER",
+  "GDPR_ANONYMISE", "CHANGE_PASSWORD",           // ← new
+];
 
-// ── 12-hour format: "25 Mar 2026, 3:45 pm" ───────────────────────
 const fmt = (d) => {
   const date = new Date(d);
   const datePart = date.toLocaleDateString("en-GB", {
