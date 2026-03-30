@@ -4,10 +4,10 @@ import ProtectedRoute  from "../components/ProtectedRoute.jsx";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 
 // ── Eager (small, needed immediately)  
-import Login         from "../pages/auth/Login.jsx";
+import Login          from "../pages/auth/Login.jsx";
 import ForgotPassword from "../pages/auth/ForgotPassword.jsx";
-import Unauthorized  from "../pages/errors/Unauthorized.jsx"; 
-import NotFound      from "../pages/errors/NotFound.jsx";
+import Unauthorized   from "../pages/errors/Unauthorized.jsx"; 
+import NotFound       from "../pages/errors/NotFound.jsx";
 
 // ── Lazy (loaded only when visited)  
 const SuperAdminDashboard = lazy(() => import("../pages/super-admin/SuperAdminDashboard.jsx"));
@@ -50,22 +50,30 @@ const AppRouter = () => (
     <Route path="/unauthorized"    element={<Unauthorized />} />
 
     {/* Super Admin */}
-    <Route path="/dashboard/super-admin"              element={<P roles={["super_admin"]}><SuperAdminDashboard /></P>} />
-    <Route path="/dashboard/super-admin/users"        element={<P roles={["super_admin"]}><ManageUsers /></P>} />
-    <Route path="/dashboard/super-admin/audit"        element={<P roles={["super_admin"]}><AuditTrail /></P>} />
-    <Route path="/dashboard/super-admin/clients"      element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
-    <Route path="/dashboard/super-admin/clients/icb"  element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
-    <Route path="/dashboard/super-admin/clients/pcn"  element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
-    <Route path="/dashboard/super-admin/clients/practice" element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
+    <Route path="/dashboard/super-admin"                    element={<P roles={["super_admin"]}><SuperAdminDashboard /></P>} />
+    <Route path="/dashboard/super-admin/users"              element={<P roles={["super_admin"]}><ManageUsers /></P>} />
+    <Route path="/dashboard/super-admin/audit"              element={<P roles={["super_admin"]}><AuditTrail /></P>} />
 
-    {/* Other roles */}
+    {/* Module 2 — Client Management */}
+    <Route path="/dashboard/super-admin/clients"            element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
+    <Route path="/dashboard/super-admin/clients/icb"        element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
+    <Route path="/dashboard/super-admin/clients/pcn"        element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
+    <Route path="/dashboard/super-admin/clients/practice"   element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
+    <Route path="/dashboard/super-admin/clients/history"    element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
+    <Route path="/dashboard/super-admin/clients/restricted" element={<P roles={["super_admin","ops_manager","director"]}><ClientsModule /></P>} />
+
+    {/* Role Dashboards */}
     <Route path="/dashboard/director"    element={<P roles={["director","super_admin"]}><DirectorDashboard /></P>} />
     <Route path="/dashboard/ops-manager" element={<P roles={["ops_manager","super_admin"]}><OpsDashboard /></P>} />
     <Route path="/dashboard/finance"     element={<P roles={["finance","super_admin","director"]}><FinanceDashboard /></P>} />
     <Route path="/dashboard/training"    element={<P roles={["training","super_admin"]}><TrainingDashboard /></P>} />
     <Route path="/dashboard/workforce"   element={<P roles={["workforce","super_admin"]}><WorkforceDashboard /></P>} />
-    <Route path="/portal/clinician"      element={<P roles={["clinician","super_admin"]}><ClinicianDashboard /></P>} />
 
+    {/* Clinician Portal */}
+    <Route path="/portal/clinician"      element={<P roles={["clinician","super_admin"]}><ClinicianDashboard /></P>} />
+    <Route path="/portal/clinician/*"    element={<P roles={["clinician","super_admin"]}><ClinicianDashboard /></P>} />
+
+    {/* 404 — unbuilt modules land here */}
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

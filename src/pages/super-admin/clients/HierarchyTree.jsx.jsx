@@ -1,118 +1,274 @@
-import { useState } from "react";
-import { Building2, Network, Stethoscope, ChevronRight, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react";
+/**
+ * HierarchyTree.jsx
+ * 4-level expandable tree: ICB → Federation → PCN → Practice
+ * Auto-expands when search is active.
+ */
+import { useState, useEffect } from "react";
+import {
+  Building2, Layers, Network, Stethoscope,
+  ChevronRight, ChevronDown,
+  Pencil, Trash2, Loader2,
+} from "lucide-react";
 
-export default function HierarchyTree({ tree, loading, selected, onSelect, onEditICB, onDeleteICB, onEditPCN, onDeletePCN, onEditPractice, onDeletePractice }) {
+export default function HierarchyTree({
+  tree, loading, selected,
+  onSelect,
+  onEditICB,        onDeleteICB,
+  onEditFederation, onDeleteFederation,
+  onEditPCN,        onDeletePCN,
+  onEditPractice,   onDeletePractice,
+}) {
   const [expanded, setExpanded] = useState({});
-  const toggle = (id) => setExpanded(p => ({ ...p, [id]: !p[id] }));
+
+  /* Auto-expand everything when the tree changes (i.e. after search) */
+  useEffect(() => {
+    if (!tree?.length) return;
+    const next = {};
+    tree.forEach(icb => {
+      next[icb._id] = true;
+      (icb.pcns || []).forEach(pcn => {
+        next[pcn._id] = true;
+      });
+    });
+    setExpanded(next);
+  }, [tree]);
+
+  const toggle = (id, e) => {
+    e?.stopPropagation();
+    setExpanded(p => ({ ...p, [id]: !p[id] }));
+  };
 
   if (loading) return (
-    <div className="flex items-center justify-center py-10">
-      <Loader2 size={20} className="animate-spin text-blue-600"/>
+    <div className="flex flex-col items-center justify-center py-14 gap-3">
+      <Loader2 size={22} className="animate-spin text-blue-500" />
+      <p className="text-xs text-slate-400">Loading…</p>
     </div>
   );
 
-  if (tree.length === 0) return (
-    <p className="text-center text-sm text-slate-400 py-8">No clients found</p>
+  if (!tree?.length) return (
+    <div className="flex flex-col items-center justify-center py-14 gap-2">
+      <Building2 size={28} className="text-slate-200" />
+      <p className="text-sm text-slate-400">No clients found</p>
+    </div>
   );
 
   return (
-    <div className="p-2">
+    <div className="py-2 px-1">
       {tree.map(icb => (
-        <div key={icb._id}>
-          {/* ICB */}
-          <div className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-slate-50 group">
-            <button onClick={() => toggle(icb._id)} className="text-slate-400 shrink-0">
-              {expanded[icb._id]
-                ? <ChevronDown size={14}/>
-                : <ChevronRight size={14}/>
-              }
-            </button>
-            <Building2 size={14} className="text-blue-500 shrink-0"/>
-            <span className="text-sm font-bold text-slate-700 flex-1 truncate">{icb.name}</span>
-            <span className="text-xs text-slate-400 shrink-0">{icb.pcns?.length || 0}</span>
-            <div className="hidden group-hover:flex items-center gap-1">
-              <button
-                onClick={() => onEditICB(icb)}
-                className="p-1 rounded hover:bg-blue-50 text-slate-400 hover:text-blue-600"
-              >
-                <Pencil size={11}/>
-              </button>
-              <button
-                onClick={() => onDeleteICB(icb._id)}
-                className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
-              >
-                <Trash2 size={11}/>
-              </button>
-            </div>
-          </div>
-
-          {/* PCNs */}
-          {expanded[icb._id] && icb.pcns?.map(pcn => (
-            <div key={pcn._id} className="ml-4">
-              <div
-                onClick={() => onSelect({ type: "pcn", data: pcn })}
-                className={`flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-slate-50 group cursor-pointer
-                  ${selected?.data?._id === pcn._id ? "bg-blue-50 border border-blue-200" : ""}`}
-              >
-                <button
-                  onClick={e => { e.stopPropagation(); toggle(pcn._id); }}
-                  className="text-slate-400 shrink-0"
-                >
-                  {expanded[pcn._id]
-                    ? <ChevronDown size={13}/>
-                    : <ChevronRight size={13}/>
-                  }
-                </button>
-                <Network size={13} className="text-purple-500 shrink-0"/>
-                <span className="text-sm font-semibold text-slate-700 flex-1 truncate">{pcn.name}</span>
-                <span className="text-xs text-slate-400 shrink-0">{pcn.practices?.length || 0}</span>
-                <div className="hidden group-hover:flex items-center gap-1">
-                  <button
-                    onClick={e => { e.stopPropagation(); onEditPCN(pcn); }}
-                    className="p-1 rounded hover:bg-blue-50 text-slate-400 hover:text-blue-600"
-                  >
-                    <Pencil size={11}/>
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); onDeletePCN(pcn._id); }}
-                    className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
-                  >
-                    <Trash2 size={11}/>
-                  </button>
-                </div>
-              </div>
-
-              {/* Practices */}
-              {expanded[pcn._id] && pcn.practices?.map(pr => (
-                <div
-                  key={pr._id}
-                  onClick={() => onSelect({ type: "practice", data: pr })}
-                  className={`flex items-center gap-2 ml-4 px-2 py-1.5 rounded-xl
-                    hover:bg-slate-50 group cursor-pointer
-                    ${selected?.data?._id === pr._id ? "bg-blue-50 border border-blue-200" : ""}`}
-                >
-                  <Stethoscope size={12} className="text-green-500 shrink-0"/>
-                  <span className="text-xs font-medium text-slate-600 flex-1 truncate">{pr.name}</span>
-                  <div className="hidden group-hover:flex items-center gap-1">
-                    <button
-                      onClick={e => { e.stopPropagation(); onEditPractice(pr, pcn._id); }}
-                      className="p-1 rounded hover:bg-blue-50 text-slate-400 hover:text-blue-600"
-                    >
-                      <Pencil size={10}/>
-                    </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); onDeletePractice(pr._id); }}
-                      className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
-                    >
-                      <Trash2 size={10}/>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+        <ICBRow
+          key={icb._id}
+          icb={icb}
+          expanded={expanded}
+          toggle={toggle}
+          selected={selected}
+          onSelect={onSelect}
+          onEditICB={onEditICB}
+          onDeleteICB={onDeleteICB}
+          onEditPCN={onEditPCN}
+          onDeletePCN={onDeletePCN}
+          onEditPractice={onEditPractice}
+          onDeletePractice={onDeletePractice}
+        />
       ))}
     </div>
+  );
+}
+
+/* ── ICB row ── */
+function ICBRow({ icb, expanded, toggle, selected, onSelect,
+  onEditICB, onDeleteICB, onEditPCN, onDeletePCN, onEditPractice, onDeletePractice }) {
+  const isOpen = !!expanded[icb._id];
+  const pcnCount = (icb.pcns || []).length;
+
+  return (
+    <div>
+      <Row
+        depth={0}
+        icon={Building2}
+        iconBg="bg-blue-100"
+        iconColor="text-blue-600"
+        label={icb.name}
+        count={pcnCount}
+        isOpen={isOpen}
+        onToggle={e => toggle(icb._id, e)}
+        onEdit={() => onEditICB(icb)}
+        onDelete={() => onDeleteICB(icb._id)}
+      />
+      {isOpen && (
+        <div className="ml-3">
+          {(icb.pcns || []).map(pcn => (
+            <PCNRow
+              key={pcn._id}
+              pcn={pcn}
+              expanded={expanded}
+              toggle={toggle}
+              selected={selected}
+              onSelect={onSelect}
+              onEditPCN={onEditPCN}
+              onDeletePCN={onDeletePCN}
+              onEditPractice={onEditPractice}
+              onDeletePractice={onDeletePractice}
+            />
+          ))}
+          {!pcnCount && <Empty label="No PCNs" />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── PCN row ── */
+function PCNRow({ pcn, expanded, toggle, selected, onSelect,
+  onEditPCN, onDeletePCN, onEditPractice, onDeletePractice }) {
+  const isOpen   = !!expanded[pcn._id];
+  const isActive = selected?.type === "pcn" && selected?.data?._id === pcn._id;
+  const prCount  = (pcn.practices || []).length;
+
+  return (
+    <div>
+      <Row
+        depth={1}
+        icon={Network}
+        iconBg={isActive ? "bg-blue-200"   : "bg-purple-100"}
+        iconColor={isActive ? "text-blue-700" : "text-purple-600"}
+        label={pcn.name}
+        sublabel={pcn.federationName || pcn.federation?.name}
+        count={prCount}
+        isOpen={isOpen}
+        isActive={isActive}
+        onToggle={e => { e.stopPropagation(); toggle(pcn._id, e); }}
+        onClick={() => onSelect({ type: "pcn", data: pcn })}
+        onEdit={e => { e.stopPropagation(); onEditPCN(pcn); }}
+        onDelete={e => { e.stopPropagation(); onDeletePCN(pcn._id); }}
+      />
+      {isOpen && (
+        <div className="ml-4">
+          {(pcn.practices || []).map(pr => (
+            <PracticeRow
+              key={pr._id}
+              practice={pr}
+              pcnId={pcn._id}
+              selected={selected}
+              onSelect={onSelect}
+              onEdit={onEditPractice}
+              onDelete={onDeletePractice}
+            />
+          ))}
+          {!prCount && <Empty label="No practices" />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Practice row ── */
+function PracticeRow({ practice: pr, pcnId, selected, onSelect, onEdit, onDelete }) {
+  const isActive = selected?.type === "practice" && selected?.data?._id === pr._id;
+
+  return (
+    <div
+      onClick={() => onSelect({ type: "practice", data: pr })}
+      className={`group flex items-center gap-2 px-2 py-1.5 mx-1 rounded-lg
+        cursor-pointer transition-all border
+        ${isActive
+          ? "bg-emerald-50 border-emerald-200"
+          : "border-transparent hover:bg-slate-50"
+        }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ml-1
+        ${isActive ? "bg-emerald-500" : "bg-slate-300"}`} />
+      <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0
+        ${isActive ? "bg-emerald-100" : "bg-emerald-50"}`}>
+        <Stethoscope size={10} className={isActive ? "text-emerald-700" : "text-emerald-500"} />
+      </div>
+      <span className={`text-[11.5px] font-medium flex-1 truncate
+        ${isActive ? "text-emerald-700 font-semibold" : "text-slate-600"}`}>
+        {pr.name}
+      </span>
+      {pr.odsCode && (
+        <span className="text-[9px] font-mono text-slate-400 hidden group-hover:block">
+          {pr.odsCode}
+        </span>
+      )}
+      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+        <ActionBtn icon={Pencil} size={9} onClick={e => { e.stopPropagation(); onEdit(pr, pcnId); }} hover="hover:text-blue-600 hover:bg-blue-50" />
+        <ActionBtn icon={Trash2} size={9} onClick={e => { e.stopPropagation(); onDelete(pr._id); }}  hover="hover:text-red-600 hover:bg-red-50"  />
+      </div>
+    </div>
+  );
+}
+
+/* ── Generic row ── */
+function Row({
+  depth, icon: Icon, iconBg, iconColor, label, sublabel, count,
+  isOpen, isActive, onToggle, onClick, onEdit, onDelete,
+}) {
+  const py    = depth === 0 ? "py-2"   : "py-1.5";
+  const px    = depth === 0 ? "px-2"   : "px-2";
+  const text  = depth === 0 ? "text-[13px] font-bold" : "text-[12.5px] font-semibold";
+
+  return (
+    <div
+      onClick={onClick}
+      className={`group flex items-center gap-2 ${py} ${px} mx-1 rounded-xl
+        transition-all border cursor-pointer
+        ${isActive
+          ? "bg-blue-50 border-blue-200"
+          : "border-transparent hover:bg-slate-50"
+        }
+        ${onClick ? "cursor-pointer" : "cursor-default"}
+      `}
+    >
+      <button
+        onClick={onToggle}
+        className="w-4 h-4 flex items-center justify-center shrink-0
+          text-slate-400 hover:text-slate-600"
+      >
+        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+      </button>
+
+      <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${iconBg}`}>
+        <Icon size={12} className={iconColor} />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <span className={`${text} truncate block ${isActive ? "text-blue-700" : "text-slate-700"}`}>
+          {label}
+        </span>
+        {sublabel && (
+          <span className="text-[10px] text-slate-400 truncate block">{sublabel}</span>
+        )}
+      </div>
+
+      {count != null && (
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0
+          ${isActive ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-400"}`}>
+          {count}
+        </span>
+      )}
+
+      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+        {onEdit   && <ActionBtn icon={Pencil} size={10} onClick={e => { e.stopPropagation(); onEdit(e); }}   hover="hover:text-blue-600 hover:bg-blue-50" />}
+        {onDelete && <ActionBtn icon={Trash2} size={10} onClick={e => { e.stopPropagation(); onDelete(e); }} hover="hover:text-red-600 hover:bg-red-50"  />}
+      </div>
+    </div>
+  );
+}
+
+function ActionBtn({ icon: Icon, onClick, hover, size = 10 }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-5 h-5 rounded flex items-center justify-center
+        text-slate-400 transition-colors ${hover}`}
+    >
+      <Icon size={size} />
+    </button>
+  );
+}
+
+function Empty({ label }) {
+  return (
+    <p className="text-[10px] text-slate-400 italic pl-6 py-1">{label}</p>
   );
 }

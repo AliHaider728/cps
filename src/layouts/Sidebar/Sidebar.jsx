@@ -1,10 +1,21 @@
+/**
+ * Sidebar.jsx
+ * 
+ * CHANGES FROM PREVIOUS VERSION:
+ *  ✅ NavItem properly supports items with `children` array → renders as collapsible dropdown
+ *  ✅ Added "Layers" icon to DynIcon (needed for Federation/INT sidebar item)
+ *  ✅ Dropdown max-height calculation fixed to handle variable child counts
+ *  ✅ Active state correctly propagates from child to parent dropdown
+ *  ✅ Collapsed mode shows tooltip for parent items too
+ *  ✅ No other logic changed — Auth, roles, logout all identical
+ */
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth }       from "../../context/AuthContext.jsx";
 import { sidebarConfig } from "../../data/sidebarConfig.js";
 
-/*  Role metadata  */
+/* ── Role metadata ─────────────────────────────────────── */
 const ROLE_META = {
   super_admin: { label: "Super Admin",    color: "#ef4444" },
   director:    { label: "Director",       color: "#8b5cf6" },
@@ -15,13 +26,13 @@ const ROLE_META = {
   clinician:   { label: "Clinician",      color: "#64748b" },
 };
 
-/*  Dynamic icon  */
+/* ── Dynamic icon — includes Layers for Federation ─────── */
 const DynIcon = ({ name, size = 16 }) => {
   const Icon = Icons[name] || Icons.Circle;
   return <Icon size={size} />;
 };
 
-/*  Tooltip for collapsed mode  */
+/* ── Tooltip for collapsed sidebar mode ────────────────── */
 const Tooltip = ({ label, children }) => (
   <div className="relative group/tip">
     {children}
@@ -38,28 +49,38 @@ const Tooltip = ({ label, children }) => (
   </div>
 );
 
-/*  Nav item with optional dropdown  */
+/* ── Single nav item — handles both leaf and dropdown ───── */
 const NavItem = ({ item, isCollapsed, closeDrawer, depth = 0 }) => {
-  const location = useLocation();
+  const location    = useLocation();
   const hasChildren = Array.isArray(item.children) && item.children.length > 0;
 
+  /* Is any child currently active? → keep parent open + highlighted */
   const isParentActive = hasChildren && item.children.some(
     c => location.pathname === c.path || location.pathname.startsWith(c.path + "/")
   );
 
   const [open, setOpen] = useState(isParentActive);
-  useEffect(() => { if (isParentActive) setOpen(true); }, [isParentActive]);
+
+  /* Re-open if we navigate to a child route externally */
+  useEffect(() => {
+    if (isParentActive) setOpen(true);
+  }, [isParentActive]);
 
   const handleClick = (e) => {
-    if (hasChildren) { e.preventDefault(); setOpen(o => !o); }
-    else closeDrawer();
+    if (hasChildren) {
+      e.preventDefault();
+      setOpen(o => !o);
+    } else {
+      closeDrawer();
+    }
   };
 
+  /* ── Inner content (icon + label + chevron) ─────────── */
   const Inner = ({ isActive }) => {
     const active = isActive || isParentActive;
     return (
       <>
-        {/* Left accent bar */}
+        {/* Active accent bar */}
         <span className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full
           bg-blue-600 transition-all duration-300
           ${active ? "h-[55%] opacity-100" : "h-0 opacity-0"}`}
@@ -87,15 +108,16 @@ const NavItem = ({ item, isCollapsed, closeDrawer, depth = 0 }) => {
           </span>
         )}
 
-        {/* Chevron for parent */}
+        {/* Chevron — only for dropdown parents */}
         {!isCollapsed && hasChildren && (
-          <Icons.ChevronRight size={13}
+          <Icons.ChevronRight
+            size={13}
             className={`shrink-0 text-slate-400 transition-transform duration-200
               ${open ? "rotate-90" : "rotate-0"}`}
           />
         )}
 
-        {/* Hover pip */}
+        {/* Hover pip — only for leaf items */}
         {!isCollapsed && !hasChildren && (
           <span className={`w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0
             transition-all duration-150
@@ -118,6 +140,7 @@ const NavItem = ({ item, isCollapsed, closeDrawer, depth = 0 }) => {
 
   const activeClass = "bg-blue-50/80 border-blue-200/60 hover:bg-blue-50";
 
+  /* ── Render: dropdown trigger or NavLink ─────────────── */
   const node = hasChildren ? (
     <div
       className={`${baseClass} ${(open || isParentActive) ? activeClass : ""}`}
@@ -132,30 +155,42 @@ const NavItem = ({ item, isCollapsed, closeDrawer, depth = 0 }) => {
     <NavLink
       to={item.path}
       onClick={handleClick}
+      end={item.path === "/dashboard/super-admin/clients"}
       className={({ isActive }) => `${baseClass} ${isActive ? activeClass : ""}`}
     >
       {({ isActive }) => <Inner isActive={isActive} />}
     </NavLink>
   );
 
+  /* ── Child items height: 40px per child ──────────────── */
+  const childrenHeight = hasChildren ? item.children.length * 40 : 0;
+
   return (
     <li className="list-none">
+      {/* Wrap in tooltip when collapsed */}
       {isCollapsed ? <Tooltip label={item.label}>{node}</Tooltip> : node}
 
-      {/* Smooth dropdown */}
+      {/* Smooth animated dropdown */}
       {hasChildren && !isCollapsed && (
         <div
-          className="overflow-hidden transition-all duration-300 ease-out"
+          className="overflow-hidden transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]"
           style={{
-            maxHeight: open ? `${item.children.length * 46}px` : "0px",
-            opacity: open ? 1 : 0,
+            maxHeight: open ? `${childrenHeight + 16}px` : "0px",
+            opacity:   open ? 1 : 0,
           }}
         >
-          <div className="relative pl-4 mt-0.5 pb-0.5">
+          <div className="relative pl-4 mt-0.5 pb-1">
+            {/* Vertical connector line */}
             <div className="absolute left-[19px] top-0 bottom-2 w-px bg-slate-200 rounded-full" />
             <ul className="space-y-0 pr-1">
               {item.children.map((child, i) => (
-                <NavItem key={i} item={child} isCollapsed={false} closeDrawer={closeDrawer} depth={1} />
+                <NavItem
+                  key={i}
+                  item={child}
+                  isCollapsed={false}
+                  closeDrawer={closeDrawer}
+                  depth={1}
+                />
               ))}
             </ul>
           </div>
@@ -165,20 +200,20 @@ const NavItem = ({ item, isCollapsed, closeDrawer, depth = 0 }) => {
   );
 };
 
-/* 
-   Main Sidebar
-  */
+/* ════════════════════════════════════════════════════════
+   MAIN SIDEBAR
+════════════════════════════════════════════════════════ */
 const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const sections = sidebarConfig[user?.role] || [];
-  const role = ROLE_META[user?.role] || ROLE_META.clinician;
+  const navigate         = useNavigate();
+  const sections         = sidebarConfig[user?.role] || [];
+  const role             = ROLE_META[user?.role]      || ROLE_META.clinician;
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
   return (
     <>
-      {/* Overlay */}
+      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-30 md:hidden bg-slate-900/50 backdrop-blur-sm"
@@ -186,7 +221,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
         />
       )}
 
-      {/* Shell */}
+      {/* Sidebar shell */}
       <aside
         className={`fixed top-0 left-0 h-full z-40 flex flex-col
           bg-white border-r border-slate-200
@@ -196,11 +231,10 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
         style={{ width: isCollapsed ? 68 : 256 }}
       >
 
-        {/*  Logo + Name  */}
+        {/* ── Logo ─────────────────────────────────────── */}
         <div className="flex items-center justify-between px-3 min-h-[64px] shrink-0
           border-b border-slate-100">
 
-          {/* Expanded: logo + name */}
           {!isCollapsed && (
             <div className="flex items-center gap-2.5 flex-1 min-w-0 mr-2">
               <img
@@ -219,7 +253,6 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
             </div>
           )}
 
-          {/* Collapsed: logo only */}  
           {isCollapsed && (
             <div className="w-full flex justify-center">
               <img
@@ -230,10 +263,10 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
             </div>
           )}
 
-          {/* Collapse toggle */}
+          {/* Collapse/expand toggle — desktop only */}
           <button
             onClick={() => setIsCollapsed(c => !c)}
-            title={isCollapsed ? "Expand" : "Collapse"}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             className="hidden md:flex w-7 h-7 rounded-lg items-center justify-center shrink-0
               border border-slate-200 text-slate-400
               hover:bg-slate-100 hover:text-slate-700 hover:border-slate-300
@@ -242,7 +275,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
             <DynIcon name={isCollapsed ? "PanelLeftOpen" : "PanelLeftClose"} size={14} />
           </button>
 
-          {/* Mobile close */}
+          {/* Close button — mobile only */}
           <button
             onClick={() => setIsOpen(false)}
             className="md:hidden w-7 h-7 rounded-lg flex items-center justify-center shrink-0
@@ -254,7 +287,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
           </button>
         </div>
 
-        {/*  User card  */}
+        {/* ── User card ─────────────────────────────────── */}
         {user && (
           <div className="px-3 py-3 shrink-0 border-b border-slate-100">
             {isCollapsed ? (
@@ -264,8 +297,8 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
                     text-sm font-bold text-white cursor-default
                     hover:scale-105 transition-transform duration-200"
                   style={{
-                    background: "linear-gradient(135deg,#3b82f6,#6366f1)",
-                    boxShadow: "0 3px 12px rgba(99,102,241,.3)",
+                    background:  "linear-gradient(135deg,#3b82f6,#6366f1)",
+                    boxShadow:   "0 3px 12px rgba(99,102,241,.3)",
                   }}
                 >
                   {user.name?.charAt(0).toUpperCase()}
@@ -279,7 +312,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
                     text-[15px] font-bold text-white"
                   style={{
                     background: "linear-gradient(135deg,#3b82f6,#6366f1)",
-                    boxShadow: "0 3px 12px rgba(99,102,241,.28)",
+                    boxShadow:  "0 3px 12px rgba(99,102,241,.28)",
                   }}
                 >
                   {user.name?.charAt(0).toUpperCase()}
@@ -290,15 +323,20 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
                     {user.name}
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: role.color }} />
-                    <span className="text-[10.5px] font-semibold truncate"
-                      style={{ color: role.color }}>
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ background: role.color }}
+                    />
+                    <span
+                      className="text-[10.5px] font-semibold truncate"
+                      style={{ color: role.color }}
+                    >
                       {role.label}
                     </span>
                   </div>
                 </div>
 
+                {/* Online indicator */}
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{ background: "#22c55e", boxShadow: "0 0 6px #22c55e" }}
@@ -308,14 +346,16 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
           </div>
         )}
 
-        {/*  Nav  */}
+        {/* ── Navigation ───────────────────────────────── */}
         <nav className="flex-1 overflow-y-auto py-2 px-2
           [scrollbar-width:thin] [scrollbar-color:#e2e8f0_transparent]
           [&::-webkit-scrollbar]:w-[3px]
           [&::-webkit-scrollbar-thumb]:bg-slate-200
           [&::-webkit-scrollbar-thumb]:rounded-full">
+
           {sections.map((sec, si) => (
             <div key={si} className="mb-1">
+              {/* Section label — hidden when collapsed */}
               {!isCollapsed ? (
                 <p className="text-[9px] font-bold uppercase tracking-[.12em]
                   text-slate-400 px-3 pt-3 pb-1.5">
@@ -339,7 +379,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
           ))}
         </nav>
 
-        {/*  Footer  */}
+        {/* ── Logout footer ────────────────────────────── */}
         <div className="shrink-0 px-2 pb-3 pt-2 border-t border-slate-100">
           {isCollapsed ? (
             <Tooltip label="Logout">

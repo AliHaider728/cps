@@ -1,180 +1,216 @@
+/**
+ * DetailPanel.jsx
+ * Right panel — shows full details for selected PCN or Practice.
+ * 
+ * PCN tabs:     Overview | Contacts | Practices | Meetings | Contact History | Restricted
+ * Practice tabs: Overview | Contacts | System Access | Contact History | Restricted
+ * 
+ * Each tab is a SEPARATE component — no shared content.
+ */
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Network, Stethoscope, Loader2, AlertTriangle } from "lucide-react";
+import { Network, Stethoscope, Loader2, AlertCircle } from "lucide-react";
+
+import OverviewTab        from "./tabs/OverviewTab.jsx";
+import ContactsTab        from "./tabs/ContactsTab.jsx";
+import PracticesTab       from "./tabs/PracticesTab.jsx";
+import MonthlyMeetingsTab from "./tabs/MonthlyMeetingsTab.jsx";
+import SystemAccessTab    from "./tabs/SystemAccessTab.jsx";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
+import RestrictedTab      from "./tabs/RestrictedTab.jsx";
 
 const API = import.meta.env.VITE_API_URL;
 
-const InfoCard = ({ label, value }) => (
-  <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-    <p className="text-sm font-semibold text-slate-700">{value || "—"}</p>
-  </div>
-);
-
-const TABS = [
-  { id: "overview",   label: "Overview" },
-  { id: "contacts",   label: "Contacts" },
-  { id: "history",    label: "Contact History" },
-  { id: "restricted", label: "Restricted Clinicians" },
+const PCN_TABS = [
+  { id: "overview",  label: "Overview" },
+  { id: "contacts",  label: "Contacts" },
+  { id: "practices", label: "Practices" },
+  { id: "meetings",  label: "Monthly Meetings" },
+  { id: "history",   label: "Contact History" },
+  { id: "restricted",label: "Restricted Clinicians" },
 ];
 
-export default function DetailPanel({ selected }) {
+const PRACTICE_TABS = [
+  { id: "overview",  label: "Overview" },
+  { id: "contacts",  label: "Contacts" },
+  { id: "system",    label: "System Access" },
+  { id: "history",   label: "Contact History" },
+  { id: "restricted",label: "Restricted Clinicians" },
+];
+
+export default function DetailPanel({ selected, onRefresh }) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [fullData,  setFullData]  = useState(null);
+  const [data,      setData]      = useState(null);
   const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState(null);
+
+  const isPCN      = selected.type === "pcn";
+  const entityType = isPCN ? "PCN" : "Practice";
+  const tabs       = isPCN ? PCN_TABS : PRACTICE_TABS;
 
   useEffect(() => {
-    setLoading(true);
-    setFullData(null);
     setActiveTab("overview");
-    const url = selected.type === "pcn"
+    setData(null);
+    setError(null);
+    setLoading(true);
+
+    const url = isPCN
       ? `${API}/clients/pcn/${selected.data._id}`
       : `${API}/clients/practice/${selected.data._id}`;
+
     axios.get(url)
-      .then(({ data }) => setFullData(data.pcn || data.practice))
-      .catch(() => {})
+      .then(res => setData(res.data.pcn || res.data.practice))
+      .catch(() => setError("Failed to load details. Please try again."))
       .finally(() => setLoading(false));
   }, [selected.data._id, selected.type]);
 
-  if (loading) return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center h-64">
-      <Loader2 size={24} className="animate-spin text-blue-600"/>
-    </div>
-  );
+  if (loading) return <LoadingCard />;
+  if (error)   return <ErrorCard message={error} onRetry={() => {
+    setError(null); setLoading(true);
+    const url = isPCN ? `${API}/clients/pcn/${selected.data._id}` : `${API}/clients/practice/${selected.data._id}`;
+    axios.get(url).then(r => setData(r.data.pcn || r.data.practice)).catch(() => setError("Failed")).finally(() => setLoading(false));
+  }} />;
 
-  const d = fullData || selected.data;
-  const entityType = selected.type === "pcn" ? "PCN" : "Practice";
+  const d = data || selected.data;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-        <div className="flex items-center gap-3">
-          {selected.type === "pcn"
-            ? <Network size={20} className="opacity-80"/>
-            : <Stethoscope size={20} className="opacity-80"/>
-          }
-          <div>
-            <h2 className="font-bold text-lg">{d.name}</h2>
-            <p className="text-blue-200 text-sm">
-              {selected.type === "pcn"
-                ? `PCN${d.federation ? ` · ${d.federation}` : ""}`
-                : `Practice${d.odsCode ? ` · ${d.odsCode}` : ""}`
-              }
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm
+      flex flex-col h-full overflow-hidden">
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 px-4 bg-slate-50 overflow-x-auto">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
-              ${activeTab === t.id
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
-          >
-            {t.label}
-          </button>
+      {/* Header */}
+      <PanelHeader d={d} isPCN={isPCN} />
+
+      {/* Tab bar */}
+      <div className="flex border-b border-slate-100 bg-slate-50/50 overflow-x-auto shrink-0
+        [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {tabs.map(t => (
+          <TabBtn key={t.id} tab={t} active={activeTab === t.id} onChange={setActiveTab} />
         ))}
       </div>
 
-      {/* Content */}
-      <div className="p-6">
-        {activeTab === "overview" && (
-          <div className="grid grid-cols-2 gap-4">
-            {selected.type === "pcn" ? (
-              <>
-                <InfoCard label="ICB"         value={d.icb?.name} />
-                <InfoCard label="Federation"  value={d.federation} />
-                <InfoCard label="Annual Spend" value={d.annualSpend ? `£${Number(d.annualSpend).toLocaleString()}` : null} />
-                <InfoCard label="Practices"   value={d.practices?.length ?? "—"} />
-                {d.notes && <div className="col-span-2"><InfoCard label="Notes" value={d.notes} /></div>}
-              </>
-            ) : (
-              <>
-                <InfoCard label="PCN"           value={d.pcn?.name} />
-                <InfoCard label="ODS Code"      value={d.odsCode} />
-                <InfoCard label="Address"       value={d.address} />
-                <InfoCard label="System Access" value={d.systemAccessNotes} />
-              </>
-            )}
-          </div>
-        )}
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto
+        [scrollbar-width:thin] [scrollbar-color:#e2e8f0_transparent]">
+        <TabContent
+          tabId={activeTab}
+          data={d}
+          isPCN={isPCN}
+          entityType={entityType}
+          onRefresh={onRefresh}
+        />
+      </div>
+    </div>
+  );
+}
 
-        {activeTab === "contacts" && (
-          <div>
-            {(!d.contacts || d.contacts.length === 0) ? (
-              <p className="text-slate-400 text-sm text-center py-8">No contacts added yet</p>
-            ) : (
-              <div className="space-y-3">
-                {d.contacts.map((c, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                      {c.name?.charAt(0)?.toUpperCase() || "?"}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-800 text-sm">{c.name}</p>
-                      <p className="text-xs text-slate-500">{c.role}</p>
-                      {c.email && <p className="text-xs text-blue-600">{c.email}</p>}
-                      {c.phone && <p className="text-xs text-slate-500">{c.phone}</p>}
-                    </div>
-                    {c.type !== "general" && (
-                      <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full
-                        ${c.type === "decision_maker"
-                          ? "bg-purple-100 text-purple-700"
-                          : "bg-yellow-100 text-yellow-700"
-                        }`}>
-                        {c.type === "decision_maker" ? "Decision Maker" : "Finance"}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+/* ── Tab button ── */
+function TabBtn({ tab, active, onChange }) {
+  return (
+    <button
+      onClick={() => onChange(tab.id)}
+      className={`relative px-4 py-3 text-[12.5px] font-semibold whitespace-nowrap
+        transition-colors shrink-0
+        ${active ? "text-blue-600" : "text-slate-500 hover:text-slate-700"}`}
+    >
+      {tab.label}
+      {active && (
+        <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-blue-600 rounded-full" />
+      )}
+    </button>
+  );
+}
 
-        {activeTab === "history" && (
-          <ContactHistoryPanel
-            entityType={entityType}
-            entityId={d._id}
-          />
-        )}
+/* ── Content dispatcher ── */
+function TabContent({ tabId, data, isPCN, entityType, onRefresh }) {
+  switch (tabId) {
+    case "overview":
+      return <OverviewTab data={data} isPCN={isPCN} />;
+    case "contacts":
+      return <ContactsTab data={data} entityType={entityType} entityId={data._id} onRefresh={onRefresh} />;
+    case "practices":
+      return <PracticesTab practices={data.practices} />;
+    case "meetings":
+      return <MonthlyMeetingsTab pcnId={data._id} pcnName={data.name} />;
+    case "system":
+      return <SystemAccessTab data={data} entityType={entityType} entityId={data._id} onRefresh={onRefresh} />;
+    case "history":
+      return (
+        <div className="p-5">
+          <ContactHistoryPanel entityType={entityType} entityId={data._id} />
+        </div>
+      );
+    case "restricted":
+      return <RestrictedTab data={data} entityType={entityType} entityId={data._id} onRefresh={onRefresh} />;
+    default:
+      return null;
+  }
+}
 
-        {activeTab === "restricted" && (
-          <div>
-            {(!d.restrictedClinicians || d.restrictedClinicians.length === 0) ? (
-              <div className="text-center py-8">
-                <AlertTriangle size={28} className="text-slate-200 mx-auto mb-2"/>
-                <p className="text-slate-400 text-sm">No restricted clinicians</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {d.restrictedClinicians.map(c => (
-                  <div key={c._id} className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-                    <div className="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                      {c.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-800 text-sm">{c.name}</p>
-                      <p className="text-xs text-slate-500">{c.email}</p>
-                    </div>
-                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                      Restricted
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+/* ── Panel header ── */
+function PanelHeader({ d, isPCN }) {
+  const gradient = isPCN
+    ? "from-blue-600 to-blue-700"
+    : "from-emerald-600 to-emerald-700";
+
+  return (
+    <div className={`px-6 py-4 bg-gradient-to-r ${gradient} shrink-0`}>
+      <div className="flex items-start gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0
+          ${isPCN ? "bg-blue-500/40" : "bg-emerald-500/40"}`}>
+          {isPCN
+            ? <Network size={18} className="text-white" />
+            : <Stethoscope size={18} className="text-white" />
+          }
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-bold text-white text-[16px] leading-tight truncate">{d.name}</h2>
+          <p className="text-white/70 text-xs mt-0.5">
+            {isPCN
+              ? [
+                  "PCN",
+                  d.federation?.name || d.federationName,
+                  d.icb?.name,
+                ].filter(Boolean).join(" · ")
+              : [
+                  "Practice",
+                  d.odsCode && `ODS: ${d.odsCode}`,
+                  d.pcn?.name,
+                ].filter(Boolean).join(" · ")
+            }
+          </p>
+        </div>
+        {isPCN && d.annualSpend > 0 && (
+          <div className="ml-auto bg-white/20 rounded-xl px-3 py-1.5 shrink-0 text-right">
+            <p className="text-[10px] text-white/70 font-medium">Annual Spend</p>
+            <p className="text-white font-bold text-sm">£{Number(d.annualSpend).toLocaleString()}</p>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function LoadingCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm
+      flex items-center justify-center h-full min-h-[380px]">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 size={24} className="animate-spin text-blue-500" />
+        <p className="text-sm text-slate-400">Loading…</p>
+      </div>
+    </div>
+  );
+}
+
+function ErrorCard({ message, onRetry }) {
+  return (
+    <div className="bg-white rounded-2xl border border-red-100 shadow-sm
+      flex flex-col items-center justify-center h-full min-h-[380px] gap-3">
+      <AlertCircle size={28} className="text-red-400" />
+      <p className="text-sm text-red-600 font-medium">{message}</p>
+      <button onClick={onRetry} className="text-sm text-blue-600 hover:underline font-semibold">
+        Try again
+      </button>
     </div>
   );
 }
