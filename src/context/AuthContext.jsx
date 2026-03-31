@@ -1,33 +1,15 @@
+// src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import api from "../api/api";
+import { authAPI } from "../api/api";
 
 const AuthContext = createContext(null);
-const API = import.meta.env.VITE_API_URL;
-
-// ── Axios interceptor: attach token to every request ─────────────
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem("cps_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-axios.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("cps_token");
-      localStorage.removeItem("cps_user");
-      window.location.href = "/login";
-    }
-    return Promise.reject(err);
-  }
-);
 
 const setAxiosToken = (token) => {
   if (token) {
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   } else {
-    delete axios.defaults.headers.common["Authorization"];
+    delete api.defaults.headers.common["Authorization"];
   }
 };
 
@@ -46,7 +28,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const { data } = await axios.post(`${API}/auth/login`, { email, password });
+    const { data } = await authAPI.login(email, password);
     const { token, user: u } = data;
     setAxiosToken(token);
     localStorage.setItem("cps_token", token);
@@ -60,7 +42,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = useCallback(async () => {
-    try { await axios.post(`${API}/auth/logout`); } catch {}
+    try { await authAPI.logout(); } catch {}
     setAxiosToken(null);
     localStorage.removeItem("cps_token");
     localStorage.removeItem("cps_user");
@@ -69,10 +51,9 @@ export const AuthProvider = ({ children }) => {
 
   const refreshUser = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${API}/auth/me`);
-      const u = data.user;
-      localStorage.setItem("cps_user", JSON.stringify(u));
-      setUser(u);
+      const { data } = await authAPI.getMe();
+      localStorage.setItem("cps_user", JSON.stringify(data.user));
+      setUser(data.user);
     } catch { logout(); }
   }, [logout]);
 

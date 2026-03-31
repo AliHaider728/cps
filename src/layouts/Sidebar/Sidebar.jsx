@@ -2,12 +2,12 @@
  * Sidebar.jsx
  * 
  * CHANGES FROM PREVIOUS VERSION:
- *  ✅ NavItem properly supports items with `children` array → renders as collapsible dropdown
- *  ✅ Added "Layers" icon to DynIcon (needed for Federation/INT sidebar item)
- *  ✅ Dropdown max-height calculation fixed to handle variable child counts
- *  ✅ Active state correctly propagates from child to parent dropdown
- *  ✅ Collapsed mode shows tooltip for parent items too
- *  ✅ No other logic changed — Auth, roles, logout all identical
+ *    NavItem properly supports items with `children` array → renders as collapsible dropdown
+ *    Added "Layers" icon to DynIcon (needed for Federation/INT sidebar item)
+ *    Dropdown max-height calculation fixed to handle variable child counts
+ *    Active state correctly propagates from child to parent dropdown
+ *    Collapsed mode shows tooltip for parent items too
+ *    No other logic changed — Auth, roles, logout all identical
  */
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import * as Icons from "lucide-react";

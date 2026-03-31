@@ -1,19 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
 import { ScrollText, Search, RefreshCw, ChevronLeft, ChevronRight, Filter } from "lucide-react";
-
-const API = import.meta.env.VITE_API_URL;
+import { auditAPI } from "../../api/api.js";
 
 const ACTION_COLORS = {
-  LOGIN:             "bg-green-100 text-green-700",
-  LOGOUT:            "bg-slate-100 text-slate-600",
-  LOGIN_FAILED:      "bg-red-100 text-red-700",
-  LOGIN_BLOCKED:     "bg-red-100 text-red-700",
-  CREATE_USER:       "bg-blue-100 text-blue-700",
-  UPDATE_USER:       "bg-yellow-100 text-yellow-700",
-  DELETE_USER:       "bg-red-100 text-red-700",
-  GDPR_ANONYMISE:    "bg-purple-100 text-purple-700",
-  CHANGE_PASSWORD:   "bg-teal-100 text-teal-700",   // ← new
+  LOGIN:           "bg-green-100 text-green-700",
+  LOGOUT:          "bg-slate-100 text-slate-600",
+  LOGIN_FAILED:    "bg-red-100 text-red-700",
+  LOGIN_BLOCKED:   "bg-red-100 text-red-700",
+  CREATE_USER:     "bg-blue-100 text-blue-700",
+  UPDATE_USER:     "bg-yellow-100 text-yellow-700",
+  DELETE_USER:     "bg-red-100 text-red-700",
+  GDPR_ANONYMISE:  "bg-purple-100 text-purple-700",
+  CHANGE_PASSWORD: "bg-teal-100 text-teal-700",
 };
 
 const STATUS_COLORS = {
@@ -24,18 +22,12 @@ const STATUS_COLORS = {
 const ACTIONS = [
   "", "LOGIN", "LOGOUT", "LOGIN_FAILED",
   "CREATE_USER", "UPDATE_USER", "DELETE_USER",
-  "GDPR_ANONYMISE", "CHANGE_PASSWORD",           // ← new
+  "GDPR_ANONYMISE", "CHANGE_PASSWORD",
 ];
 
 const fmt = (d) => {
   const date = new Date(d);
-  const datePart = date.toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-  const timePart = date.toLocaleTimeString("en-GB", {
-    hour: "numeric", minute: "2-digit", hour12: true,
-  });
-  return `${datePart}, ${timePart}`;
+  return `${date.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })}, ${date.toLocaleTimeString("en-GB", { hour:"numeric", minute:"2-digit", hour12:true })}`;
 };
 
 export default function AuditTrail() {
@@ -51,18 +43,15 @@ export default function AuditTrail() {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page, limit: 20 });
-      if (action) params.append("action", action);
-      if (status) params.append("status", status);
-      const { data } = await axios.get(`${API}/audit?${params}`);
+      const params = { page, limit: 20 };
+      if (action) params.action = action;
+      if (status) params.status = status;
+      const { data } = await auditAPI.getLogs(params);
       setLogs(data.logs);
       setPages(data.pagination.pages);
       setTotal(data.pagination.total);
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   }, [page, action, status]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
@@ -90,18 +79,19 @@ export default function AuditTrail() {
             <span className="ml-2 font-semibold text-slate-700">{total.toLocaleString()} total records</span>
           </p>
         </div>
-        <button
-          onClick={fetchLogs}
-          className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-        >
+        <button onClick={fetchLogs}
+          className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl
+            text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors w-fit">
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           Refresh
         </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-5 flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 flex-1 min-w-[200px]">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-5
+        flex flex-wrap gap-3">
+        <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2
+          flex-1 min-w-[180px]">
           <Search size={14} className="text-slate-400 shrink-0" />
           <input
             value={search}
@@ -111,12 +101,11 @@ export default function AuditTrail() {
           />
         </div>
         <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2">
-          <Filter size={14} className="text-slate-400" />
+          <Filter size={14} className="text-slate-400 shrink-0" />
           <select
             value={action}
             onChange={e => { setAction(e.target.value); setPage(1); }}
-            className="text-sm text-slate-700 outline-none bg-transparent"
-          >
+            className="text-sm text-slate-700 outline-none bg-transparent">
             {ACTIONS.map(a => <option key={a} value={a}>{a || "All Actions"}</option>)}
           </select>
         </div>
@@ -124,8 +113,7 @@ export default function AuditTrail() {
           <select
             value={status}
             onChange={e => { setStatus(e.target.value); setPage(1); }}
-            className="text-sm text-slate-700 outline-none bg-transparent"
-          >
+            className="text-sm text-slate-700 outline-none bg-transparent">
             <option value="">All Status</option>
             <option value="success">Success</option>
             <option value="fail">Failed</option>
@@ -139,8 +127,10 @@ export default function AuditTrail() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                {["Timestamp", "User", "Action", "Resource", "Detail", "IP Address", "Status"].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                {["Timestamp","User","Action","Resource","Detail","IP Address","Status"].map(h => (
+                  <th key={h}
+                    className="text-left px-4 py-3.5 text-xs font-bold text-slate-500
+                      uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -149,7 +139,7 @@ export default function AuditTrail() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12">
+                  <td colSpan={7} className="text-center py-14">
                     <div className="flex items-center justify-center gap-2 text-slate-400">
                       <RefreshCw size={16} className="animate-spin" />
                       <span className="text-sm">Loading audit logs…</span>
@@ -158,66 +148,76 @@ export default function AuditTrail() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400 text-sm">
+                  <td colSpan={7} className="text-center py-14 text-slate-400 text-sm">
                     No audit records found
                   </td>
                 </tr>
-              ) : (
-                filtered.map((log, i) => (
-                  <tr
-                    key={log._id}
-                    className={`border-b border-slate-100 hover:bg-slate-50/60 transition-colors ${i === filtered.length - 1 ? "border-0" : ""}`}
-                  >
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap font-mono">
-                      {fmt(log.createdAt)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                          {(log.userName || "S").charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-slate-800 text-xs">{log.userName}</p>
-                          <p className="text-slate-400 text-xs">{log.userRole}</p>
-                        </div>
+              ) : filtered.map((log, i) => (
+                <tr key={log._id}
+                  className={`border-b border-slate-100 hover:bg-slate-50/60 transition-colors
+                    ${i === filtered.length - 1 ? "border-0" : ""}`}>
+                  <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap font-mono">
+                    {fmt(log.createdAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600
+                        flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        {(log.userName || "S").charAt(0).toUpperCase()}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${ACTION_COLORS[log.action] || "bg-slate-100 text-slate-600"}`}>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-600 font-medium">{log.resource}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 max-w-xs truncate">{log.detail}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 font-mono">{log.ip}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${STATUS_COLORS[log.status] || ""}`}>
-                        {log.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
+                      <div>
+                        <p className="font-semibold text-slate-800 text-xs whitespace-nowrap">{log.userName}</p>
+                        <p className="text-slate-400 text-xs">{log.userRole}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap
+                      ${ACTION_COLORS[log.action] || "bg-slate-100 text-slate-600"}`}>
+                      {log.action}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600 font-medium whitespace-nowrap">
+                    {log.resource}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px] truncate">
+                    {log.detail}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">
+                    {log.ip}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full
+                      ${STATUS_COLORS[log.status] || "bg-slate-100 text-slate-500"}`}>
+                      {log.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
+        {/* Pagination */}
         {pages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/50">
-            <p className="text-xs text-slate-500">Page <span className="font-bold">{page}</span> of <span className="font-bold">{pages}</span></p>
+          <div className="flex items-center justify-between px-5 py-3
+            border-t border-slate-100 bg-slate-50/50">
+            <p className="text-xs text-slate-500">
+              Page <span className="font-bold">{page}</span> of <span className="font-bold">{pages}</span>
+            </p>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500
+                  disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <ChevronLeft size={16} />
               </button>
               <button
                 onClick={() => setPage(p => Math.min(pages, p + 1))}
                 disabled={page === pages}
-                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500
+                  disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <ChevronRight size={16} />
               </button>
             </div>
