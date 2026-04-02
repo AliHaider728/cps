@@ -2,11 +2,11 @@
  * sidebarConfig.js
  * 
  * CHANGES FROM PREVIOUS VERSION:
- *  ✅ Added "Federations / INT" item to CLIENT MANAGEMENT section (super_admin, ops_manager)
- *  ✅ CLIENT MANAGEMENT items grouped as dropdown children under "Client Management" parent
- *  ✅ Consistent dropdown grouping across all roles that have client access
- *  ✅ All paths remain UNCHANGED — AppRouter handles them
- *  ✅ Future module items kept exactly as-is (ComingSoon pages will render for them)
+ *   Added "Federations / INT" item to CLIENT MANAGEMENT section (super_admin, ops_manager)
+ *   CLIENT MANAGEMENT items grouped as dropdown children under "Client Management" parent
+ *   Consistent dropdown grouping across all roles that have client access
+ *   All paths remain UNCHANGED — AppRouter handles them
+ *   Future module items kept exactly as-is (ComingSoon pages will render for them)
  */
 
 export const sidebarConfig = {
@@ -22,26 +22,25 @@ export const sidebarConfig = {
         { icon: "Settings",        label: "System Settings", path: "/dashboard/super-admin/settings" },
       ],
     },
+  {
+  section: "CLIENT MANAGEMENT",
+  items: [
+    // ── Dropdown: Hierarchy  
     {
-      section: "CLIENT MANAGEMENT",
-      items: [
-        // ── Dropdown: Hierarchy ─────────────────────────────────
-        {
-          icon: "Building2",
-          label: "Client Hierarchy",
-          children: [
-            { icon: "Building2",   label: "ICBs",                  path: "/dashboard/super-admin/clients/icb" },
-            { icon: "Layers",      label: "Federations / INT",      path: "/dashboard/super-admin/clients" },
-            { icon: "Network",     label: "PCNs",                   path: "/dashboard/super-admin/clients/pcn" },
-            { icon: "Stethoscope", label: "Practices / Surgeries",  path: "/dashboard/super-admin/clients/practice" },
-          ],
-        },
-        // ── Direct items ────────────────────────────────────────
-        { icon: "GitBranch",     label: "Hierarchy View",        path: "/dashboard/super-admin/clients" },
-        { icon: "MessageSquare", label: "Contact History",       path: "/dashboard/super-admin/clients/history" },
-        { icon: "UserX",         label: "Restricted Clinicians", path: "/dashboard/super-admin/clients/restricted" },
+      icon: "Building2",
+      label: "Client Hierarchy",
+      children: [
+        { icon: "Building2",   label: "ICBs",                 path: "/dashboard/super-admin/clients/icb" },
+        { icon: "Layers",      label: "Federations / INT",    path: "/dashboard/super-admin/clients/federation" },
+        { icon: "Network",     label: "PCNs",                 path: "/dashboard/super-admin/clients/pcn" },
+        { icon: "Stethoscope", label: "Practices / Surgeries",path: "/dashboard/super-admin/clients/practice" },
       ],
     },
+    // ── Direct items  
+    { icon: "GitBranch",     label: "Hierarchy View",        path: "/dashboard/super-admin/clients" },
+    { icon: "MessageSquare", label: "Contact History",       path: "/dashboard/super-admin/clients/history" },
+   ],
+},
     {
       section: "OPERATIONS",
       items: [
