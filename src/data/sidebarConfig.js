@@ -39,6 +39,7 @@ export const sidebarConfig = {
     // ── Direct items  
     { icon: "GitBranch",     label: "Hierarchy View",        path: "/dashboard/super-admin/clients" },
     { icon: "MessageSquare", label: "Contact History",       path: "/dashboard/super-admin/clients/history" },
+    // { icon: "UserX",         label: "Restricted Clinicians",path: "/dashboard/restricted" },
    ],
 },
     {
