@@ -23,8 +23,6 @@ const PCNDetailPage = lazy(() => import("../pages/super-admin/client-managemnet/
 const PracticeListPage = lazy(() => import("../pages/super-admin/client-managemnet/PracticeListPage.jsx"));
 const PracticeDetailPage = lazy(() => import("../pages/super-admin/client-managemnet/PracticeDetailPage.jsx"));
 const ContactHistoryPanel =lazy(() => import("../pages/super-admin/client-managemnet/ContactHistoryPanel.jsx"));
-import ComplianceDocumentDetailPage from "../pages/super-admin/client-managemnet/ComplianceDocumentDetailPage.jsx";
-import DocumentGroupDetailPage      from "../pages/super-admin/client-managemnet/DocumentGroupDetailPage.jsx";
 
 
 const DirectorDashboard = lazy(() => import("../pages/director/DirectorDashboard.jsx"));
@@ -84,9 +82,6 @@ const AppRouter = () => (
     <Route path="/dashboard/super-admin/clients/practice" element={<P roles={["super_admin", "director", "ops_manager", "finance"]}><PracticeListPage /></P>} />
     <Route path="/dashboard/super-admin/clients/practice/:id" element={<P roles={["super_admin", "director", "ops_manager", "finance"]}><PracticeDetailPage /></P>} />
     <Route path="/dashboard/super-admin/clients/history" element={<P roles={["super_admin", "ops_manager", "director"]}><ContactHistoryPanel /></P>} />
-    <Route path="compliance/documents/:id" element={<ComplianceDocumentDetailPage />} />
-       <Route path="compliance/groups/:id"    element={<DocumentGroupDetailPage />} />
-
 
     {/* Role Dashboards */}
     <Route path="/dashboard/director" element={<P roles={["director", "super_admin"]}><DirectorDashboard /></P>} />
