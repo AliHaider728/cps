@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ScrollText, Search, RefreshCw, ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import { auditAPI } from "../../api/api.js";
+import { getAuditLogs } from "../../api/clientAPI.js";
 
 const ACTION_COLORS = {
   LOGIN:           "bg-green-100 text-green-700",
@@ -46,7 +46,7 @@ export default function AuditTrail() {
       const params = { page, limit: 20 };
       if (action) params.action = action;
       if (status) params.status = status;
-      const { data } = await auditAPI.getLogs(params);
+      const data = await getAuditLogs(params);
       setLogs(data.logs);
       setPages(data.pagination.pages);
       setTotal(data.pagination.total);

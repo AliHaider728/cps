@@ -13,16 +13,26 @@ const setAxiosToken = (token) => {
   }
 };
 
+const safeParseUser = () => {
+  try {
+    const raw = localStorage.getItem("cps_user");
+    return raw && raw !== "undefined" ? JSON.parse(raw) : null;
+  } catch {
+    localStorage.removeItem("cps_user");
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem("cps_user");
     const token = localStorage.getItem("cps_token");
+    const saved = safeParseUser();
     if (saved && token) {
       setAxiosToken(token);
-      setUser(JSON.parse(saved));
+      setUser(saved);
     }
     setLoading(false);
   }, []);

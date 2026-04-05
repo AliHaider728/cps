@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Layers, Plus, Edit2, Trash2, X, Check, ChevronRight, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getFederations, getICBs, createFederation, updateFederation, deleteFederation } from "../../../api/clientApi.js";
+import { getFederations, getICBs, createFederation, updateFederation, deleteFederation } from "../../../api/clientAPI.js";
 
 const FedModal = ({ existing, icbs, onClose, onSave }) => {
   const [form, setForm] = useState({

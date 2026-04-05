@@ -32,7 +32,7 @@ export const sidebarConfig = {
       children: [
         { icon: "Building2",   label: "ICBs",                 path: "/dashboard/super-admin/clients/icb" },
         { icon: "Layers",      label: "Federations / INT",    path: "/dashboard/super-admin/clients/federation" },
-        { icon: "Network",     label: "PCNs",                 path: "/dashboard/super-admin/clients/pcn" },
+        { icon: "Network",     label: "Clients",                 path: "/dashboard/super-admin/clients/pcn" },
         { icon: "Stethoscope", label: "Practices / Surgeries",path: "/dashboard/super-admin/clients/practice" },
       ],
     },

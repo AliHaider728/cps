@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { UserPlus, Pencil, Trash2, X, Check, Loader2, ShieldCheck, Search, KeyRound } from "lucide-react";
-import { authAPI } from "../../api/api.js";
+import { getAllUsers, createUser, updateUser, deleteUser } from "../../api/clientAPI.js";
 
 const ROLES = [
   { value: "super_admin", label: "Super Admin",       color: "bg-red-100 text-red-700"    },
@@ -27,7 +27,7 @@ export default function ManageUsers() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data } = await authAPI.getAllUsers();
+      const data = await getAllUsers();
       setUsers(data.users);
     } catch {}
     finally { setLoading(false); }
@@ -50,12 +50,12 @@ export default function ManageUsers() {
     try {
       const payload = { ...form };
       if (editId && !payload.password) delete payload.password;
-      if (editId) await authAPI.updateUser(editId, payload);
-      else        await authAPI.createUser(payload);
+      if (editId) await updateUser(editId, payload);
+      else        await createUser(payload);
       await fetchUsers();
       close();
     } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong");
+      setError(err.message || "Something went wrong");
     } finally {
       setSaving(false);
     }
@@ -64,7 +64,7 @@ export default function ManageUsers() {
   const del = async (id) => {
     if (!window.confirm("Delete this user permanently?")) return;
     try {
-      await authAPI.deleteUser(id);
+      await deleteUser(id);
       await fetchUsers();
     } catch {}
   };

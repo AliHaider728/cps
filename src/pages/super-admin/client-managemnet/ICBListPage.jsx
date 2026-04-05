@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Building2, Plus, Edit2, Trash2, X, Check, MapPin, Hash, FileText, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getICBs, createICB, updateICB, deleteICB } from "../../../api/clientApi.js";
+import { getICBs, createICB, updateICB, deleteICB } from "../../../api/clientAPI.js";
 
 const ICBModal = ({ existing, onClose, onSave }) => {
   const [form, setForm] = useState({
