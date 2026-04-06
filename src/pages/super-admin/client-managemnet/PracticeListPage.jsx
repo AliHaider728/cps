@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Stethoscope, Plus, Eye, Edit2, Trash2, X, Check, ChevronRight, Network } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getPractices, getPCNs, createPractice, updatePractice, deletePractice } from "../../../api/ClientApi.js";
+import { getPractices, getPCNs, createPractice, updatePractice, deletePractice } from "../../../api/clientAPI.js";
 
 /* ── Practice Form Modal ────────────────────────────────────── */
 const PracticeModal = ({ existing, pcns, onClose, onSave }) => {

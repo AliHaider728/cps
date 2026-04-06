@@ -7,7 +7,7 @@ import {
   Save, FileText, CheckCircle2, XCircle, Wifi, Activity,
   Hash, DollarSign, Clock
 } from "lucide-react";
-import { getPCNById, updatePCN, upsertMonthlyMeeting } from "../../../api/ClientApi.js";
+import { getPCNById, updatePCN, upsertMonthlyMeeting } from "../../../api/clientAPI.js";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import CompliancePanelEnhanced from "./CompliancePanel.jsx"; // ← updated import

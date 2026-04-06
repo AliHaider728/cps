@@ -7,7 +7,7 @@ import {
 import {
   getContactHistory, addContactHistory, updateContactHistory,
   toggleStarred, deleteContactHistory,
-} from "../../../api/ClientApi.js";
+} from "../../../api/clientAPI.js";
 
 const TYPE_META = {
   call:          { icon: Phone,        color: "text-green-600",  bg: "bg-green-50",  border: "border-green-200",  label: "Call"          },
