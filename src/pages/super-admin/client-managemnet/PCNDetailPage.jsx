@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Network, Building2, Layers, ChevronRight, ArrowLeft, RefreshCw,
@@ -7,10 +7,10 @@ import {
   Save, FileText, CheckCircle2, XCircle, Wifi, Activity,
   Hash, DollarSign, Clock
 } from "lucide-react";
-import { getPCNById, updatePCN, upsertMonthlyMeeting } from "../../../api/clientAPI.js";
+import { usePCN, useUpdatePCN, useUpsertMeeting } from "../../../hooks/usePCN";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
-import CompliancePanelEnhanced from "./CompliancePanel.jsx"; // ← updated import
+import CompliancePanelEnhanced from "./CompliancePanel.jsx";
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS
@@ -219,34 +219,31 @@ export default function PCNDetailPage() {
   const { id }   = useParams();
   const navigate = useNavigate();
 
-  const [pcn,         setPCN]         = useState(null);
-  const [loading,     setLoading]     = useState(true);
-  const [tab,         setTab]         = useState("overview");
-  const [fieldSaving, setFieldSaving] = useState({});
+  // ── TanStack Query hooks
+  const { data, isLoading, refetch } = usePCN(id);
+  const updatePCNMutation   = useUpdatePCN();
+  const upsertMeetingMutation = useUpsertMeeting(id);
+
+  const pcn = data?.pcn ?? null;
+
+  const [tab,           setTab]           = useState("overview");
+  const [fieldSaving,   setFieldSaving]   = useState({});
   const [massEmail,     setMassEmail]     = useState(false);
   const [contactModal,  setContactModal]  = useState(null);
   const [meetingModal,  setMeetingModal]  = useState(null);
   const [templateModal, setTemplateModal] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try { const d = await getPCNById(id); setPCN(d.pcn); }
-    catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
-
+  // ── patch via mutation — query invalidation handles re-fetch automatically
   const patch = useCallback(async (body, fieldKey) => {
     if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: true }));
-    setPCN(prev => prev ? { ...prev, ...body } : prev);
     try {
-      const d = await updatePCN(id, body);
-      if (d?.pcn) setPCN(d.pcn);
-      else await load();
-    } catch (e) { alert(e.message); await load(); }
-    finally { if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false })); }
-  }, [id, load]);
+      await updatePCNMutation.mutateAsync({ id, data: body });
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false }));
+    }
+  }, [id, updatePCNMutation]);
 
   const toggleCompliance = useCallback(async (key) => {
     await patch({ [key]: !pcn?.[key] }, key);
@@ -267,7 +264,14 @@ export default function PCNDetailPage() {
     if (!confirm("Delete this contact?")) return;
     await patch({ contacts: (pcn?.contacts || []).filter(c => c._id !== cid) });
   };
-  const saveMeeting  = async (form) => { await upsertMonthlyMeeting(id, form); await load(); };
+
+  // ── meeting uses its own dedicated mutation + PCN_MEETINGS invalidation
+  const saveMeeting = async (form) => {
+    await upsertMeetingMutation.mutateAsync(form);
+    // Also invalidate the PCN itself so monthlyMeetings array stays fresh
+    await refetch();
+  };
+
   const saveTemplate = async (form) => {
     const templates = [...(pcn?.emailTemplates || [])];
     if (form._id) { const i = templates.findIndex(t => t._id === form._id); if (i > -1) templates[i] = { ...templates[i], ...form }; }
@@ -279,7 +283,7 @@ export default function PCNDetailPage() {
     await patch({ emailTemplates: (pcn?.emailTemplates || []).filter(t => t._id !== tid) });
   };
 
-  if (loading) return (
+  if (isLoading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-9 h-9 border-[3px] border-purple-600 border-t-transparent rounded-full animate-spin" />
     </div>
@@ -402,7 +406,6 @@ export default function PCNDetailPage() {
     );
   };
 
-  /* ── COMPLIANCE — uses CompliancePanelEnhanced with 3 sub-tabs ── */
   const CompliancePanel = () => (
     <CompliancePanelEnhanced
       entityType="PCN"
@@ -607,7 +610,7 @@ export default function PCNDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={load} title="Refresh" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"><RefreshCw size={15} /></button>
+            <button onClick={() => refetch()} title="Refresh" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"><RefreshCw size={15} /></button>
             <Btn variant="ghost" size="sm" onClick={() => navigate("/dashboard/super-admin/clients/pcn")}><ArrowLeft size={13} /> Back</Btn>
           </div>
         </div>

@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Stethoscope, Network, ChevronRight, ArrowLeft, RefreshCw,
   Users, FileCheck, MessageSquare, UserX, Mail, Check, X,
   Phone, AlertTriangle, Plus, Edit2, Trash2, Save,
-  Wifi, Activity, Hash, MapPin, CheckCircle2, XCircle, FileText
+  Wifi, Activity, Hash, MapPin, CheckCircle2, XCircle
 } from "lucide-react";
-import { getPracticeById, updatePractice } from "../../../api/clientAPI.js";
+import { usePractice, useUpdatePractice } from "../../../hooks/usePractice";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
-import CompliancePanelEnhanced from "./CompliancePanel.jsx"; // ← updated import
+import CompliancePanelEnhanced from "./CompliancePanel.jsx";
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS
@@ -172,33 +172,29 @@ export default function PracticeDetailPage() {
   const { id }   = useParams();
   const navigate = useNavigate();
 
-  const [practice,    setPractice]    = useState(null);
-  const [loading,     setLoading]     = useState(true);
-  const [tab,         setTab]         = useState("overview");
-  const [fieldSaving, setFieldSaving] = useState({});
+  // ── TanStack Query hooks
+  const { data, isLoading, refetch } = usePractice(id);
+  const updatePracticeMutation = useUpdatePractice();
+
+  const practice = data?.practice ?? null;
+
+  const [tab,          setTab]          = useState("overview");
+  const [fieldSaving,  setFieldSaving]  = useState({});
   const [massEmail,    setMassEmail]    = useState(false);
   const [contactModal, setContactModal] = useState(null);
   const [accessModal,  setAccessModal]  = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try { const d = await getPracticeById(id); setPractice(d.practice); }
-    catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
-
+  // ── patch: optimistic local state not needed — mutation invalidates query automatically
   const patch = useCallback(async (body, fieldKey) => {
     if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: true }));
-    setPractice(prev => prev ? { ...prev, ...body } : prev);
     try {
-      const d = await updatePractice(id, body);
-      if (d?.practice) setPractice(d.practice);
-      else await load();
-    } catch (e) { alert(e.message); await load(); }
-    finally { if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false })); }
-  }, [id, load]);
+      await updatePracticeMutation.mutateAsync({ id, data: body });
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false }));
+    }
+  }, [id, updatePracticeMutation]);
 
   const toggleCompliance = useCallback(async (key) => {
     await patch({ [key]: !practice?.[key] }, key);
@@ -225,7 +221,7 @@ export default function PracticeDetailPage() {
     await patch({ systemAccess: (practice?.systemAccess || []).filter(s => s._id !== sid) });
   };
 
-  if (loading) return (
+  if (isLoading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-9 h-9 border-[3px] border-teal-600 border-t-transparent rounded-full animate-spin" />
     </div>
@@ -357,7 +353,6 @@ export default function PracticeDetailPage() {
     );
   };
 
-  /* ── COMPLIANCE — uses CompliancePanelEnhanced with 3 sub-tabs ── */
   const CompliancePanel = () => (
     <CompliancePanelEnhanced
       entityType="Practice"
@@ -474,7 +469,7 @@ export default function PracticeDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={load} title="Refresh" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"><RefreshCw size={15} /></button>
+            <button onClick={() => refetch()} title="Refresh" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"><RefreshCw size={15} /></button>
             <Btn variant="ghost" size="sm" onClick={() => navigate(-1)}><ArrowLeft size={13} /> Back</Btn>
           </div>
         </div>
