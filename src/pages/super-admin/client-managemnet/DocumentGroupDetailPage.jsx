@@ -11,7 +11,7 @@ import {
 import {
   getDocumentGroupById, updateDocumentGroup, deleteDocumentGroup,
   getComplianceDocs,
-} from "../../../api/clientAPI.js";
+} from "../../../api/ClientApi.js";
 
 const Spinner = ({ cls = "border-white" }) => (
   <span className={`inline-block w-4 h-4 border-2 ${cls} border-t-transparent rounded-full animate-spin`} />

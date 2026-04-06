@@ -6,7 +6,7 @@ import {
   Phone, AlertTriangle, Plus, Edit2, Trash2, Save,
   Wifi, Activity, Hash, MapPin, CheckCircle2, XCircle, FileText
 } from "lucide-react";
-import { getPracticeById, updatePractice } from "../../../api/clientAPI.js";
+import { getPracticeById, updatePractice } from "../../../api/ClientApi.js";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import CompliancePanelEnhanced from "./CompliancePanelEnhanced.jsx"; // ← updated import

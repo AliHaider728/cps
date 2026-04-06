@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { UserPlus, Pencil, Trash2, X, Check, Loader2, ShieldCheck, Search, KeyRound } from "lucide-react";
-import { getAllUsers, createUser, updateUser, deleteUser } from "../../api/clientAPI.js";
+import { getAllUsers, createUser, updateUser, deleteUser } from "../../api/ClientApi.js";
 
 const ROLES = [
   { value: "super_admin", label: "Super Admin",       color: "bg-red-100 text-red-700"    },

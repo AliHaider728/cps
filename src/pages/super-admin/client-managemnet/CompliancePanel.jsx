@@ -18,7 +18,7 @@ import {
 import {
   getComplianceDocs, createComplianceDoc, updateComplianceDoc, deleteComplianceDoc,
   getDocumentGroups, createDocumentGroup, updateDocumentGroup, deleteDocumentGroup,
-} from "../../../api/clientAPI.js";
+} from "../../../api/ClientApi.js";
 
 /* ══════════════════════════════════════════════
    SHARED ATOMS

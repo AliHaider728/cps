@@ -5,7 +5,7 @@ import {
   ChevronDown, Search, RefreshCw, TrendingUp, Users, MapPin,
   ArrowRight, Loader2
 } from "lucide-react";
-import { getHierarchy, searchClients } from "../../../api/clientAPI.js";
+import { getHierarchy, searchClients } from "../../../api/ClientApi.js";
 
 /* ── Stat card ── */
 const StatCard = ({ icon: Icon, label, value, color }) => (

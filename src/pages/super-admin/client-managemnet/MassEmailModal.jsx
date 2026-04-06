@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, Mail, Send, Plus, Trash2, Check } from "lucide-react";
-import { sendMassEmail } from "../../../api/clientAPI.js";
+import { sendMassEmail } from "../../../api/ClientApi.js";
 
 export default function MassEmailModal({ entityType, entityId, contacts = [], onClose }) {
   const [subject,    setSubject]    = useState("");
