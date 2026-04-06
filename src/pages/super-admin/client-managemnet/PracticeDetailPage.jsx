@@ -9,7 +9,7 @@ import {
 import { getPracticeById, updatePractice } from "../../../api/clientAPI.js";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
-import CompliancePanelEnhanced from "./CompliancePanelEnhanced.jsx"; // ← updated import
+import CompliancePanelEnhanced from "./CompliancePanel.jsx"; // ← updated import
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS
