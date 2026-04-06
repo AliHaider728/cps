@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { ScrollText, Search, RefreshCw, ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import { auditAPI } from "../../api/api.js";
+import { useAuditLogs } from "../../hooks/useAudit";
 
 const ACTION_COLORS = {
   LOGIN:           "bg-green-100 text-green-700",
@@ -31,30 +31,18 @@ const fmt = (d) => {
 };
 
 export default function AuditTrail() {
-  const [logs,    setLogs]    = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [page,    setPage]    = useState(1);
-  const [pages,   setPages]   = useState(1);
-  const [total,   setTotal]   = useState(0);
-  const [search,  setSearch]  = useState("");
-  const [action,  setAction]  = useState("");
-  const [status,  setStatus]  = useState("");
+  const [page,   setPage]   = useState(1);
+  const [search, setSearch] = useState("");
+  const [action, setAction] = useState("");
+  const [status, setStatus] = useState("");
 
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { page, limit: 20 };
-      if (action) params.action = action;
-      if (status) params.status = status;
-      const { data } = await auditAPI.getLogs(params);
-      setLogs(data.logs);
-      setPages(data.pagination.pages);
-      setTotal(data.pagination.total);
-    } catch {}
-    finally { setLoading(false); }
-  }, [page, action, status]);
+  // ── TanStack Query hook
+  const params = { page, limit: 20, ...(action && { action }), ...(status && { status }) };
+  const { data, isLoading, refetch } = useAuditLogs(params);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  const logs  = data?.logs              || [];
+  const pages = data?.pagination?.pages || 1;
+  const total = data?.pagination?.total || 0;
 
   const filtered = search
     ? logs.filter(l =>
@@ -79,10 +67,10 @@ export default function AuditTrail() {
             <span className="ml-2 font-semibold text-slate-700">{total.toLocaleString()} total records</span>
           </p>
         </div>
-        <button onClick={fetchLogs}
+        <button onClick={() => refetch()}
           className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl
             text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors w-fit">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
           Refresh
         </button>
       </div>
@@ -137,7 +125,7 @@ export default function AuditTrail() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {isLoading ? (
                 <tr>
                   <td colSpan={7} className="text-center py-14">
                     <div className="flex items-center justify-center gap-2 text-slate-400">

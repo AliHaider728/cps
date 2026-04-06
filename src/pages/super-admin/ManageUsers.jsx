@@ -1,39 +1,39 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { UserPlus, Pencil, Trash2, X, Check, Loader2, ShieldCheck, Search, KeyRound } from "lucide-react";
-import { getAllUsers, createUser, updateUser, deleteUser } from "../../api/clientAPI.js";
+import {
+  useAllUsers,
+  useCreateUser,
+  useUpdateUser,
+  useDeleteUser,
+} from "../../hooks/useAuth";
 
 const ROLES = [
-  { value: "super_admin", label: "Super Admin",       color: "bg-red-100 text-red-700"    },
+  { value: "super_admin", label: "Super Admin",       color: "bg-red-100 text-red-700"       },
   { value: "director",    label: "Director",           color: "bg-purple-100 text-purple-700" },
   { value: "ops_manager", label: "Operations Manager", color: "bg-orange-100 text-orange-700" },
   { value: "finance",     label: "Finance",            color: "bg-yellow-100 text-yellow-700" },
-  { value: "training",    label: "Training & Dev",     color: "bg-green-100 text-green-700"  },
-  { value: "workforce",   label: "Workforce / VA",     color: "bg-cyan-100 text-cyan-700"    },
-  { value: "clinician",   label: "Clinician",          color: "bg-slate-100 text-slate-700"  },
+  { value: "training",    label: "Training & Dev",     color: "bg-green-100 text-green-700"   },
+  { value: "workforce",   label: "Workforce / VA",     color: "bg-cyan-100 text-cyan-700"     },
+  { value: "clinician",   label: "Clinician",          color: "bg-slate-100 text-slate-700"   },
 ];
 const roleMeta = Object.fromEntries(ROLES.map(r => [r.value, r]));
 const EMPTY = { name: "", email: "", password: "", role: "clinician", isActive: true };
 
 export default function ManageUsers() {
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState("");
-  const [modal,   setModal]   = useState(null);
-  const [form,    setForm]    = useState(EMPTY);
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState("");
-  const [editId,  setEditId]  = useState(null);
+  const [search, setSearch] = useState("");
+  const [modal,  setModal]  = useState(null);   // "add" | "edit" | null
+  const [form,   setForm]   = useState(EMPTY);
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState("");
+  const [editId, setEditId] = useState(null);
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const data = await getAllUsers();
-      setUsers(data.users);
-    } catch {}
-    finally { setLoading(false); }
-  };
+  // ── TanStack Query hooks
+  const { data, isLoading }    = useAllUsers();
+  const createUserMutation     = useCreateUser();
+  const updateUserMutation     = useUpdateUser();
+  const deleteUserMutation     = useDeleteUser();
 
-  useEffect(() => { fetchUsers(); }, []);
+  const users = data?.users || [];
 
   const openAdd  = () => { setForm(EMPTY); setEditId(null); setError(""); setModal("add"); };
   const openEdit = (u) => {
@@ -50,9 +50,8 @@ export default function ManageUsers() {
     try {
       const payload = { ...form };
       if (editId && !payload.password) delete payload.password;
-      if (editId) await updateUser(editId, payload);
-      else        await createUser(payload);
-      await fetchUsers();
+      if (editId) await updateUserMutation.mutateAsync({ id: editId, data: payload });
+      else        await createUserMutation.mutateAsync(payload);
       close();
     } catch (err) {
       setError(err.message || "Something went wrong");
@@ -63,10 +62,7 @@ export default function ManageUsers() {
 
   const del = async (id) => {
     if (!window.confirm("Delete this user permanently?")) return;
-    try {
-      await deleteUser(id);
-      await fetchUsers();
-    } catch {}
+    try { await deleteUserMutation.mutateAsync(id); } catch {}
   };
 
   const filtered = users.filter(u =>
@@ -106,7 +102,7 @@ export default function ManageUsers() {
       </div>
 
       {/* Table */}
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 size={28} className="animate-spin text-blue-600" />
         </div>
@@ -182,8 +178,9 @@ export default function ManageUsers() {
                             <Pencil size={14} />
                           </button>
                           <button onClick={() => del(u._id)}
+                            disabled={deleteUserMutation.isPending}
                             className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400
-                              hover:text-red-600 transition-colors">
+                              hover:text-red-600 transition-colors disabled:opacity-40">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -228,9 +225,9 @@ export default function ManageUsers() {
 
             <div className="space-y-4">
               {[
-                { label: "Full Name",                                          name: "name",     type: "text",     ph: "e.g. Stacey Middlemass"            },
-                { label: "Email Address",                                      name: "email",    type: "email",    ph: "user@coreprescribing.co.uk"        },
-                { label: modal === "add" ? "Password" : "New Password (leave blank to keep)", name: "password", type: "password", ph: "Min 6 characters" },
+                { label: "Full Name",                                                              name: "name",     type: "text",     ph: "e.g. Stacey Middlemass"            },
+                { label: "Email Address",                                                          name: "email",    type: "email",    ph: "user@coreprescribing.co.uk"        },
+                { label: modal === "add" ? "Password" : "New Password (leave blank to keep)",     name: "password", type: "password", ph: "Min 6 characters"                  },
               ].map(f => (
                 <div key={f.name}>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
