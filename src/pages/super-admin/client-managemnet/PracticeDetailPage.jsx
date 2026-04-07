@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Stethoscope, Network, ChevronRight, ArrowLeft, RefreshCw,
@@ -7,6 +7,7 @@ import {
   Wifi, Activity, Hash, MapPin, CheckCircle2, XCircle
 } from "lucide-react";
 import { usePractice, useUpdatePractice } from "../../../hooks/usePractice";
+import { useDocumentGroups } from "../../../hooks/useCompliance";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
@@ -174,8 +175,10 @@ export default function PracticeDetailPage() {
 
   const { data, isLoading, refetch } = usePractice(id);
   const updatePracticeMutation = useUpdatePractice();
+  const { data: groupsData } = useDocumentGroups({ active: true });
 
   const practice = data?.practice ?? null;
+  const groups = groupsData?.groups || [];
 
   const [tab,          setTab]          = useState("overview");
   const [fieldSaving,  setFieldSaving]  = useState({});
@@ -235,20 +238,62 @@ export default function PracticeDetailPage() {
       fte: practice.fte || "", contractType: practice.contractType || "",
       xeroCode: practice.xeroCode || "", xeroCategory: practice.xeroCategory || "",
       patientListSize: practice.patientListSize || "",
+      complianceGroup: practice.complianceGroup?._id || practice.complianceGroup || "",
       systemAccessNotes: practice.systemAccessNotes || "", notes: practice.notes || "",
     });
+    useEffect(() => {
+      setForm({
+        odsCode: practice.odsCode || "",
+        address: practice.address || "",
+        city: practice.city || "",
+        postcode: practice.postcode || "",
+        fte: practice.fte || "",
+        contractType: practice.contractType || "",
+        xeroCode: practice.xeroCode || "",
+        xeroCategory: practice.xeroCategory || "",
+        patientListSize: practice.patientListSize || "",
+        complianceGroup: practice.complianceGroup?._id || practice.complianceGroup || "",
+        systemAccessNotes: practice.systemAccessNotes || "",
+        notes: practice.notes || "",
+      });
+    }, [practice]);
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
     const handleSave = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
+    const handleCancel = () => {
+      setForm({
+        odsCode: practice.odsCode || "",
+        address: practice.address || "",
+        city: practice.city || "",
+        postcode: practice.postcode || "",
+        fte: practice.fte || "",
+        contractType: practice.contractType || "",
+        xeroCode: practice.xeroCode || "",
+        xeroCategory: practice.xeroCategory || "",
+        patientListSize: practice.patientListSize || "",
+        complianceGroup: practice.complianceGroup?._id || practice.complianceGroup || "",
+        systemAccessNotes: practice.systemAccessNotes || "",
+        notes: practice.notes || "",
+      });
+      setEditing(false);
+    };
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Practice Details</h3>
-            <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editing ? "bg-green-600 text-white hover:bg-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-              {saving ? <Spinner cls="border-white" /> : editing ? <><Save size={12} /> Save</> : <><Edit2 size={12} /> Edit</>}
-            </button>
+            <div className="flex items-center gap-2">
+              {editing && (
+                <button onClick={handleCancel} disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                  <X size={12} /> Cancel
+                </button>
+              )}
+              <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editing ? "bg-green-600 text-white hover:bg-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                {saving ? <Spinner cls="border-white" /> : editing ? <><Save size={12} /> Save</> : <><Edit2 size={12} /> Edit</>}
+              </button>
+            </div>
           </div>
           {editing ? (
             <div>
@@ -258,6 +303,14 @@ export default function PracticeDetailPage() {
               <EditRow label="Xero Code"     value={form.xeroCode}        onChange={set("xeroCode")} />
               <EditRow label="Xero Category" value={form.xeroCategory}    onChange={set("xeroCategory")} options={["PCN","GPX","EAX"]} />
               <EditRow label="Patient List"  value={form.patientListSize} onChange={set("patientListSize")} type="number" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 py-2.5 border-b border-slate-50">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0">Compliance Group</span>
+                <select value={form.complianceGroup || ""} onChange={e => set("complianceGroup")(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer">
+                  <option value="">None</option>
+                  {groups.map((group) => <option key={group._id} value={group._id}>{group.name}</option>)}
+                </select>
+              </div>
               <EditRow label="Address"       value={form.address}         onChange={set("address")} />
               <EditRow label="City"          value={form.city}            onChange={set("city")} />
               <EditRow label="Postcode"      value={form.postcode}        onChange={set("postcode")} />
@@ -268,6 +321,7 @@ export default function PracticeDetailPage() {
             <div>
               <DetailRow label="ODS Code"      value={practice.odsCode} />
               <DetailRow label="PCN"           value={practice.pcn?.name} />
+              <DetailRow label="Compliance Group" value={practice.complianceGroup?.name || "No compliance group assigned"} />
               <DetailRow label="Contract Type" value={practice.contractType} />
               <DetailRow label="FTE"           value={practice.fte} />
               <DetailRow label="Xero Code"     value={practice.xeroCode} />
@@ -348,8 +402,6 @@ export default function PracticeDetailPage() {
     <EntityDocumentsTab
       entityType="Practice"
       entityId={practice._id}
-      currentGroupId={practice.complianceGroup?._id || practice.complianceGroup || ""}
-      onChangeGroup={(complianceGroup) => patch({ complianceGroup })}
       accent="teal"
     />
   );

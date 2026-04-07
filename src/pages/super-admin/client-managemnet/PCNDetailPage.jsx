@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Network, Building2, Layers, ChevronRight, ArrowLeft, RefreshCw,
@@ -7,6 +7,7 @@ import {
   Save, FileText, CheckCircle2, XCircle, Hash, DollarSign, Clock
 } from "lucide-react";
 import { usePCN, useUpdatePCN, useUpsertMeeting } from "../../../hooks/usePCN";
+import { useDocumentGroups } from "../../../hooks/useCompliance";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
@@ -221,8 +222,10 @@ export default function PCNDetailPage() {
   const { data, isLoading, refetch } = usePCN(id);
   const updatePCNMutation     = useUpdatePCN();
   const upsertMeetingMutation = useUpsertMeeting(id);
+  const { data: groupsData } = useDocumentGroups({ active: true });
 
   const pcn = data?.pcn ?? null;
+  const groups = groupsData?.groups || [];
 
   const [tab,           setTab]           = useState("overview");
   const [fieldSaving,   setFieldSaving]   = useState({});
@@ -293,22 +296,75 @@ export default function PCNDetailPage() {
       xeroCode: pcn.xeroCode || "", xeroCategory: pcn.xeroCategory || "",
       contractRenewalDate: pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
       contractExpiryDate:  pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
+      complianceGroups: (pcn.complianceGroups?.length
+        ? pcn.complianceGroups.map((group) => group?._id || group).filter(Boolean)
+        : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
       notes: pcn.notes || "",
     });
+    useEffect(() => {
+      setForm({
+        contractType: pcn.contractType || "",
+        annualSpend: pcn.annualSpend || "",
+        xeroCode: pcn.xeroCode || "",
+        xeroCategory: pcn.xeroCategory || "",
+        contractRenewalDate: pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
+        contractExpiryDate:  pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
+        complianceGroups: (pcn.complianceGroups?.length
+          ? pcn.complianceGroups.map((group) => group?._id || group).filter(Boolean)
+          : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
+        notes: pcn.notes || "",
+      });
+    }, [pcn]);
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
+    const toggleGroup = (groupId) => setForm((current) => {
+      const selected = current.complianceGroups || [];
+      return {
+        ...current,
+        complianceGroups: selected.includes(groupId)
+          ? selected.filter((id) => id !== groupId)
+          : [...selected, groupId],
+      };
+    });
     const handleSave = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
+    const handleCancel = () => {
+      setForm({
+        contractType: pcn.contractType || "",
+        annualSpend: pcn.annualSpend || "",
+        xeroCode: pcn.xeroCode || "",
+        xeroCategory: pcn.xeroCategory || "",
+        contractRenewalDate: pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
+        contractExpiryDate:  pcn.contractExpiryDate ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0] : "",
+        complianceGroups: (pcn.complianceGroups?.length
+          ? pcn.complianceGroups.map((group) => group?._id || group).filter(Boolean)
+          : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
+        notes: pcn.notes || "",
+      });
+      setEditing(false);
+    };
     const SYSTEMS = ["emis","systmOne","ice","accurx","docman","softphone","vpn"];
     const SYS_LABEL = { systmOne:"SystmOne", emis:"EMIS", ice:"ICE", accurx:"AccuRx", docman:"Docman", softphone:"Softphone", vpn:"VPN" };
+    const selectedGroupNames = (pcn.complianceGroups?.length ? pcn.complianceGroups : (pcn.complianceGroup ? [pcn.complianceGroup] : []))
+      .map((group) => group?.name || "")
+      .filter(Boolean)
+      .join(", ") || "No compliance groups assigned";
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Contract & Finance</h3>
-            <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editing ? "bg-green-600 text-white hover:bg-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-              {saving ? <Spinner cls="border-white" /> : editing ? <><Save size={12} /> Save</> : <><Edit2 size={12} /> Edit</>}
-            </button>
+            <div className="flex items-center gap-2">
+              {editing && (
+                <button onClick={handleCancel} disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                  <X size={12} /> Cancel
+                </button>
+              )}
+              <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editing ? "bg-green-600 text-white hover:bg-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                {saving ? <Spinner cls="border-white" /> : editing ? <><Save size={12} /> Save</> : <><Edit2 size={12} /> Edit</>}
+              </button>
+            </div>
           </div>
           {editing ? (
             <div>
@@ -318,6 +374,26 @@ export default function PCNDetailPage() {
               <EditRow label="Xero Category"  value={form.xeroCategory}        onChange={set("xeroCategory")}        options={["PCN","GPX","EAX"]} />
               <EditRow label="Renewal Date"   value={form.contractRenewalDate} onChange={set("contractRenewalDate")} type="date" />
               <EditRow label="Expiry Date"    value={form.contractExpiryDate}  onChange={set("contractExpiryDate")}  type="date" />
+              <div className="pt-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Compliance Groups</span>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                  {groups.length === 0 ? (
+                    <p className="text-xs text-slate-400">No groups available</p>
+                  ) : (
+                    groups.map((group) => (
+                      <label key={group._id} className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={(form.complianceGroups || []).includes(group._id)}
+                          onChange={() => toggleGroup(group._id)}
+                          className="w-4 h-4 accent-blue-600"
+                        />
+                        <span>{group.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
               <div className="pt-3"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes</span>
                 <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none transition-all" /></div>
             </div>
@@ -325,6 +401,7 @@ export default function PCNDetailPage() {
             <div>
               <DetailRow label="ICB"           value={pcn.icb?.name} />
               <DetailRow label="Federation"    value={pcn.federation?.name || pcn.federationName} />
+              <DetailRow label="Compliance Groups" value={selectedGroupNames} />
               <DetailRow label="Contract Type" value={pcn.contractType} />
               <DetailRow label="Annual Spend"  value={pcn.annualSpend ? `£${Number(pcn.annualSpend).toLocaleString()}` : null} />
               <DetailRow label="Xero Code"     value={pcn.xeroCode} />
@@ -398,8 +475,6 @@ export default function PCNDetailPage() {
     <EntityDocumentsTab
       entityType="PCN"
       entityId={pcn._id}
-      currentGroupId={pcn.complianceGroup?._id || pcn.complianceGroup || ""}
-      onChangeGroup={(complianceGroup) => patch({ complianceGroup })}
       accent="blue"
     />
   );

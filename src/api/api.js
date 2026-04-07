@@ -188,6 +188,10 @@ export const entityDocumentsAPI = {
     api.get(`/clients/${entityType}/${entityId}/documents`),
   update: (entityType, entityId, documentId, data) =>
     api.patch(`/clients/${entityType}/${entityId}/documents/${documentId}`, data),
+  addUploads: (entityType, entityId, groupId, documentId, data) =>
+    api.post(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads`, data),
+  updateUpload: (entityType, entityId, groupId, documentId, uploadId, data) =>
+    api.patch(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads/${uploadId}`, data),
 };
 
 export default api;

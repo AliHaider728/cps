@@ -48,9 +48,17 @@ export const useUpdatePCN = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }) => pcnAPI.update(id, data).then((r) => r.data),
-    onSuccess: (_, { id }) => {
+    onSuccess: (result, { id }) => {
+      if (result?.pcn) {
+        qc.setQueryData(QK.PCN(id), (existing) => (
+          existing?.pcn
+            ? { ...existing, pcn: { ...existing.pcn, ...result.pcn } }
+            : { pcn: result.pcn }
+        ));
+      }
       qc.invalidateQueries({ queryKey: QK.PCNS });
       qc.invalidateQueries({ queryKey: QK.PCN(id) });
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS("PCN", id) });
     },
   });
 };

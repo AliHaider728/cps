@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
-import { AlertCircle, CalendarClock, Download, FileText, Loader2, Upload } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertCircle, ExternalLink, Eye, FileText, Filter, Loader2, Search, Upload } from "lucide-react";
 import {
-  useDocumentGroups,
+  useAddEntityDocumentUploads,
   useEntityDocuments,
-  useUpsertEntityDocument,
+  useUpdateEntityDocumentUpload,
 } from "../../../hooks/useCompliance";
 
 const STATUS_STYLE = {
@@ -12,11 +12,7 @@ const STATUS_STYLE = {
   expired: "bg-red-50 text-red-700 border-red-200",
 };
 
-const formatDate = (value) =>
-  value ? new Date(value).toLocaleDateString("en-GB") : "Not set";
-
-const toInputDate = (value) =>
-  value ? new Date(value).toISOString().split("T")[0] : "";
+const formatDate = (value) => value ? new Date(value).toLocaleDateString("en-GB") : "—";
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -26,166 +22,226 @@ const readFileAsDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
-function DocumentRow({ doc, onUpload, onSaveExpiry, saving }) {
-  const inputRef = useRef(null);
-  const [expiryDate, setExpiryDate] = useState(toInputDate(doc.expiryDate));
-  const [rowError, setRowError] = useState("");
+function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
+  const [files, setFiles] = useState([]);
+  const [expiryDate, setExpiryDate] = useState("");
+  const [reference, setReference] = useState("");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
+  const buttonClass = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
 
-  const handleFileChange = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setRowError("");
-    try {
-      const fileUrl = await readFileAsDataUrl(file);
-      await onUpload(doc.documentId, {
+  const handleSubmit = async () => {
+    if (files.length === 0) {
+      setError("Please choose at least one file");
+      return;
+    }
+    setError("");
+    const uploads = await Promise.all(
+      files.map(async (file) => ({
         fileName: file.name,
-        fileUrl,
+        fileUrl: await readFileAsDataUrl(file),
         mimeType: file.type || "application/octet-stream",
         fileSize: file.size,
-        expiryDate: doc.expirable ? expiryDate || null : null,
-      });
-    } catch (error) {
-      setRowError(error.message || "Upload failed");
-    } finally {
-      event.target.value = "";
-    }
-  };
-
-  const handleSaveExpiry = async () => {
-    setRowError("");
-    try {
-      await onSaveExpiry(doc.documentId, {
-        expiryDate: expiryDate || null,
-      });
-    } catch (error) {
-      setRowError(error.message || "Failed to save expiry date");
-    }
+        expiryDate: row.expirable ? expiryDate || null : null,
+        notes,
+        reference,
+      }))
+    );
+    await onSave({ groupId: row.groupId, documentId: row.documentId, data: { uploads } });
+    onClose();
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="min-w-0">
-          <p className="text-[15px] font-bold text-slate-800 flex items-center gap-2">
-            <FileText size={16} className="text-slate-400 shrink-0" />
-            <span className="truncate">{doc.name}</span>
-          </p>
-          {doc.fileName && <p className="text-xs text-slate-400 mt-1 truncate">{doc.fileName}</p>}
-        </div>
-        <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border capitalize ${STATUS_STYLE[doc.status] || STATUS_STYLE.pending}`}>
-          {doc.status}
-        </span>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_220px_auto] gap-3 items-end">
-        <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Document</p>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => inputRef.current?.click()}
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-all"
-            >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-              {doc.fileUrl ? "Replace File" : "Upload File"}
-            </button>
-            {doc.fileUrl && (
-              <a
-                href={doc.fileUrl}
-                download={doc.fileName || `${doc.name}.file`}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all"
-              >
-                <Download size={13} /> Download
-              </a>
-            )}
-            <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} />
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl flex flex-col max-h-[92vh]">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Upload Documents</h3>
+            <p className="text-sm text-slate-500 mt-1">{row.groupName} / {row.name}</p>
           </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">Close</button>
         </div>
-
-        <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Expiry Date</p>
-          {doc.expirable ? (
+        <div className="p-6 space-y-4 overflow-y-auto">
+          {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-3 py-2">{error}</div>}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Files *</label>
             <input
-              type="date"
-              value={expiryDate}
-              onChange={(event) => setExpiryDate(event.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 transition-all"
+              type="file"
+              multiple
+              onChange={(event) => setFiles(Array.from(event.target.files || []))}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
             />
-          ) : (
-            <div className="h-[42px] px-3 rounded-xl border border-dashed border-slate-200 text-sm text-slate-400 flex items-center">
-              Not applicable
+            {files.length > 0 && <p className="text-xs text-slate-400 mt-2">{files.length} file(s) selected</p>}
+          </div>
+          {row.expirable && (
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Expiry Date</label>
+              <input type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400" />
             </div>
           )}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Reference / Metadata</label>
+            <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="e.g. DBS renewal batch / certificate ref" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
+            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none" />
+          </div>
         </div>
-
-        <div className="flex flex-col items-start md:items-end">
-          <button
-            onClick={handleSaveExpiry}
-            disabled={saving || !doc.expirable}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-all"
-          >
-            Save Date
+        <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all ${buttonClass} disabled:opacity-50`}>
+            {saving ? "Uploading..." : "Upload Files"}
           </button>
-          <p className="text-xs text-slate-400 mt-2">
-            {doc.expirable ? formatDate(expiryDate) : "No expiry tracking"}
-          </p>
         </div>
       </div>
-
-      {rowError && <p className="text-xs text-red-500 mt-3">{rowError}</p>}
     </div>
   );
 }
 
-export default function EntityDocumentsTab({
-  entityType,
-  entityId,
-  currentGroupId,
-  onChangeGroup,
-  accent = "blue",
-}) {
-  const [groupSaving, setGroupSaving] = useState(false);
-  const [activeDocId, setActiveDocId] = useState("");
+function UploadsModal({ row, accent = "blue", onClose, onSave, saving }) {
+  const [drafts, setDrafts] = useState(() => Object.fromEntries(
+    (row.uploads || []).map((upload) => [upload.uploadId, {
+      expiryDate: upload.expiryDate ? new Date(upload.expiryDate).toISOString().split("T")[0] : "",
+      reference: upload.reference || "",
+      notes: upload.notes || "",
+    }])
+  ));
+  const buttonClass = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
 
-  const { data: groupsData } = useDocumentGroups({ active: true });
+  const saveUpload = async (uploadId) => {
+    await onSave({
+      groupId: row.groupId,
+      documentId: row.documentId,
+      uploadId,
+      data: drafts[uploadId],
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl flex flex-col max-h-[92vh]">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Uploaded Files</h3>
+            <p className="text-sm text-slate-500 mt-1">{row.groupName} / {row.name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">Close</button>
+        </div>
+        <div className="overflow-auto">
+          {row.uploads?.length > 0 ? (
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {["File", "Uploaded", "Status", "Expiry", "Reference", "Notes", "Preview", ""].map((label) => (
+                    <th key={label} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {row.uploads.map((upload) => (
+                  <tr key={upload.uploadId}>
+                    <td className="px-4 py-3 font-semibold text-slate-800">{upload.fileName || "Unnamed file"}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(upload.uploadedAt)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border capitalize ${STATUS_STYLE[upload.status] || STATUS_STYLE.pending}`}>{upload.status}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="date"
+                        value={drafts[upload.uploadId]?.expiryDate || ""}
+                        onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], expiryDate: event.target.value } }))}
+                        disabled={!row.expirable}
+                        className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 disabled:bg-slate-100"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        value={drafts[upload.uploadId]?.reference || ""}
+                        onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], reference: event.target.value } }))}
+                        className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <textarea
+                        value={drafts[upload.uploadId]?.notes || ""}
+                        onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], notes: event.target.value } }))}
+                        rows={2}
+                        className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {upload.fileUrl ? (
+                        <a href={upload.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
+                          <Eye size={14} /> Preview
+                        </a>
+                      ) : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => saveUpload(upload.uploadId)} disabled={saving} className={`px-3 py-2 rounded-xl text-xs font-semibold text-white transition-all ${buttonClass} disabled:opacity-50`}>
+                        Save
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-10 text-center text-slate-400">No uploaded files yet.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function EntityDocumentsTab({ entityType, entityId, accent = "blue" }) {
+  const [filters, setFilters] = useState({ search: "", group: "", status: "" });
+  const [uploadRow, setUploadRow] = useState(null);
+  const [manageRow, setManageRow] = useState(null);
   const { data, isLoading, error } = useEntityDocuments(entityType, entityId);
-  const upsertDocument = useUpsertEntityDocument(entityType, entityId);
+  const addUploads = useAddEntityDocumentUploads(entityType, entityId);
+  const updateUpload = useUpdateEntityDocumentUpload(entityType, entityId);
 
-  const groups = groupsData?.groups || [];
-  const documents = data?.documents || [];
+  const groups = data?.groups || [];
+  const rows = useMemo(() => {
+    const query = filters.search.trim().toLowerCase();
+    return (data?.documents || []).filter((row) => {
+      const matchesSearch = !query || [row.groupName, row.name, row.latestUpload?.fileName, row.latestUpload?.reference].filter(Boolean).join(" ").toLowerCase().includes(query);
+      const matchesGroup = !filters.group || row.groupId === filters.group;
+      const matchesStatus = !filters.status || row.status === filters.status;
+      return matchesSearch && matchesGroup && matchesStatus;
+    });
+  }, [data?.documents, filters]);
+
   const summary = data?.summary || { total: 0, uploaded: 0, pending: 0, expired: 0 };
-  const currentValue = data?.complianceGroup?._id || currentGroupId || "";
+  const accentButton = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
 
-  const handleGroupChange = async (nextGroupId) => {
-    setGroupSaving(true);
-    try {
-      await onChangeGroup(nextGroupId || null);
-    } finally {
-      setGroupSaving(false);
-    }
-  };
+  if (isLoading) {
+    return <div className="flex items-center justify-center py-16"><Loader2 size={24} className="animate-spin text-slate-400" /></div>;
+  }
 
-  const handleUpsert = async (documentId, payload) => {
-    setActiveDocId(documentId);
-    try {
-      await upsertDocument.mutateAsync({ documentId, data: payload });
-    } finally {
-      setActiveDocId("");
-    }
-  };
+  if (error) {
+    return <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-600">Failed to load documents.</div>;
+  }
 
-  const selectFocusClass = accent === "teal" ? "focus:border-teal-400" : "focus:border-blue-400";
+  if (groups.length === 0) {
+    return (
+      <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
+        <AlertCircle size={32} className="opacity-40" />
+        <p className="font-semibold">No compliance groups are assigned yet</p>
+        <p className="text-sm">Assign document groups from the list view or the Overview tab first.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Documents</h3>
-            <p className="text-sm text-slate-400 mt-1">
-              Documents are generated automatically from the selected compliance group.
-            </p>
+            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Assigned Document Groups</h3>
+            <p className="text-sm text-slate-400 mt-1">Only document groups assigned in Client Management / Overview are shown here.</p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             {[
@@ -200,60 +256,123 @@ export default function EntityDocumentsTab({
             ))}
           </div>
         </div>
-
-        <div className="mt-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-4 items-end">
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Compliance Group</p>
-            <select
-              value={currentValue}
-              onChange={(event) => handleGroupChange(event.target.value)}
-              disabled={groupSaving}
-              className={`w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none transition-all cursor-pointer ${selectFocusClass}`}
-            >
-              <option value="">Select compliance group...</option>
-              {groups.map((group) => (
-                <option key={group._id} value={group._id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="text-sm text-slate-500">
-            {groupSaving ? "Updating group..." : data?.complianceGroup?.name ? `Current: ${data.complianceGroup.name}` : "No group selected"}
-          </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {groups.map((group) => (
+            <span key={group.groupId} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700">
+              <FileText size={14} className="text-slate-400" />
+              {group.groupName}
+            </span>
+          ))}
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 size={24} className="animate-spin text-slate-400" />
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+        <div className="relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search by group, document, file, or reference..." className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
         </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-600">
-          Failed to load documents.
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white">
+            <Filter size={13} className="text-slate-400 shrink-0" />
+            <span className="text-xs font-semibold text-slate-500">Group</span>
+            <select value={filters.group} onChange={(event) => setFilters((current) => ({ ...current, group: event.target.value }))} className="text-sm bg-transparent outline-none cursor-pointer">
+              <option value="">All</option>
+              {groups.map((group) => <option key={group.groupId} value={group.groupId}>{group.groupName}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white">
+            <Filter size={13} className="text-slate-400 shrink-0" />
+            <span className="text-xs font-semibold text-slate-500">Status</span>
+            <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} className="text-sm bg-transparent outline-none cursor-pointer">
+              <option value="">All</option>
+              <option value="uploaded">Uploaded</option>
+              <option value="pending">Pending</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
+          {(filters.search || filters.group || filters.status) && (
+            <button onClick={() => setFilters({ search: "", group: "", status: "" })} className="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+              Clear Filters
+            </button>
+          )}
         </div>
-      ) : !currentValue ? (
-        <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
-          <AlertCircle size={32} className="opacity-40" />
-          <p className="font-semibold">Select a compliance group to generate documents</p>
-        </div>
-      ) : documents.length === 0 ? (
-        <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
-          <CalendarClock size={32} className="opacity-40" />
-          <p className="font-semibold">This group has no active documents</p>
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {documents.map((doc) => (
-            <DocumentRow
-              key={doc.documentId}
-              doc={doc}
-              saving={activeDocId === doc.documentId || upsertDocument.isPending}
-              onUpload={handleUpsert}
-              onSaveExpiry={handleUpsert}
-            />
-          ))}
-        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {rows.length === 0 ? (
+          <div className="p-14 text-center text-slate-400">
+            <p className="font-semibold">No documents match the current filters</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {["Group", "Document", "Mandatory", "Uploads", "Latest File", "Expiry", "Status", "Actions"].map((label) => (
+                    <th key={label} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((row) => (
+                  <tr key={`${row.groupId}:${row.documentId}`} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">{row.groupName}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-slate-800">{row.name}</div>
+                      <div className="text-xs text-slate-400 mt-1">{row.expirable ? "Expiry tracked" : "No expiry tracking"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{row.mandatory ? "Mandatory" : "Optional"}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{row.uploadCount}</td>
+                    <td className="px-4 py-3">
+                      {row.latestUpload ? (
+                        <div>
+                          <div className="font-medium text-slate-700">{row.latestUpload.fileName}</div>
+                          <div className="text-xs text-slate-400">{formatDate(row.latestUpload.uploadedAt)}</div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">No files uploaded</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(row.latestUpload?.expiryDate)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border capitalize ${STATUS_STYLE[row.status] || STATUS_STYLE.pending}`}>{row.status}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setUploadRow(row)} className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white transition-all ${accentButton}`}>
+                          <Upload size={13} /> Upload
+                        </button>
+                        <button onClick={() => setManageRow(row)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                          <ExternalLink size={13} /> Manage
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {uploadRow && (
+        <UploadModal
+          row={uploadRow}
+          accent={accent}
+          onClose={() => setUploadRow(null)}
+          onSave={({ groupId, documentId, data }) => addUploads.mutateAsync({ groupId, documentId, data })}
+          saving={addUploads.isPending}
+        />
+      )}
+
+      {manageRow && (
+        <UploadsModal
+          row={manageRow}
+          accent={accent}
+          onClose={() => setManageRow(null)}
+          onSave={({ groupId, documentId, uploadId, data }) => updateUpload.mutateAsync({ groupId, documentId, uploadId, data })}
+          saving={updateUpload.isPending}
+        />
       )}
     </div>
   );

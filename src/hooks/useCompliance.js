@@ -182,3 +182,29 @@ export const useUpsertEntityDocument = (entityType, entityId) => {
     },
   });
 };
+
+export const useAddEntityDocumentUploads = (entityType, entityId) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, documentId, data }) =>
+      entityDocumentsAPI.addUploads(entityType, entityId, groupId, documentId, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, entityId) });
+      qc.invalidateQueries({ queryKey: QK.PCN(entityId) });
+      qc.invalidateQueries({ queryKey: QK.PRACTICE(entityId) });
+    },
+  });
+};
+
+export const useUpdateEntityDocumentUpload = (entityType, entityId) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, documentId, uploadId, data }) =>
+      entityDocumentsAPI.updateUpload(entityType, entityId, groupId, documentId, uploadId, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, entityId) });
+      qc.invalidateQueries({ queryKey: QK.PCN(entityId) });
+      qc.invalidateQueries({ queryKey: QK.PRACTICE(entityId) });
+    },
+  });
+};

@@ -32,9 +32,17 @@ export const useUpdatePractice = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }) => practiceAPI.update(id, data).then((r) => r.data),
-    onSuccess: (_, { id }) => {
+    onSuccess: (result, { id }) => {
+      if (result?.practice) {
+        qc.setQueryData(QK.PRACTICE(id), (existing) => (
+          existing?.practice
+            ? { ...existing, practice: { ...existing.practice, ...result.practice } }
+            : { practice: result.practice }
+        ));
+      }
       qc.invalidateQueries({ queryKey: QK.PRACTICES });
       qc.invalidateQueries({ queryKey: QK.PRACTICE(id) });
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS("Practice", id) });
     },
   });
 };
