@@ -4,13 +4,12 @@ import {
   Network, Building2, Layers, ChevronRight, ArrowLeft, RefreshCw,
   Users, FileCheck, Calendar, Stethoscope, MessageSquare,
   UserX, Mail, Check, X, Phone, AlertTriangle, Plus, Edit2, Trash2,
-  Save, FileText, CheckCircle2, XCircle, Wifi, Activity,
-  Hash, DollarSign, Clock
+  Save, FileText, CheckCircle2, XCircle, Hash, DollarSign, Clock
 } from "lucide-react";
 import { usePCN, useUpdatePCN, useUpsertMeeting } from "../../../hooks/usePCN";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
-import CompliancePanelEnhanced from "./CompliancePanel.jsx";
+import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS
@@ -204,7 +203,7 @@ const TemplateModal = ({ existing, onClose, onSave }) => {
 const TABS = [
   { id: "overview",   label: "Overview",   icon: Network       },
   { id: "contacts",   label: "Contacts",   icon: Users         },
-  { id: "compliance", label: "Compliance", icon: FileCheck     },
+  { id: "documents",  label: "Documents",  icon: FileCheck     },
   { id: "practices",  label: "Practices",  icon: Stethoscope   },
   { id: "meetings",   label: "Meetings",   icon: Calendar      },
   { id: "templates",  label: "Templates",  icon: FileText      },
@@ -219,9 +218,8 @@ export default function PCNDetailPage() {
   const { id }   = useParams();
   const navigate = useNavigate();
 
-  // ── TanStack Query hooks
   const { data, isLoading, refetch } = usePCN(id);
-  const updatePCNMutation   = useUpdatePCN();
+  const updatePCNMutation     = useUpdatePCN();
   const upsertMeetingMutation = useUpsertMeeting(id);
 
   const pcn = data?.pcn ?? null;
@@ -233,21 +231,12 @@ export default function PCNDetailPage() {
   const [meetingModal,  setMeetingModal]  = useState(null);
   const [templateModal, setTemplateModal] = useState(null);
 
-  // ── patch via mutation — query invalidation handles re-fetch automatically
   const patch = useCallback(async (body, fieldKey) => {
     if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: true }));
-    try {
-      await updatePCNMutation.mutateAsync({ id, data: body });
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false }));
-    }
+    try { await updatePCNMutation.mutateAsync({ id, data: body }); }
+    catch (e) { alert(e.message); }
+    finally { if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false })); }
   }, [id, updatePCNMutation]);
-
-  const toggleCompliance = useCallback(async (key) => {
-    await patch({ [key]: !pcn?.[key] }, key);
-  }, [pcn, patch]);
 
   const toggleSystem = useCallback(async (sys) => {
     const rs = { ...(pcn?.requiredSystems || {}), [sys]: !pcn?.requiredSystems?.[sys] };
@@ -265,10 +254,8 @@ export default function PCNDetailPage() {
     await patch({ contacts: (pcn?.contacts || []).filter(c => c._id !== cid) });
   };
 
-  // ── meeting uses its own dedicated mutation + PCN_MEETINGS invalidation
   const saveMeeting = async (form) => {
     await upsertMeetingMutation.mutateAsync(form);
-    // Also invalidate the PCN itself so monthlyMeetings array stays fresh
     await refetch();
   };
 
@@ -406,14 +393,14 @@ export default function PCNDetailPage() {
     );
   };
 
-  const CompliancePanel = () => (
-    <CompliancePanelEnhanced
+  // ✅ UPDATED: sirf entityType + entity pass ho raha hai
+  const DocumentsPanel = () => (
+    <EntityDocumentsTab
       entityType="PCN"
-      entity={pcn}
-      fieldSaving={fieldSaving}
-      onToggle={toggleCompliance}
-      onPatch={patch}
-      practiceRollup={pcn.practices || []}
+      entityId={pcn._id}
+      currentGroupId={pcn.complianceGroup?._id || pcn.complianceGroup || ""}
+      onChangeGroup={(complianceGroup) => patch({ complianceGroup })}
+      accent="blue"
     />
   );
 
@@ -432,10 +419,10 @@ export default function PCNDetailPage() {
         {practices.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Practices",  value: practices.length,                                  color: "bg-teal-50 text-teal-700"   },
-              { label: "NDA Signed", value: practices.filter(p => p.ndaSigned).length,         color: "bg-green-50 text-green-700" },
-              { label: "Templates",  value: practices.filter(p => p.templateInstalled).length, color: "bg-blue-50 text-blue-700"   },
-              { label: "Reports",    value: practices.filter(p => p.reportsImported).length,   color: "bg-purple-50 text-purple-700"},
+              { label: "Practices",  value: practices.length,                                  color: "bg-teal-50 text-teal-700"    },
+              { label: "NDA Signed", value: practices.filter(p => p.ndaSigned).length,         color: "bg-green-50 text-green-700"  },
+              { label: "Templates",  value: practices.filter(p => p.templateInstalled).length, color: "bg-blue-50 text-blue-700"    },
+              { label: "Reports",    value: practices.filter(p => p.reportsImported).length,   color: "bg-purple-50 text-purple-700" },
             ].map(s => (
               <div key={s.label} className={`rounded-xl px-3 py-2.5 text-center ${s.color}`}>
                 <p className="text-xl font-bold">{s.value}</p><p className="text-xs font-semibold mt-0.5">{s.label}</p>
@@ -577,7 +564,7 @@ export default function PCNDetailPage() {
   const PANELS = {
     overview:   <OverviewPanel />,
     contacts:   <ContactsPanel />,
-    compliance: <CompliancePanel />,
+    documents:  <DocumentsPanel />,
     practices:  <PracticesPanel />,
     meetings:   <MeetingsPanel />,
     templates:  <TemplatesPanel />,

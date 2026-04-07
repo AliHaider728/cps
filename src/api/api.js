@@ -1,8 +1,6 @@
 // src/api/api.js
-// ─────────────────────────────────────────────────────────────
 //  FINAL UNIFIED API FILE
 //  Dono files merge — axios + saare endpoints + compliance docs
-// ─────────────────────────────────────────────────────────────
 import axios from "axios";
 
 const BASE_URL =
@@ -34,9 +32,9 @@ api.interceptors.response.use(
   }
 );
 
-// ═══════════════════════════════════════════════
+
 //  AUTH
-// ═══════════════════════════════════════════════
+
 export const authAPI = {
   login:          (email, password) => api.post("/auth/login", { email, password }),
   logout:         ()                => api.post("/auth/logout"),
@@ -49,24 +47,24 @@ export const authAPI = {
   anonymiseUser:  (id)              => api.post(`/auth/users/${id}/gdpr`),
 };
 
-// ═══════════════════════════════════════════════
+
 //  AUDIT
-// ═══════════════════════════════════════════════
+
 export const auditAPI = {
   getLogs: (params) => api.get("/audit", { params }),
 };
 
-// ═══════════════════════════════════════════════
+
 //  HIERARCHY
-// ═══════════════════════════════════════════════
+
 export const hierarchyAPI = {
   getHierarchy: ()  => api.get("/clients/hierarchy"),
   search:       (q) => api.get("/clients/search", { params: { q } }),
 };
 
-// ═══════════════════════════════════════════════
+
 //  ICB
-// ═══════════════════════════════════════════════
+
 export const icbAPI = {
   getAll:  ()         => api.get("/clients/icb"),
   getById: (id)       => api.get(`/clients/icb/${id}`),
@@ -75,9 +73,9 @@ export const icbAPI = {
   delete:  (id)       => api.delete(`/clients/icb/${id}`),
 };
 
-// ═══════════════════════════════════════════════
+
 //  FEDERATION
-// ═══════════════════════════════════════════════
+
 export const federationAPI = {
   getAll:  (icbId)    => api.get("/clients/federation", { params: icbId ? { icb: icbId } : {} }),
   create:  (data)     => api.post("/clients/federation", data),
@@ -85,9 +83,9 @@ export const federationAPI = {
   delete:  (id)       => api.delete(`/clients/federation/${id}`),
 };
 
-// ═══════════════════════════════════════════════
+
 //  PCN
-// ═══════════════════════════════════════════════
+
 export const pcnAPI = {
   getAll:    (params)   => api.get("/clients/pcn", { params }),
   getById:   (id)       => api.get(`/clients/pcn/${id}`),
@@ -101,9 +99,9 @@ export const pcnAPI = {
   upsertMeeting: (id, data) => api.post(`/clients/pcn/${id}/meetings`, data),
 };
 
-// ═══════════════════════════════════════════════
+
 //  PRACTICE
-// ═══════════════════════════════════════════════
+
 export const practiceAPI = {
   getAll:   (params)   => api.get("/clients/practice", { params }),
   getById:  (id)       => api.get(`/clients/practice/${id}`),
@@ -116,9 +114,9 @@ export const practiceAPI = {
     api.post(`/clients/${entityType}/${entityId}/system-access-request`, data),
 };
 
-// ═══════════════════════════════════════════════
+
 //  CONTACT HISTORY
-// ═══════════════════════════════════════════════
+
 export const historyAPI = {
   get:        (entityType, entityId, params) =>
     api.get(`/clients/${entityType}/${entityId}/history`, { params }),
@@ -129,18 +127,18 @@ export const historyAPI = {
   delete:     (logId)       => api.delete(`/clients/history/${logId}`),
 };
 
-// ═══════════════════════════════════════════════
+
 //  MASS EMAIL
-// ═══════════════════════════════════════════════
+
 export const emailAPI = {
   sendMass: (entityType, entityId, data) =>
     api.post(`/clients/${entityType}/${entityId}/mass-email`, data),
 };
 
-// ═══════════════════════════════════════════════
+
 //  COMPLIANCE — Entity Level
 //  Kisi ICB / PCN / Practice ki compliance check
-// ═══════════════════════════════════════════════
+
 export const complianceAPI = {
   getStatus: (entityType, entityId) =>
     api.get(`/clients/${entityType}/${entityId}/compliance/status`),
@@ -161,10 +159,10 @@ export const complianceAPI = {
     api.post("/clients/compliance/run-expiry"),
 };
 
-// ═══════════════════════════════════════════════
+
 //  COMPLIANCE DOCUMENTS — Document Library CRUD
 //  Master list of compliance documents
-// ═══════════════════════════════════════════════
+
 export const complianceDocsAPI = {
   getAll:  (params)   => api.get("/compliance/documents", { params }),
   getById: (id)       => api.get(`/compliance/documents/${id}`),
@@ -173,16 +171,23 @@ export const complianceDocsAPI = {
   delete:  (id)       => api.delete(`/compliance/documents/${id}`),
 };
 
-// ═══════════════════════════════════════════════
+
 //  DOCUMENT GROUPS
 //  Compliance docs ko groups mein organize karna
-// ═══════════════════════════════════════════════
+
 export const documentGroupsAPI = {
   getAll:  (params)   => api.get("/compliance/groups", { params }),
   getById: (id)       => api.get(`/compliance/groups/${id}`),
   create:  (data)     => api.post("/compliance/groups", data),
   update:  (id, data) => api.put(`/compliance/groups/${id}`, data),
   delete:  (id)       => api.delete(`/compliance/groups/${id}`),
+};
+
+export const entityDocumentsAPI = {
+  getAll: (entityType, entityId) =>
+    api.get(`/clients/${entityType}/${entityId}/documents`),
+  update: (entityType, entityId, documentId, data) =>
+    api.patch(`/clients/${entityType}/${entityId}/documents/${documentId}`, data),
 };
 
 export default api;

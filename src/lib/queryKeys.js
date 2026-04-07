@@ -40,6 +40,7 @@ export const QK = {
   // ── Document Groups
   DOC_GROUPS: ["doc-groups"],
   DOC_GROUP:  (id) => ["doc-groups", id],
+  ENTITY_DOCUMENTS: (type, id) => ["entity-documents", type, id],
 
   // ── Audit
   AUDIT: (params) => ["audit", params],

@@ -15,6 +15,7 @@ const AuditTrail          = lazy(() => import("../pages/super-admin/AuditTrail.j
 // Module 2 — Client Management
 const ClientsPage        = lazy(() => import("../pages/super-admin/client-managemnet/ClientsPage.jsx"));
 const ICBListPage        = lazy(() => import("../pages/super-admin/client-managemnet/ICBListPage.jsx"));
+const ICBDetailPage      = lazy(() => import("../pages/super-admin/client-managemnet/ICBDetailPage.jsx"));
 const FederationListPage = lazy(() => import("../pages/super-admin/client-managemnet/FederationListPage.jsx"));
 const PCNListPage        = lazy(() => import("../pages/super-admin/client-managemnet/PCNListPage.jsx"));
 const PCNDetailPage      = lazy(() => import("../pages/super-admin/client-managemnet/PCNDetailPage.jsx"));
@@ -22,8 +23,10 @@ const PracticeListPage   = lazy(() => import("../pages/super-admin/client-manage
 const PracticeDetailPage = lazy(() => import("../pages/super-admin/client-managemnet/PracticeDetailPage.jsx"));
 const ContactHistoryPanel= lazy(() => import("../pages/super-admin/client-managemnet/ContactHistoryPanel.jsx"));
 
-// ── Compliance Detail Pages — LAZY (fixes Vercel import error)
+// Compliance Pages
+const ComplianceDocumentsListPage = lazy(() => import("../pages/super-admin/client-managemnet/ComplianceDocumentsListPage.jsx")); // ← NEW LIST PAGE
 const ComplianceDocumentDetailPage = lazy(() => import("../pages/super-admin/client-managemnet/ComplianceDocumentDetailPage.jsx"));
+const ComplianceGroupsPage         = lazy(() => import("../pages/super-admin/client-managemnet/CompliancePanel.jsx"));
 const DocumentGroupDetailPage      = lazy(() => import("../pages/super-admin/client-managemnet/DocumentGroupDetailPage.jsx"));
 
 // Role Dashboards
@@ -55,10 +58,10 @@ const P = ({ roles, children }) => (
 
 const AppRouter = () => (
   <Routes>
-    <Route path="/"               element={<Navigate to="/login" replace />} />
-    <Route path="/login"          element={<Login />} />
-    <Route path="/forgot-password"element={<ForgotPassword />} />
-    <Route path="/unauthorized"   element={<Unauthorized />} />
+    <Route path="/"                element={<Navigate to="/login" replace />} />
+    <Route path="/login"           element={<Login />} />
+    <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Route path="/unauthorized"    element={<Unauthorized />} />
 
     {/* Super Admin */}
     <Route path="/dashboard/super-admin"       element={<P roles={["super_admin"]}><SuperAdminDashboard /></P>} />
@@ -66,26 +69,34 @@ const AppRouter = () => (
     <Route path="/dashboard/super-admin/audit" element={<P roles={["super_admin"]}><AuditTrail /></P>} />
 
     {/* Module 2 — Client Management */}
-    <Route path="/dashboard/super-admin/clients"
-      element={<P roles={["super_admin","director","ops_manager"]}><ClientsPage /></P>} />
-    <Route path="/dashboard/super-admin/clients/icb"
-      element={<P roles={["super_admin","ops_manager"]}><ICBListPage /></P>} />
-    <Route path="/dashboard/super-admin/clients/federation"
-      element={<P roles={["super_admin","ops_manager"]}><FederationListPage /></P>} />
-    <Route path="/dashboard/super-admin/clients/pcn"
-      element={<P roles={["super_admin","director","ops_manager","finance"]}><PCNListPage /></P>} />
-    <Route path="/dashboard/super-admin/clients/pcn/:id"
-      element={<P roles={["super_admin","director","ops_manager","finance"]}><PCNDetailPage /></P>} />
-    <Route path="/dashboard/super-admin/clients/practice"
-      element={<P roles={["super_admin","director","ops_manager","finance"]}><PracticeListPage /></P>} />
-    <Route path="/dashboard/super-admin/clients/practice/:id"
-      element={<P roles={["super_admin","director","ops_manager","finance"]}><PracticeDetailPage /></P>} />
-    <Route path="/dashboard/super-admin/clients/history"
-      element={<P roles={["super_admin","ops_manager","director"]}><ContactHistoryPanel /></P>} />
+    <Route path="/dashboard/super-admin/clients" element={<P roles={["super_admin","director","ops_manager"]}><ClientsPage /></P>} />
 
-    {/* Compliance Detail Pages — full absolute paths, wrapped in P */}
+    {/* ICB */}
+    <Route path="/dashboard/super-admin/clients/icb" element={<P roles={["super_admin","ops_manager"]}><ICBListPage /></P>} />
+    <Route path="/dashboard/super-admin/clients/icb/:id" element={<P roles={["super_admin","ops_manager","director"]}><ICBDetailPage /></P>} />
+
+    {/* Federation */}
+    <Route path="/dashboard/super-admin/clients/federation" element={<P roles={["super_admin","ops_manager"]}><FederationListPage /></P>} />
+
+    {/* PCN */}
+    <Route path="/dashboard/super-admin/clients/pcn" element={<P roles={["super_admin","director","ops_manager","finance"]}><PCNListPage /></P>} />
+    <Route path="/dashboard/super-admin/clients/pcn/:id" element={<P roles={["super_admin","director","ops_manager","finance"]}><PCNDetailPage /></P>} />
+
+    {/* Practice */}
+    <Route path="/dashboard/super-admin/clients/practice" element={<P roles={["super_admin","director","ops_manager","finance"]}><PracticeListPage /></P>} />
+    <Route path="/dashboard/super-admin/clients/practice/:id" element={<P roles={["super_admin","director","ops_manager","finance"]}><PracticeDetailPage /></P>} />
+
+    {/* History */}
+    <Route path="/dashboard/super-admin/clients/history" element={<P roles={["super_admin","ops_manager","director"]}><ContactHistoryPanel /></P>} />
+
+    {/* 🔥 Compliance Documents - Sidebar Route (List + Detail) */}
+    <Route path="/dashboard/super-admin/compliance/documents"
+      element={<P roles={["super_admin","ops_manager"]}><ComplianceDocumentsListPage /></P>} />
     <Route path="/dashboard/super-admin/compliance/documents/:id"
       element={<P roles={["super_admin","ops_manager"]}><ComplianceDocumentDetailPage /></P>} />
+    <Route path="/dashboard/super-admin/compliance/groups"
+      element={<P roles={["super_admin","ops_manager"]}><ComplianceGroupsPage /></P>} />
+
     <Route path="/dashboard/super-admin/compliance/groups/:id"
       element={<P roles={["super_admin","ops_manager"]}><DocumentGroupDetailPage /></P>} />
 
@@ -94,7 +105,7 @@ const AppRouter = () => (
     <Route path="/dashboard/ops-manager" element={<P roles={["ops_manager","super_admin"]}><OpsDashboard /></P>} />
     <Route path="/dashboard/finance"     element={<P roles={["finance","super_admin","director"]}><FinanceDashboard /></P>} />
     <Route path="/dashboard/training"    element={<P roles={["training","super_admin"]}><TrainingDashboard /></P>} />
-    <Route path="/dashboard/workforce"   element={<P roles={["workforce","super_admin"]}><WorkforceDashboard /></P>} />
+    <Route path="/dashboard/workforce"   element={<P roles={["workforce","super_admin"]}><WorkforceDashboard /></P>} /> {/* Typo fixed */}
 
     {/* Clinician Portal */}
     <Route path="/portal/clinician"   element={<P roles={["clinician","super_admin"]}><ClinicianDashboard /></P>} />

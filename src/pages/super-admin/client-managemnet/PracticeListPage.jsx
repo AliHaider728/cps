@@ -1,20 +1,41 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Stethoscope, Plus, Eye, Edit2, Trash2, X, Check, ChevronRight, Network } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePractices, useCreatePractice, useUpdatePractice, useDeletePractice } from "../../../hooks/usePractice";
 import { usePCNs } from "../../../hooks/usePCN";
+import { useDocumentGroups } from "../../../hooks/useCompliance";
 
-const PracticeModal = ({ existing, pcns, onClose, onSave }) => {
-  const [form, setForm] = useState({
-    name: existing?.name || "", pcn: existing?.pcn?._id || existing?.pcn || "",
-    odsCode: existing?.odsCode || "", address: existing?.address || "",
-    city: existing?.city || "", postcode: existing?.postcode || "",
-    fte: existing?.fte || "", contractType: existing?.contractType || "",
-    xeroCode: existing?.xeroCode || "", xeroCategory: existing?.xeroCategory || "",
-    patientListSize: existing?.patientListSize || "", notes: existing?.notes || "",
-  });
+const F = ({ label, children }) => (
+  <div>
+    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{label}</label>
+    {children}
+  </div>
+);
+
+const buildPracticeForm = (existing) => ({
+  name: existing?.name || "",
+  pcn: existing?.pcn?._id || existing?.pcn || "",
+  complianceGroup: existing?.complianceGroup?._id || existing?.complianceGroup || "",
+  odsCode: existing?.odsCode || "",
+  address: existing?.address || "",
+  city: existing?.city || "",
+  postcode: existing?.postcode || "",
+  fte: existing?.fte || "",
+  contractType: existing?.contractType || "",
+  xeroCode: existing?.xeroCode || "",
+  xeroCategory: existing?.xeroCategory || "",
+  patientListSize: existing?.patientListSize || "",
+  notes: existing?.notes || "",
+});
+
+const PracticeModal = ({ existing, pcns, groups, onClose, onSave }) => {
+  const [form, setForm] = useState(() => buildPracticeForm(existing));
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState("");
+
+  useEffect(() => {
+    setForm(buildPracticeForm(existing));
+  }, [existing]);
 
   const handle = async () => {
     if (!form.name.trim()) { setError("Practice name is required"); return; }
@@ -23,9 +44,8 @@ const PracticeModal = ({ existing, pcns, onClose, onSave }) => {
     try { await onSave(form); onClose(); } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
 
-  const F = ({ label, children }) => <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{label}</label>{children}</div>;
   const inp = (key, placeholder, type="text") => (
-    <input type={type} value={form[key]} placeholder={placeholder} onChange={e => setForm(f => ({...f, [key]: e.target.value}))}
+    <input type={type} value={form[key]} placeholder={placeholder} autoComplete="off" spellCheck={false} onChange={e => setForm(f => ({...f, [key]: e.target.value}))}
       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
   );
 
@@ -41,7 +61,7 @@ const PracticeModal = ({ existing, pcns, onClose, onSave }) => {
           <F label="Practice Name *">{inp("name","e.g. Pendleton Medical Centre")}</F>
           <div className="grid grid-cols-2 gap-3">
             <F label="PCN *">
-              <select value={form.pcn} onChange={e => setForm(f => ({...f, pcn: e.target.value}))}
+              <select value={form.pcn} autoComplete="off" onChange={e => setForm(f => ({...f, pcn: e.target.value}))}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 focus:outline-none focus:border-blue-400 transition-all cursor-pointer">
                 <option value="">Select PCN…</option>
                 {pcns.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
@@ -49,6 +69,13 @@ const PracticeModal = ({ existing, pcns, onClose, onSave }) => {
             </F>
             <F label="ODS Code">{inp("odsCode","P84001")}</F>
           </div>
+          <F label="Compliance Group">
+            <select value={form.complianceGroup} autoComplete="off" onChange={e => setForm(f => ({...f, complianceGroup: e.target.value}))}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 focus:outline-none focus:border-blue-400 transition-all cursor-pointer">
+              <option value="">None</option>
+              {groups.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
+            </select>
+          </F>
           <F label="Address">{inp("address","15 Broad Street")}</F>
           <div className="grid grid-cols-2 gap-3">
             <F label="City">{inp("city","Salford")}</F>
@@ -57,7 +84,7 @@ const PracticeModal = ({ existing, pcns, onClose, onSave }) => {
           <div className="grid grid-cols-2 gap-3">
             <F label="FTE">{inp("fte","0.5 FTE (20HRS/WEEK)")}</F>
             <F label="Contract Type">
-              <select value={form.contractType} onChange={e => setForm(f => ({...f, contractType: e.target.value}))}
+              <select value={form.contractType} autoComplete="off" onChange={e => setForm(f => ({...f, contractType: e.target.value}))}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 focus:outline-none focus:border-blue-400 transition-all cursor-pointer">
                 <option value="">None</option>
                 {["ARRS","EA","Direct","Mixed"].map(t => <option key={t} value={t}>{t}</option>)}
@@ -67,7 +94,7 @@ const PracticeModal = ({ existing, pcns, onClose, onSave }) => {
           <div className="grid grid-cols-2 gap-3">
             <F label="Xero Code">{inp("xeroCode","PEN1")}</F>
             <F label="Xero Category">
-              <select value={form.xeroCategory} onChange={e => setForm(f => ({...f, xeroCategory: e.target.value}))}
+              <select value={form.xeroCategory} autoComplete="off" onChange={e => setForm(f => ({...f, xeroCategory: e.target.value}))}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 focus:outline-none focus:border-blue-400 transition-all cursor-pointer">
                 <option value="">None</option>
                 {["PCN","GPX","EAX"].map(t => <option key={t} value={t}>{t}</option>)}
@@ -76,7 +103,7 @@ const PracticeModal = ({ existing, pcns, onClose, onSave }) => {
           </div>
           <F label="Patient List Size">{inp("patientListSize","0","number")}</F>
           <F label="Notes">
-            <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} rows={3}
+            <textarea value={form.notes} autoComplete="off" spellCheck={false} onChange={e => setForm(f => ({...f, notes: e.target.value}))} rows={3}
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all resize-none" />
           </F>
         </div>
@@ -101,8 +128,10 @@ export default function PracticeListPage() {
   // ✅ React Query — auto refetch when pcnFilter changes
   const { data: practiceData, isLoading } = usePractices(pcnFilter ? { pcn: pcnFilter } : {});
   const { data: pcnData }                 = usePCNs();
+  const { data: groupData }               = useDocumentGroups({ active: true });
   const practices = practiceData?.practices || [];
   const pcns      = pcnData?.pcns           || [];
+  const groups    = groupData?.groups       || [];
 
   const createPractice = useCreatePractice();
   const updatePractice = useUpdatePractice();
@@ -175,7 +204,7 @@ export default function PracticeListPage() {
           ))}
         </div>
       )}
-      {modal && <PracticeModal existing={modal === "add" ? null : modal} pcns={pcns} onClose={() => setModal(null)} onSave={handleSave} />}
+      {modal && <PracticeModal key={modal === "add" ? "practice-add" : `practice-${modal._id}`} existing={modal === "add" ? null : modal} pcns={pcns} groups={groups} onClose={() => setModal(null)} onSave={handleSave} />}
     </div>
   );
 }

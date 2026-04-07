@@ -9,7 +9,7 @@ import {
 import { usePractice, useUpdatePractice } from "../../../hooks/usePractice";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
-import CompliancePanelEnhanced from "./CompliancePanel.jsx";
+import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS
@@ -159,7 +159,7 @@ const AccessModal = ({ existing, onClose, onSave }) => {
 const TABS = [
   { id: "overview",   label: "Overview",   icon: Stethoscope   },
   { id: "contacts",   label: "Contacts",   icon: Users         },
-  { id: "compliance", label: "Compliance", icon: FileCheck     },
+  { id: "documents",  label: "Documents",  icon: FileCheck     },
   { id: "access",     label: "Sys Access", icon: Wifi          },
   { id: "history",    label: "History",    icon: MessageSquare },
   { id: "restricted", label: "Restricted", icon: UserX         },
@@ -172,7 +172,6 @@ export default function PracticeDetailPage() {
   const { id }   = useParams();
   const navigate = useNavigate();
 
-  // ── TanStack Query hooks
   const { data, isLoading, refetch } = usePractice(id);
   const updatePracticeMutation = useUpdatePractice();
 
@@ -184,21 +183,12 @@ export default function PracticeDetailPage() {
   const [contactModal, setContactModal] = useState(null);
   const [accessModal,  setAccessModal]  = useState(null);
 
-  // ── patch: optimistic local state not needed — mutation invalidates query automatically
   const patch = useCallback(async (body, fieldKey) => {
     if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: true }));
-    try {
-      await updatePracticeMutation.mutateAsync({ id, data: body });
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false }));
-    }
+    try { await updatePracticeMutation.mutateAsync({ id, data: body }); }
+    catch (e) { alert(e.message); }
+    finally { if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false })); }
   }, [id, updatePracticeMutation]);
-
-  const toggleCompliance = useCallback(async (key) => {
-    await patch({ [key]: !practice?.[key] }, key);
-  }, [practice, patch]);
 
   const saveContact = async (form) => {
     const contacts = [...(practice?.contacts || [])];
@@ -353,14 +343,14 @@ export default function PracticeDetailPage() {
     );
   };
 
-  const CompliancePanel = () => (
-    <CompliancePanelEnhanced
+  // ✅ UPDATED: sirf entityType + entity pass ho raha hai
+  const DocumentsPanel = () => (
+    <EntityDocumentsTab
       entityType="Practice"
-      entity={practice}
-      fieldSaving={fieldSaving}
-      onToggle={toggleCompliance}
-      onPatch={patch}
-      practiceRollup={[]}
+      entityId={practice._id}
+      currentGroupId={practice.complianceGroup?._id || practice.complianceGroup || ""}
+      onChangeGroup={(complianceGroup) => patch({ complianceGroup })}
+      accent="teal"
     />
   );
 
@@ -436,7 +426,7 @@ export default function PracticeDetailPage() {
   const PANELS = {
     overview:   <OverviewPanel />,
     contacts:   <ContactsPanel />,
-    compliance: <CompliancePanel />,
+    documents:  <DocumentsPanel />,
     access:     <AccessPanel />,
     history:    <ContactHistoryPanel entityType="Practice" entityId={practice._id} />,
     restricted: <RestrictedPanel />,

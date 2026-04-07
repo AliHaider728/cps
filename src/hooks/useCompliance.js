@@ -1,6 +1,6 @@
 // src/hooks/useCompliance.js
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { complianceAPI, complianceDocsAPI, documentGroupsAPI } from "../api/api";
+import { complianceAPI, complianceDocsAPI, documentGroupsAPI, entityDocumentsAPI } from "../api/api";
 import { QK } from "../lib/queryKeys";
 
 // ═══════════════════════════════════════════════
@@ -160,5 +160,25 @@ export const useDeleteDocumentGroup = () => {
   return useMutation({
     mutationFn: (id) => documentGroupsAPI.delete(id).then((r) => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
+  });
+};
+
+export const useEntityDocuments = (entityType, entityId) =>
+  useQuery({
+    queryKey: QK.ENTITY_DOCUMENTS(entityType, entityId),
+    queryFn:  () => entityDocumentsAPI.getAll(entityType, entityId).then((r) => r.data),
+    enabled:  !!entityType && !!entityId,
+  });
+
+export const useUpsertEntityDocument = (entityType, entityId) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ documentId, data }) =>
+      entityDocumentsAPI.update(entityType, entityId, documentId, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, entityId) });
+      qc.invalidateQueries({ queryKey: QK.PCN(entityId) });
+      qc.invalidateQueries({ queryKey: QK.PRACTICE(entityId) });
+    },
   });
 };

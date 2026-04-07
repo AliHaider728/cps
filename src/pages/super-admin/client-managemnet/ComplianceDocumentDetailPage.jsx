@@ -1,58 +1,60 @@
-// ═══════════════════════════════════════════
-// ComplianceDocumentDetailPage.jsx
-// ═══════════════════════════════════════════
+/**
+ * ComplianceDocumentDetailPage.jsx — UPDATED
+ * Delete button & handleDelete completely removed as per Sir's instruction
+ */
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FileText, ArrowLeft, Edit2, Trash2, Check, ChevronRight, CheckCircle2, XCircle, Layers, Clock } from "lucide-react";
-import { useComplianceDoc, useUpdateComplianceDoc, useDeleteComplianceDoc } from "../../../hooks/useCompliance";
+import { FileText, ArrowLeft, Edit2, Check, ChevronRight, CheckCircle2, XCircle, Layers, Clock } from "lucide-react";
+import { useComplianceDoc, useUpdateComplianceDoc } from "../../../hooks/useCompliance";
 
 const Spinner = ({ cls = "border-white" }) => (
   <span className={`inline-block w-4 h-4 border-2 ${cls} border-t-transparent rounded-full animate-spin`} />
 );
 const ActivePill = ({ active }) => (
   <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${active ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>
-    {active ? "Active" : "In Active"}
+    {active ? "Active" : "Inactive"}
   </span>
 );
 
 export function ComplianceDocumentDetailPage() {
-  const { id }   = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
-  const [saving,  setSaving]  = useState(false);
-  const [form,    setForm]    = useState({});
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({});
 
-  // ✅ React Query
-  const { data, isLoading }  = useComplianceDoc(id);
+  const { data, isLoading } = useComplianceDoc(id);
   const updateDoc = useUpdateComplianceDoc();
-  const deleteDoc = useDeleteComplianceDoc();
 
-  const doc    = data?.doc;
+  const doc = data?.doc;
   const groups = data?.groups || [];
 
-  // Sync form when doc loads
   useEffect(() => {
     if (doc) {
       setForm({
-        name: doc.name, displayOrder: doc.displayOrder, mandatory: doc.mandatory,
-        expirable: doc.expirable, active: doc.active,
-        defaultExpiryDays: doc.defaultExpiryDays, defaultReminderDays: doc.defaultReminderDays,
+        name: doc.name,
+        displayOrder: doc.displayOrder,
+        mandatory: doc.mandatory,
+        expirable: doc.expirable,
+        active: doc.active,
+        defaultExpiryDays: doc.defaultExpiryDays,
+        defaultReminderDays: doc.defaultReminderDays,
       });
     }
   }, [doc]);
 
-  const set = k => v => setForm(f => ({...f, [k]: v}));
+  const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
     setSaving(true);
-    try { await updateDoc.mutateAsync({ id, data: form }); setEditing(false); }
-    catch (e) { alert(e.message); }
-    finally { setSaving(false); }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm(`Delete document "${doc.name}"? It will be removed from all groups.`)) return;
-    try { await deleteDoc.mutateAsync(id); navigate(-1); } catch (e) { alert(e.message); }
+    try {
+      await updateDoc.mutateAsync({ id, data: form });
+      setEditing(false);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (isLoading) return (
@@ -60,9 +62,11 @@ export function ComplianceDocumentDetailPage() {
       <div className="w-9 h-9 border-[3px] border-blue-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
+
   if (!doc) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh] text-slate-400 gap-3">
-      <FileText size={44} className="opacity-30" /><p className="font-semibold">Document not found</p>
+      <FileText size={44} className="opacity-30" />
+      <p className="font-semibold">Document not found</p>
       <button onClick={() => navigate(-1)} className="text-blue-600 text-sm hover:underline">Go back</button>
     </div>
   );
@@ -79,7 +83,9 @@ export function ComplianceDocumentDetailPage() {
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
         <div className="flex flex-wrap items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shrink-0"><FileText size={22} className="text-white" /></div>
+          <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shrink-0">
+            <FileText size={22} className="text-white" />
+          </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{doc.name}</h1>
             <div className="flex items-center gap-3 mt-2 flex-wrap">
@@ -90,8 +96,10 @@ export function ComplianceDocumentDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={handleDelete} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition-all"><Trash2 size={13} /> Delete</button>
-            <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-all"><ArrowLeft size={13} /> Back</button>
+            {/* DELETE BUTTON REMOVED */}
+            <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-all">
+              <ArrowLeft size={13} /> Back
+            </button>
           </div>
         </div>
       </div>
@@ -100,7 +108,7 @@ export function ComplianceDocumentDetailPage() {
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Compliance Document / Training Detail</h2>
           <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editing?"bg-green-600 text-white hover:bg-green-700":"bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editing ? "bg-green-600 text-white hover:bg-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
             {saving ? <Spinner /> : editing ? <><Check size={12} /> Save</> : <><Edit2 size={12} /> Edit</>}
           </button>
         </div>
