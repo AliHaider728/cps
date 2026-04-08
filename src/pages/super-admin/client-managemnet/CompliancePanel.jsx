@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Layers, Plus, Edit2, Trash2, X, Check, Search, Loader2, ExternalLink, Filter
+  Layers, Plus, Edit2, Trash2, X, Check, Search, ExternalLink, Filter
 } from "lucide-react";
 import {
   useComplianceDocs,
@@ -17,6 +17,7 @@ import {
   useUpdateDocumentGroup,
   useDeleteDocumentGroup,
 } from "../../../hooks/useCompliance";
+import DataTable from "../../../components/ui/DataTable";
 
 /* ══════ ATOMS ════ */
 const Spinner = ({ cls = "border-blue-600" }) => (
@@ -162,7 +163,7 @@ const GROUP_FILTER_OPTIONS = [
   { key: "active", label: "All Status", options: [["true", "Active"], ["false", "Inactive"]] },
 ];
 
-const GroupListTab = ({ groups, allDocs, loading, onAdd, onEdit, onDelete, navigate }) => {
+const GroupListTab = ({ groups, loading, onAdd, onEdit, onDelete, navigate }) => {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({});
 
@@ -173,6 +174,54 @@ const GroupListTab = ({ groups, allDocs, loading, onAdd, onEdit, onDelete, navig
       return matchSearch && matchActive;
     })
     .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
+
+  const columns = [
+    {
+      header: "Group Name",
+      id: "name",
+      render: (grp) => (
+        <button onClick={() => navigate(`/dashboard/super-admin/compliance/groups/${grp._id}`)}
+          className="flex items-center gap-1 text-left font-medium text-blue-600 hover:text-blue-800 hover:underline">
+          {grp.name}<ExternalLink size={11} className="shrink-0 opacity-50" />
+        </button>
+      ),
+    },
+    {
+      header: "Display Order",
+      id: "displayOrder",
+      render: (grp) => grp.displayOrder,
+      cellClassName: "px-4 py-3 text-slate-500 align-top",
+    },
+    {
+      header: "Documents",
+      id: "documents",
+      render: (grp) => {
+        const docCount = (grp.documents || []).length;
+        return <span className="text-xs text-slate-500">{docCount} doc{docCount !== 1 ? "s" : ""}</span>;
+      },
+    },
+    {
+      header: "Status",
+      id: "status",
+      render: (grp) => <ActivePill active={grp.active} />,
+    },
+    {
+      header: "",
+      id: "actions",
+      render: (grp) => (
+        <div className="flex items-center gap-1">
+          <button onClick={() => onEdit(grp)} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600">
+            <Edit2 size={13} />
+          </button>
+          <button onClick={() => onDelete(grp._id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-red-50 hover:text-red-500">
+            <Trash2 size={13} />
+          </button>
+        </div>
+      ),
+      mobileLabel: "Actions",
+      mobileCellClassName: "pt-1",
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -196,52 +245,17 @@ const GroupListTab = ({ groups, allDocs, loading, onAdd, onEdit, onDelete, navig
         />
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              {["Group Name", "Display Order", "Documents", "Status", ""].map((h, i) => (
-                <th key={i} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
-              <tr><td colSpan={5} className="text-center py-12"><Loader2 size={20} className="animate-spin mx-auto text-slate-400" /></td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-12 text-slate-400 text-sm">No groups match your filters</td></tr>
-            ) : filtered.map(grp => {
-              const docCount = (grp.documents || []).length;
-              return (
-                <tr key={grp._id} className={`hover:bg-slate-50 transition-colors group ${!grp.active ? "opacity-60" : ""}`}>
-                  <td className="px-4 py-3">
-                    <button onClick={() => navigate(`/dashboard/super-admin/compliance/groups/${grp._id}`)}
-                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left flex items-center gap-1">
-                      {grp.name}<ExternalLink size={11} className="shrink-0 opacity-50" />
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{grp.displayOrder}</td>
-                  <td className="px-4 py-3 text-slate-500 text-xs">{docCount} doc{docCount !== 1 ? "s" : ""}</td>
-                  <td className="px-4 py-3"><ActivePill active={grp.active} /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => onEdit(grp)} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
-                        <Edit2 size={13} />
-                      </button>
-                      <button onClick={() => onDelete(grp._id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
-          <p className="text-xs text-slate-500">Showing {filtered.length} of {groups.length} records</p>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        rowKey="_id"
+        loading={loading}
+        loadingText="Loading document groups..."
+        emptyTitle="No groups match your filters"
+        initialPageSize={10}
+        pageSizeOptions={[10, 20, 50]}
+        getRowClassName={(grp) => `${!grp.active ? "opacity-60" : ""} hover:bg-slate-50 transition-colors`}
+      />
     </div>
   );
 };
@@ -281,7 +295,6 @@ export default function CompliancePanelEnhanced({ entityType = "PCN", entity, fi
 
       <GroupListTab 
         groups={groups} 
-        allDocs={activeDocs} 
         loading={groupsLoading}
         onAdd={() => setGroupModal({})} 
         onEdit={g => setGroupModal(g)}

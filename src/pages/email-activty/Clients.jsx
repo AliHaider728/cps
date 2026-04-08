@@ -9,6 +9,7 @@ import { Modal } from "../components/ui/Modal.jsx";
 import { Spinner } from "../components/ui/Spinner.jsx";
 import { Search, Plus, Building2, Phone, Mail, ChevronRight } from "lucide-react";
 import { formatSmartDate, getInitials } from "../lib/utils.js";
+import DataTable from "../components/ui/DataTable.jsx";
 
 export default function Clients() {
   const [search, setSearch] = useState("");
@@ -26,6 +27,74 @@ export default function Clients() {
       { onSuccess: () => setModalOpen(false) }
     );
   };
+
+  const columns = [
+    {
+      header: "Client Name & PCN",
+      id: "client",
+      render: (client) => (
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
+            {getInitials(client.name)}
+          </div>
+          <div>
+            <p className="font-bold text-slate-900 transition-colors group-hover:text-blue-600">{client.name}</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <Badge color="default">{client.pcnNumber}</Badge>
+              <span className="text-xs text-slate-500">{client.surgeryName}</span>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Contact Info",
+      id: "contact",
+      render: (client) => (
+        <div className="space-y-1">
+          {client.email && <div className="flex items-center text-sm text-slate-600"><Mail className="mr-2 h-3.5 w-3.5 text-slate-400" />{client.email}</div>}
+          {client.phone && <div className="flex items-center text-sm text-slate-600"><Phone className="mr-2 h-3.5 w-3.5 text-slate-400" />{client.phone}</div>}
+        </div>
+      ),
+    },
+    {
+      header: "Account Manager",
+      id: "manager",
+      render: (client) => client.accountManagerName ? (
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
+            {getInitials(client.accountManagerName)}
+          </div>
+          <span className="text-sm font-medium text-slate-700">{client.accountManagerName}</span>
+        </div>
+      ) : (
+        <span className="text-sm italic text-slate-400">Unassigned</span>
+      ),
+    },
+    {
+      header: "Last Contacted",
+      id: "lastContacted",
+      render: (client) => client.lastContactedAt ? (
+        <div>
+          <p className="text-sm font-medium text-slate-900">{formatSmartDate(client.lastContactedAt)}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{client.emailCount || 0} emails logged</p>
+        </div>
+      ) : <span className="text-sm text-slate-400">Never</span>,
+    },
+    {
+      header: "Action",
+      id: "action",
+      render: (client) => (
+        <Link href={`/clients/${client.id}`}>
+          <button className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition-all hover:bg-blue-600 hover:text-white">
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </Link>
+      ),
+      mobileLabel: "Open",
+      mobileCellClassName: "pt-1",
+    },
+  ];
 
   return (
     <div>
@@ -48,82 +117,25 @@ export default function Clients() {
           <div className="text-sm font-medium text-slate-500">{clients.length} Total Accounts</div>
         </div>
 
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-12 flex justify-center"><Spinner className="w-8 h-8" /></div>
-          ) : clients.length === 0 ? (
-            <div className="p-16 text-center">
-              <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-slate-900 mb-1">No clients found</h3>
-              <p className="text-slate-500">Add a new client to start tracking emails.</p>
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-semibold">Client Name & PCN</th>
-                  <th className="px-6 py-4 font-semibold">Contact Info</th>
-                  <th className="px-6 py-4 font-semibold">Account Manager</th>
-                  <th className="px-6 py-4 font-semibold">Last Contacted</th>
-                  <th className="px-6 py-4 font-semibold text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm">
-                          {getInitials(client.name)}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{client.name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge color="default">{client.pcnNumber}</Badge>
-                            <span className="text-xs text-slate-500">{client.surgeryName}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        {client.email && <div className="flex items-center text-sm text-slate-600"><Mail className="w-3.5 h-3.5 mr-2 text-slate-400" />{client.email}</div>}
-                        {client.phone && <div className="flex items-center text-sm text-slate-600"><Phone className="w-3.5 h-3.5 mr-2 text-slate-400" />{client.phone}</div>}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {client.accountManagerName ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-slate-200 text-xs flex items-center justify-center font-bold text-slate-600">
-                            {getInitials(client.accountManagerName)}
-                          </div>
-                          <span className="text-sm font-medium text-slate-700">{client.accountManagerName}</span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-slate-400 italic">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {client.lastContactedAt ? (
-                        <div>
-                          <p className="text-sm text-slate-900 font-medium">{formatSmartDate(client.lastContactedAt)}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{client.emailCount || 0} emails logged</p>
-                        </div>
-                      ) : <span className="text-sm text-slate-400">Never</span>}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Link href={`/clients/${client.id}`}>
-                        <button className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-all">
-                          <ChevronRight className="w-5 h-5" />
-                        </button>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        {isLoading ? (
+          <div className="flex justify-center p-12"><Spinner className="h-8 w-8" /></div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={clients}
+            rowKey="id"
+            emptyState={
+              <div className="p-16 text-center">
+                <Building2 className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+                <h3 className="mb-1 text-lg font-bold text-slate-900">No clients found</h3>
+                <p className="text-slate-500">Add a new client to start tracking emails.</p>
+              </div>
+            }
+            initialPageSize={10}
+            pageSizeOptions={[10, 20, 50]}
+            className="border-0 shadow-none"
+          />
+        )}
       </Card>
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Add New Client">

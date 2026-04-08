@@ -1,22 +1,23 @@
 import { useState } from "react";
-import { ScrollText, Search, RefreshCw, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { ScrollText, Search, RefreshCw, Filter } from "lucide-react";
 import { useAuditLogs } from "../../hooks/useAudit";
+import DataTable from "../../components/ui/DataTable";
 
 const ACTION_COLORS = {
-  LOGIN:           "bg-green-100 text-green-700",
-  LOGOUT:          "bg-slate-100 text-slate-600",
-  LOGIN_FAILED:    "bg-red-100 text-red-700",
-  LOGIN_BLOCKED:   "bg-red-100 text-red-700",
-  CREATE_USER:     "bg-blue-100 text-blue-700",
-  UPDATE_USER:     "bg-yellow-100 text-yellow-700",
-  DELETE_USER:     "bg-red-100 text-red-700",
-  GDPR_ANONYMISE:  "bg-purple-100 text-purple-700",
+  LOGIN: "bg-green-100 text-green-700",
+  LOGOUT: "bg-slate-100 text-slate-600",
+  LOGIN_FAILED: "bg-red-100 text-red-700",
+  LOGIN_BLOCKED: "bg-red-100 text-red-700",
+  CREATE_USER: "bg-blue-100 text-blue-700",
+  UPDATE_USER: "bg-yellow-100 text-yellow-700",
+  DELETE_USER: "bg-red-100 text-red-700",
+  GDPR_ANONYMISE: "bg-purple-100 text-purple-700",
   CHANGE_PASSWORD: "bg-teal-100 text-teal-700",
 };
 
 const STATUS_COLORS = {
   success: "bg-emerald-100 text-emerald-700",
-  fail:    "bg-red-100 text-red-700",
+  fail: "bg-red-100 text-red-700",
 };
 
 const ACTIONS = [
@@ -27,191 +28,163 @@ const ACTIONS = [
 
 const fmt = (d) => {
   const date = new Date(d);
-  return `${date.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })}, ${date.toLocaleTimeString("en-GB", { hour:"numeric", minute:"2-digit", hour12:true })}`;
+  return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}, ${date.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true })}`;
 };
 
+const FilterChip = ({ children }) => (
+  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+    <Filter size={14} className="shrink-0 text-slate-400" />
+    {children}
+  </div>
+);
+
 export default function AuditTrail() {
-  const [page,   setPage]   = useState(1);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [action, setAction] = useState("");
   const [status, setStatus] = useState("");
+  const [pageSize, setPageSize] = useState(20);
 
-  // ── TanStack Query hook
-  const params = { page, limit: 20, ...(action && { action }), ...(status && { status }) };
+  const params = { page, limit: pageSize, ...(action && { action }), ...(status && { status }) };
   const { data, isLoading, refetch } = useAuditLogs(params);
 
-  const logs  = data?.logs              || [];
-  const pages = data?.pagination?.pages || 1;
+  const logs = data?.logs || [];
   const total = data?.pagination?.total || 0;
 
   const filtered = search
-    ? logs.filter(l =>
-        l.userName?.toLowerCase().includes(search.toLowerCase()) ||
-        l.action?.toLowerCase().includes(search.toLowerCase()) ||
-        l.detail?.toLowerCase().includes(search.toLowerCase()) ||
-        l.ip?.includes(search)
-      )
+    ? logs.filter((log) =>
+      log.userName?.toLowerCase().includes(search.toLowerCase()) ||
+      log.action?.toLowerCase().includes(search.toLowerCase()) ||
+      log.detail?.toLowerCase().includes(search.toLowerCase()) ||
+      log.ip?.includes(search)
+    )
     : logs;
+
+  const columns = [
+    {
+      header: "Timestamp",
+      id: "timestamp",
+      render: (log) => <span className="font-mono text-xs text-slate-500">{fmt(log.createdAt)}</span>,
+      cellClassName: "px-4 py-3 whitespace-nowrap align-top",
+    },
+    {
+      header: "User",
+      id: "user",
+      render: (log) => (
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white">
+            {(log.userName || "S").charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p className="whitespace-nowrap text-xs font-semibold text-slate-800">{log.userName}</p>
+            <p className="text-xs text-slate-400">{log.userRole}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Action",
+      id: "action",
+      render: (log) => (
+        <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${ACTION_COLORS[log.action] || "bg-slate-100 text-slate-600"}`}>
+          {log.action}
+        </span>
+      ),
+    },
+    {
+      header: "Resource",
+      id: "resource",
+      render: (log) => log.resource,
+      cellClassName: "px-4 py-3 whitespace-nowrap text-xs font-medium text-slate-600 align-top",
+    },
+    {
+      header: "Detail",
+      id: "detail",
+      render: (log) => <span className="block max-w-[220px] truncate text-xs text-slate-500">{log.detail}</span>,
+    },
+    {
+      header: "IP Address",
+      id: "ip",
+      render: (log) => <span className="font-mono text-xs text-slate-500">{log.ip}</span>,
+      cellClassName: "px-4 py-3 whitespace-nowrap align-top",
+    },
+    {
+      header: "Status",
+      id: "status",
+      render: (log) => (
+        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_COLORS[log.status] || "bg-slate-100 text-slate-500"}`}>
+          {log.status}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="mb-1 flex items-center gap-2">
             <ScrollText size={20} className="text-blue-600" />
             <h1 className="text-xl font-bold text-slate-800">Audit Trail</h1>
           </div>
           <p className="text-sm text-slate-500">
-            Every system action — logged with user, timestamp, and IP address.
+            Every system action logged with user, timestamp, and IP address.
             <span className="ml-2 font-semibold text-slate-700">{total.toLocaleString()} total records</span>
           </p>
         </div>
-        <button onClick={() => refetch()}
-          className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl
-            text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors w-fit">
+        <button onClick={() => refetch()} className="flex w-fit items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">
           <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
           Refresh
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-5
-        flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2
-          flex-1 min-w-[180px]">
-          <Search size={14} className="text-slate-400 shrink-0" />
+      <div className="mb-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+          <Search size={14} className="shrink-0 text-slate-400" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search user, action, IP…"
-            className="text-sm text-slate-700 placeholder-slate-400 outline-none w-full bg-transparent"
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search user, action, IP..."
+            className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
           />
         </div>
-        <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2">
-          <Filter size={14} className="text-slate-400 shrink-0" />
+        <FilterChip>
           <select
             value={action}
-            onChange={e => { setAction(e.target.value); setPage(1); }}
-            className="text-sm text-slate-700 outline-none bg-transparent">
-            {ACTIONS.map(a => <option key={a} value={a}>{a || "All Actions"}</option>)}
+            onChange={(e) => { setAction(e.target.value); setPage(1); }}
+            className="bg-transparent text-sm text-slate-700 outline-none"
+          >
+            {ACTIONS.map((item) => <option key={item} value={item}>{item || "All Actions"}</option>)}
           </select>
-        </div>
-        <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2">
+        </FilterChip>
+        <FilterChip>
           <select
             value={status}
-            onChange={e => { setStatus(e.target.value); setPage(1); }}
-            className="text-sm text-slate-700 outline-none bg-transparent">
+            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+            className="bg-transparent text-sm text-slate-700 outline-none"
+          >
             <option value="">All Status</option>
             <option value="success">Success</option>
             <option value="fail">Failed</option>
           </select>
-        </div>
+        </FilterChip>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                {["Timestamp","User","Action","Resource","Detail","IP Address","Status"].map(h => (
-                  <th key={h}
-                    className="text-left px-4 py-3.5 text-xs font-bold text-slate-500
-                      uppercase tracking-wider whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-14">
-                    <div className="flex items-center justify-center gap-2 text-slate-400">
-                      <RefreshCw size={16} className="animate-spin" />
-                      <span className="text-sm">Loading audit logs…</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-14 text-slate-400 text-sm">
-                    No audit records found
-                  </td>
-                </tr>
-              ) : filtered.map((log, i) => (
-                <tr key={log._id}
-                  className={`border-b border-slate-100 hover:bg-slate-50/60 transition-colors
-                    ${i === filtered.length - 1 ? "border-0" : ""}`}>
-                  <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap font-mono">
-                    {fmt(log.createdAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600
-                        flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {(log.userName || "S").charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-800 text-xs whitespace-nowrap">{log.userName}</p>
-                        <p className="text-slate-400 text-xs">{log.userRole}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap
-                      ${ACTION_COLORS[log.action] || "bg-slate-100 text-slate-600"}`}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-600 font-medium whitespace-nowrap">
-                    {log.resource}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px] truncate">
-                    {log.detail}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">
-                    {log.ip}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full
-                      ${STATUS_COLORS[log.status] || "bg-slate-100 text-slate-500"}`}>
-                      {log.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {pages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3
-            border-t border-slate-100 bg-slate-50/50">
-            <p className="text-xs text-slate-500">
-              Page <span className="font-bold">{page}</span> of <span className="font-bold">{pages}</span>
-            </p>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500
-                  disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => setPage(p => Math.min(pages, p + 1))}
-                disabled={page === pages}
-                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500
-                  disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        rowKey="_id"
+        loading={isLoading}
+        loadingText="Loading audit logs..."
+        emptyTitle="No audit records found"
+        controlledPage={page}
+        onPageChange={setPage}
+        controlledPageSize={pageSize}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+        totalItems={search ? filtered.length : total}
+        initialPageSize={20}
+        pageSizeOptions={[20, 50, 100]}
+      />
     </div>
   );
 }

@@ -4,8 +4,9 @@
  */
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Layers, ArrowLeft, Edit2, Trash2, Check, CheckCircle2, XCircle, Clock, ChevronRight } from "lucide-react";
+import { Layers, ArrowLeft, Edit2, Trash2, Check, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { useDocumentGroup, useUpdateDocumentGroup, useDeleteDocumentGroup, useComplianceDocs } from "../../../hooks/useCompliance";
+import DataTable from "../../../components/ui/DataTable";
 
 const Spinner = ({ cls = "border-white" }) => (
   <span className={`inline-block w-4 h-4 border-2 ${cls} border-t-transparent rounded-full animate-spin`} />
@@ -86,6 +87,34 @@ export default function DocumentGroupDetailPage() {
   );
 
   const groupDocs = allDocs.filter(d => (group.documents || []).some(gd => (gd._id||gd) === d._id));
+  const documentColumns = [
+    {
+      header: "Document Name",
+      id: "name",
+      render: (doc) => <span className="font-medium text-slate-800">{doc.name}</span>,
+    },
+    {
+      header: "Display Order",
+      id: "displayOrder",
+      render: (doc) => doc.displayOrder,
+      cellClassName: "px-4 py-3 text-slate-500 align-top",
+    },
+    {
+      header: "Mandatory",
+      id: "mandatory",
+      render: (doc) => <BadgeStatus ok={doc.mandatory} label={doc.mandatory ? "Mandatory" : "Non-Mandatory"} />,
+    },
+    {
+      header: "Expirable",
+      id: "expirable",
+      render: (doc) => <BadgeStatus ok={doc.expirable} label={doc.expirable ? "Expirable" : "Non-Expirable"} />,
+    },
+    {
+      header: "Active",
+      id: "active",
+      render: (doc) => <ActivePill active={doc.active} />,
+    },
+  ];
 
   return (
     <div className="space-y-4 pb-8">
@@ -182,23 +211,14 @@ export default function DocumentGroupDetailPage() {
               {groupDocs.length === 0 ? (
                 <div className="bg-slate-50 rounded-xl border border-dashed border-slate-200 py-8 text-center text-slate-400 text-sm">No documents assigned</div>
               ) : (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead><tr className="bg-slate-50 border-b border-slate-200">{["Document Name","Display Order","Mandatory","Expirable","Active"].map((h,i)=><th key={i} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{h}</th>)}</tr></thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {groupDocs.sort((a,b)=>a.displayOrder-b.displayOrder).map(doc=>(
-                        <tr key={doc._id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-slate-800">{doc.name}</td>
-                          <td className="px-4 py-3 text-slate-500">{doc.displayOrder}</td>
-                          <td className="px-4 py-3"><BadgeStatus ok={doc.mandatory} label={doc.mandatory?"Mandatory":"Non-Mandatory"} /></td>
-                          <td className="px-4 py-3"><BadgeStatus ok={doc.expirable} label={doc.expirable?"Expirable":"Non-Expirable"} /></td>
-                          <td className="px-4 py-3"><ActivePill active={doc.active} /></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="px-4 py-3 border-t border-slate-100 bg-slate-50"><p className="text-xs text-slate-500">Total Records : {groupDocs.length}</p></div>
-                </div>
+                <DataTable
+                  columns={documentColumns}
+                  data={[...groupDocs].sort((a, b) => a.displayOrder - b.displayOrder)}
+                  rowKey="_id"
+                  pagination={groupDocs.length > 10}
+                  initialPageSize={10}
+                  pageSizeOptions={[10, 20, 50]}
+                />
               )}
             </div>
           </div>
