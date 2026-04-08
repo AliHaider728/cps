@@ -163,48 +163,72 @@ export const useDeleteDocumentGroup = () => {
   });
 };
 
-export const useEntityDocuments = (entityType, entityId) =>
-  useQuery({
-    queryKey: QK.ENTITY_DOCUMENTS(entityType, entityId),
-    queryFn:  () => entityDocumentsAPI.getAll(entityType, entityId).then((r) => r.data),
-    enabled:  !!entityType && !!entityId,
+// ═══════════════════════════════════════════════
+//  ENTITY DOCUMENTS — Group-based document system
+//  PCN / Practice ke liye
+// ═══════════════════════════════════════════════
+
+// ✅ FIXED: entityId ko String mein cast karo
+// Agar entityId populated object aa jaye (e.g. { _id: "..." }) toh
+// API call fail ho jaati thi. Ab String(entityId) se safe hai.
+const safeId = (id) => {
+  if (!id) return null;
+  if (typeof id === "object" && id._id) return String(id._id);
+  return String(id);
+};
+
+export const useEntityDocuments = (entityType, entityId) => {
+  const id = safeId(entityId);
+  return useQuery({
+    queryKey: QK.ENTITY_DOCUMENTS(entityType, id),
+    queryFn:  () => entityDocumentsAPI.getAll(entityType, id).then((r) => r.data),
+    // ✅ FIXED: enabled guard — id string honi chahiye aur non-empty
+    enabled:  !!entityType && !!id && id !== "undefined" && id !== "null",
+    // ✅ ADDED: retry sirf 1 baar — 500 errors pe infinite retry na ho
+    retry: 1,
+    // ✅ ADDED: stale time — PCN page open pe baar baar re-fetch na ho
+    staleTime: 30_000,
   });
+};
 
 export const useUpsertEntityDocument = (entityType, entityId) => {
   const qc = useQueryClient();
+  const id = safeId(entityId);
   return useMutation({
     mutationFn: ({ documentId, data }) =>
-      entityDocumentsAPI.update(entityType, entityId, documentId, data).then((r) => r.data),
+      entityDocumentsAPI.update(entityType, id, documentId, data).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, entityId) });
-      qc.invalidateQueries({ queryKey: QK.PCN(entityId) });
-      qc.invalidateQueries({ queryKey: QK.PRACTICE(entityId) });
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
+      qc.invalidateQueries({ queryKey: QK.PCN(id) });
+      qc.invalidateQueries({ queryKey: QK.PRACTICE(id) });
     },
   });
 };
 
 export const useAddEntityDocumentUploads = (entityType, entityId) => {
   const qc = useQueryClient();
+  const id = safeId(entityId);
   return useMutation({
     mutationFn: ({ groupId, documentId, data }) =>
-      entityDocumentsAPI.addUploads(entityType, entityId, groupId, documentId, data).then((r) => r.data),
+      entityDocumentsAPI.addUploads(entityType, id, groupId, documentId, data).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, entityId) });
-      qc.invalidateQueries({ queryKey: QK.PCN(entityId) });
-      qc.invalidateQueries({ queryKey: QK.PRACTICE(entityId) });
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
+      qc.invalidateQueries({ queryKey: QK.PCN(id) });
+      qc.invalidateQueries({ queryKey: QK.PRACTICE(id) });
     },
   });
 };
 
 export const useUpdateEntityDocumentUpload = (entityType, entityId) => {
   const qc = useQueryClient();
+  const id = safeId(entityId);
   return useMutation({
     mutationFn: ({ groupId, documentId, uploadId, data }) =>
-      entityDocumentsAPI.updateUpload(entityType, entityId, groupId, documentId, uploadId, data).then((r) => r.data),
+      entityDocumentsAPI.updateUpload(entityType, id, groupId, documentId, uploadId, data).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, entityId) });
-      qc.invalidateQueries({ queryKey: QK.PCN(entityId) });
-      qc.invalidateQueries({ queryKey: QK.PRACTICE(entityId) });
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
+      qc.invalidateQueries({ queryKey: QK.PCN(id) });
+      qc.invalidateQueries({ queryKey: QK.PRACTICE(id) });
     },
   });
 };
