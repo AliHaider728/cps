@@ -7,10 +7,145 @@ import {
 } from "../../../hooks/useCompliance";
 import DataTable from "../../../components/ui/DataTable";
 
+/* ══════════════════════════════════════════════════════════
+   MOCK DATA  (seed-based — remove once API is stable)
+══════════════════════════════════════════════════════════ */
+const MOCK_GROUPS = [
+  { groupId: "g1", groupName: "Clinical Staff Documents" },
+  { groupId: "g2", groupName: "DBS and Update"           },
+  { groupId: "g3", groupName: "Non-Clinical Staff"        },
+];
+
+const MOCK_DOCUMENTS = [
+  // ── Clinical Staff Documents ──
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d01", name: "CV",
+    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "cv_dr_ali_haider.pdf", uploadedAt: "2025-01-10", expiryDate: null, reference: "Ali Haider" },
+    uploads: [{ uploadId: "u01", fileName: "cv_dr_ali_haider.pdf", uploadedAt: "2025-01-10", status: "uploaded", expiryDate: null, reference: "Ali Haider", notes: "Latest CV", fileUrl: null }],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d02", name: "DBS Check/Update Service",
+    mandatory: true, expirable: true, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "dbs_check_2025.pdf", uploadedAt: "2025-02-14", expiryDate: "2026-02-14", reference: "DBS-2025-001" },
+    uploads: [{ uploadId: "u02", fileName: "dbs_check_2025.pdf", uploadedAt: "2025-02-14", status: "uploaded", expiryDate: "2026-02-14", reference: "DBS-2025-001", notes: "", fileUrl: null }],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d03", name: "Declaration of Interests Form",
+    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
+    latestUpload: null, uploads: [],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d04", name: "Fitness to Practise Form",
+    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "fitness_form_signed.pdf", uploadedAt: "2025-01-20", expiryDate: null, reference: "" },
+    uploads: [{ uploadId: "u04", fileName: "fitness_form_signed.pdf", uploadedAt: "2025-01-20", status: "uploaded", expiryDate: null, reference: "", notes: "Signed by GP", fileUrl: null }],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d05", name: "Health Screening Form",
+    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
+    latestUpload: null, uploads: [],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d06", name: "Reference 1",
+    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "reference_1_dr_smith.pdf", uploadedAt: "2025-01-15", expiryDate: null, reference: "Dr. Smith" },
+    uploads: [{ uploadId: "u06", fileName: "reference_1_dr_smith.pdf", uploadedAt: "2025-01-15", status: "uploaded", expiryDate: null, reference: "Dr. Smith", notes: "", fileUrl: null }],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d07", name: "Reference 2",
+    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
+    latestUpload: null, uploads: [],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d08", name: "Signed Confidentiality Statement",
+    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "confidentiality_signed.pdf", uploadedAt: "2025-01-12", expiryDate: null, reference: "" },
+    uploads: [{ uploadId: "u08", fileName: "confidentiality_signed.pdf", uploadedAt: "2025-01-12", status: "uploaded", expiryDate: null, reference: "", notes: "", fileUrl: null }],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d09", name: "Signed Data Protection Statement",
+    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "data_protection_signed.pdf", uploadedAt: "2025-01-12", expiryDate: null, reference: "" },
+    uploads: [{ uploadId: "u09", fileName: "data_protection_signed.pdf", uploadedAt: "2025-01-12", status: "uploaded", expiryDate: null, reference: "", notes: "", fileUrl: null }],
+  },
+  {
+    groupId: "g1", groupName: "Clinical Staff Documents",
+    documentId: "d10", name: "Signed Non-Disclosure Agreement",
+    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
+    latestUpload: null, uploads: [],
+  },
+
+  // ── DBS and Update ──
+  {
+    groupId: "g2", groupName: "DBS and Update",
+    documentId: "d11", name: "DBS Check/Update Service",
+    mandatory: true, expirable: true, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "dbs_check_2025.pdf", uploadedAt: "2025-02-14", expiryDate: "2026-02-14", reference: "DBS-2025-001" },
+    uploads: [{ uploadId: "u11", fileName: "dbs_check_2025.pdf", uploadedAt: "2025-02-14", status: "uploaded", expiryDate: "2026-02-14", reference: "DBS-2025-001", notes: "", fileUrl: null }],
+  },
+  {
+    groupId: "g2", groupName: "DBS and Update",
+    documentId: "d12", name: "Enhanced DBS Certificate (cert only)",
+    mandatory: true, expirable: true, uploadCount: 1, status: "expired",
+    latestUpload: { fileName: "enhanced_dbs_cert.pdf", uploadedAt: "2023-03-01", expiryDate: "2024-03-01", reference: "EDBS-2023-007" },
+    uploads: [{ uploadId: "u12", fileName: "enhanced_dbs_cert.pdf", uploadedAt: "2023-03-01", status: "expired", expiryDate: "2024-03-01", reference: "EDBS-2023-007", notes: "Needs renewal", fileUrl: null }],
+  },
+
+  // ── Non-Clinical Staff ──
+  {
+    groupId: "g3", groupName: "Non-Clinical Staff",
+    documentId: "d13", name: "CV",
+    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
+    latestUpload: null, uploads: [],
+  },
+  {
+    groupId: "g3", groupName: "Non-Clinical Staff",
+    documentId: "d14", name: "Proof of Address",
+    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "proof_of_address.pdf", uploadedAt: "2025-01-18", expiryDate: null, reference: "" },
+    uploads: [{ uploadId: "u14", fileName: "proof_of_address.pdf", uploadedAt: "2025-01-18", status: "uploaded", expiryDate: null, reference: "", notes: "", fileUrl: null }],
+  },
+  {
+    groupId: "g3", groupName: "Non-Clinical Staff",
+    documentId: "d15", name: "Reference 1",
+    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
+    latestUpload: null, uploads: [],
+  },
+  {
+    groupId: "g3", groupName: "Non-Clinical Staff",
+    documentId: "d16", name: "Signed Confidentiality Statement",
+    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
+    latestUpload: { fileName: "confidentiality_non_clinical.pdf", uploadedAt: "2025-02-01", expiryDate: null, reference: "" },
+    uploads: [{ uploadId: "u16", fileName: "confidentiality_non_clinical.pdf", uploadedAt: "2025-02-01", status: "uploaded", expiryDate: null, reference: "", notes: "", fileUrl: null }],
+  },
+];
+
+const MOCK_SUMMARY = {
+  total:    MOCK_DOCUMENTS.length,
+  uploaded: MOCK_DOCUMENTS.filter(d => d.status === "uploaded").length,
+  pending:  MOCK_DOCUMENTS.filter(d => d.status === "pending").length,
+  expired:  MOCK_DOCUMENTS.filter(d => d.status === "expired").length,
+};
+
+const MOCK_DATA = { groups: MOCK_GROUPS, documents: MOCK_DOCUMENTS, summary: MOCK_SUMMARY };
+
+/* ══════════════════════════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════════════════════════ */
 const STATUS_STYLE = {
-  pending: "border-amber-200 bg-amber-50 text-amber-700",
+  pending:  "border-amber-200 bg-amber-50 text-amber-700",
   uploaded: "border-green-200 bg-green-50 text-green-700",
-  expired: "border-red-200 bg-red-50 text-red-700",
+  expired:  "border-red-200 bg-red-50 text-red-700",
 };
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString("en-GB") : "—";
@@ -18,11 +153,14 @@ const formatDate = (value) => value ? new Date(value).toLocaleDateString("en-GB"
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
+    reader.onload  = () => resolve(reader.result);
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
 
+/* ══════════════════════════════════════════════════════════
+   FILTER CHIP
+══════════════════════════════════════════════════════════ */
 const FilterChip = ({ label, children }) => (
   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
     <Filter size={13} className="shrink-0 text-slate-400" />
@@ -31,29 +169,28 @@ const FilterChip = ({ label, children }) => (
   </div>
 );
 
+/* ══════════════════════════════════════════════════════════
+   UPLOAD MODAL
+══════════════════════════════════════════════════════════ */
 function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
-  const [files, setFiles] = useState([]);
+  const [files, setFiles]           = useState([]);
   const [expiryDate, setExpiryDate] = useState("");
-  const [reference, setReference] = useState("");
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
-  const buttonClass = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
+  const [reference, setReference]   = useState("");
+  const [notes, setNotes]           = useState("");
+  const [error, setError]           = useState("");
+  const btnCls = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
 
   const handleSubmit = async () => {
-    if (files.length === 0) {
-      setError("Please choose at least one file");
-      return;
-    }
+    if (files.length === 0) { setError("Please choose at least one file"); return; }
     setError("");
     const uploads = await Promise.all(
       files.map(async (file) => ({
-        fileName: file.name,
-        fileUrl: await readFileAsDataUrl(file),
-        mimeType: file.type || "application/octet-stream",
-        fileSize: file.size,
+        fileName:   file.name,
+        fileUrl:    await readFileAsDataUrl(file),
+        mimeType:   file.type || "application/octet-stream",
+        fileSize:   file.size,
         expiryDate: row.expirable ? expiryDate || null : null,
-        notes,
-        reference,
+        notes, reference,
       }))
     );
     await onSave({ groupId: row.groupId, documentId: row.documentId, data: { uploads } });
@@ -74,32 +211,33 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
           {error && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Files *</label>
-            <input
-              type="file"
-              multiple
-              onChange={(event) => setFiles(Array.from(event.target.files || []))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
-            />
+            <input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files || []))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
             {files.length > 0 && <p className="mt-2 text-xs text-slate-400">{files.length} file(s) selected</p>}
           </div>
           {row.expirable && (
             <div>
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Expiry Date</label>
-              <input type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none" />
+              <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none" />
             </div>
           )}
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Reference / Metadata</label>
-            <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="e.g. DBS renewal batch / certificate ref" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none" />
+            <input value={reference} onChange={(e) => setReference(e.target.value)}
+              placeholder="e.g. DBS renewal batch / certificate ref"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none" />
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Notes</label>
-            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none" />
           </div>
         </div>
         <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
           <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50">Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all ${buttonClass} disabled:opacity-50`}>
+          <button onClick={handleSubmit} disabled={saving}
+            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all ${btnCls} disabled:opacity-50`}>
             {saving ? "Uploading..." : "Upload Files"}
           </button>
         </div>
@@ -108,125 +246,81 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════════
+   UPLOADS MANAGE MODAL
+══════════════════════════════════════════════════════════ */
 function UploadsModal({ row, accent = "blue", onClose, onSave, saving }) {
-  const [drafts, setDrafts] = useState(() => Object.fromEntries(
-    (row.uploads || []).map((upload) => [upload.uploadId, {
-      expiryDate: upload.expiryDate ? new Date(upload.expiryDate).toISOString().split("T")[0] : "",
-      reference: upload.reference || "",
-      notes: upload.notes || "",
-    }])
-  ));
-  const buttonClass = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
+  const [drafts, setDrafts] = useState(() =>
+    Object.fromEntries(
+      (row.uploads || []).map((u) => [u.uploadId, {
+        expiryDate: u.expiryDate ? new Date(u.expiryDate).toISOString().split("T")[0] : "",
+        reference:  u.reference || "",
+        notes:      u.notes || "",
+      }])
+    )
+  );
+  const btnCls = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
 
   const saveUpload = async (uploadId) => {
-    await onSave({
-      groupId: row.groupId,
-      documentId: row.documentId,
-      uploadId,
-      data: drafts[uploadId],
-    });
+    await onSave({ groupId: row.groupId, documentId: row.documentId, uploadId, data: drafts[uploadId] });
   };
 
   const columns = [
+    { header: "File",     id: "file",       render: (u) => <span className="font-semibold text-slate-800">{u.fileName || "Unnamed file"}</span> },
+    { header: "Uploaded", id: "uploadedAt", render: (u) => formatDate(u.uploadedAt), cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top" },
+    { header: "Status",   id: "status",     render: (u) => <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold capitalize ${STATUS_STYLE[u.status] || STATUS_STYLE.pending}`}>{u.status}</span> },
     {
-      header: "File",
-      id: "file",
-      render: (upload) => <span className="font-semibold text-slate-800">{upload.fileName || "Unnamed file"}</span>,
-    },
-    {
-      header: "Uploaded",
-      id: "uploadedAt",
-      render: (upload) => formatDate(upload.uploadedAt),
-      cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
-    },
-    {
-      header: "Status",
-      id: "status",
-      render: (upload) => (
-        <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold capitalize ${STATUS_STYLE[upload.status] || STATUS_STYLE.pending}`}>{upload.status}</span>
-      ),
-    },
-    {
-      header: "Expiry",
-      id: "expiry",
-      render: (upload) => (
-        <input
-          type="date"
-          value={drafts[upload.uploadId]?.expiryDate || ""}
-          onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], expiryDate: event.target.value } }))}
-          disabled={!row.expirable}
-          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none disabled:bg-slate-100"
-        />
+      header: "Expiry", id: "expiry",
+      render: (u) => (
+        <input type="date" value={drafts[u.uploadId]?.expiryDate || ""} disabled={!row.expirable}
+          onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], expiryDate: e.target.value } }))}
+          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none disabled:bg-slate-100" />
       ),
       mobileLabel: "Expiry / metadata",
-      mobileRender: (upload) => (
+      mobileRender: (u) => (
         <div className="space-y-3">
-          <input
-            type="date"
-            value={drafts[upload.uploadId]?.expiryDate || ""}
-            onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], expiryDate: event.target.value } }))}
-            disabled={!row.expirable}
-            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none disabled:bg-slate-100"
-          />
-          <input
-            value={drafts[upload.uploadId]?.reference || ""}
-            onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], reference: event.target.value } }))}
-            placeholder="Reference"
-            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
-          />
-          <textarea
-            value={drafts[upload.uploadId]?.notes || ""}
-            onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], notes: event.target.value } }))}
-            rows={2}
-            placeholder="Notes"
-            className="w-full resize-none rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
-          />
+          <input type="date" value={drafts[u.uploadId]?.expiryDate || ""} disabled={!row.expirable}
+            onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], expiryDate: e.target.value } }))}
+            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm disabled:bg-slate-100" />
+          <input value={drafts[u.uploadId]?.reference || ""} placeholder="Reference"
+            onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], reference: e.target.value } }))}
+            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm" />
+          <textarea value={drafts[u.uploadId]?.notes || ""} rows={2} placeholder="Notes"
+            onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], notes: e.target.value } }))}
+            className="w-full resize-none rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm" />
         </div>
       ),
     },
     {
-      header: "Reference",
-      id: "reference",
-      render: (upload) => (
-        <input
-          value={drafts[upload.uploadId]?.reference || ""}
-          onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], reference: event.target.value } }))}
-          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
-        />
+      header: "Reference", id: "reference", hideOnMobile: true,
+      render: (u) => (
+        <input value={drafts[u.uploadId]?.reference || ""}
+          onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], reference: e.target.value } }))}
+          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none" />
       ),
-      hideOnMobile: true,
     },
     {
-      header: "Notes",
-      id: "notes",
-      render: (upload) => (
-        <textarea
-          value={drafts[upload.uploadId]?.notes || ""}
-          onChange={(event) => setDrafts((current) => ({ ...current, [upload.uploadId]: { ...current[upload.uploadId], notes: event.target.value } }))}
-          rows={2}
-          className="w-full resize-none rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
-        />
+      header: "Notes", id: "notes", hideOnMobile: true,
+      render: (u) => (
+        <textarea value={drafts[u.uploadId]?.notes || ""} rows={2}
+          onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], notes: e.target.value } }))}
+          className="w-full resize-none rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none" />
       ),
-      hideOnMobile: true,
     },
     {
-      header: "Preview",
-      id: "preview",
-      render: (upload) => upload.fileUrl ? (
-        <a href={upload.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
-          <Eye size={14} /> Preview
-        </a>
-      ) : "—",
+      header: "Preview", id: "preview",
+      render: (u) => u.fileUrl
+        ? <a href={u.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"><Eye size={14} /> Preview</a>
+        : "—",
     },
     {
-      header: "",
-      id: "save",
-      render: (upload) => (
-        <button onClick={() => saveUpload(upload.uploadId)} disabled={saving} className={`rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${buttonClass} disabled:opacity-50`}>
+      header: "", id: "save", mobileLabel: "Save",
+      render: (u) => (
+        <button onClick={() => saveUpload(u.uploadId)} disabled={saving}
+          className={`rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${btnCls} disabled:opacity-50`}>
           Save
         </button>
       ),
-      mobileLabel: "Save",
     },
   ];
 
@@ -242,14 +336,10 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, saving }) {
         </div>
         <div className="overflow-auto">
           <DataTable
-            columns={columns}
-            data={row.uploads || []}
-            rowKey="uploadId"
-            loading={false}
-            emptyTitle="No uploaded files yet"
+            columns={columns} data={row.uploads || []} rowKey="uploadId"
+            loading={false} emptyTitle="No uploaded files yet"
             pagination={(row.uploads || []).length > 5}
-            initialPageSize={5}
-            pageSizeOptions={[5, 10, 20]}
+            initialPageSize={5} pageSizeOptions={[5, 10, 20]}
             className="rounded-none border-0 shadow-none"
           />
         </div>
@@ -258,38 +348,47 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, saving }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════════
+   MAIN COMPONENT
+══════════════════════════════════════════════════════════ */
 export default function EntityDocumentsTab({ entityType, entityId, accent = "blue" }) {
-  const [filters, setFilters] = useState({ search: "", group: "", status: "" });
+  const [filters,   setFilters]   = useState({ search: "", group: "", status: "" });
   const [uploadRow, setUploadRow] = useState(null);
   const [manageRow, setManageRow] = useState(null);
-  const { data, isLoading, error } = useEntityDocuments(entityType, entityId);
-  const addUploads = useAddEntityDocumentUploads(entityType, entityId);
+
+  const { data: apiData, isLoading, error } = useEntityDocuments(entityType, entityId);
+  const addUploads   = useAddEntityDocumentUploads(entityType, entityId);
   const updateUpload = useUpdateEntityDocumentUpload(entityType, entityId);
 
-  const groups = data?.groups || [];
+  /* ── Use mock when API fails ── */
+  const useMock = !!error || !apiData;
+  const data    = useMock ? MOCK_DATA : apiData;
+
+  const groups  = data?.groups  || [];
+  const summary = data?.summary || { total: 0, uploaded: 0, pending: 0, expired: 0 };
+
   const rows = useMemo(() => {
     const query = filters.search.trim().toLowerCase();
     return (data?.documents || []).filter((row) => {
-      const matchesSearch = !query || [row.groupName, row.name, row.latestUpload?.fileName, row.latestUpload?.reference].filter(Boolean).join(" ").toLowerCase().includes(query);
-      const matchesGroup = !filters.group || row.groupId === filters.group;
-      const matchesStatus = !filters.status || row.status === filters.status;
+      const matchesSearch = !query ||
+        [row.groupName, row.name, row.latestUpload?.fileName, row.latestUpload?.reference]
+          .filter(Boolean).join(" ").toLowerCase().includes(query);
+      const matchesGroup  = !filters.group  || row.groupId === filters.group;
+      const matchesStatus = !filters.status || row.status  === filters.status;
       return matchesSearch && matchesGroup && matchesStatus;
     });
   }, [data?.documents, filters]);
 
-  const summary = data?.summary || { total: 0, uploaded: 0, pending: 0, expired: 0 };
   const accentButton = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
 
   const columns = [
     {
-      header: "Group",
-      id: "group",
+      header: "Group", id: "group",
       render: (row) => <span className="font-semibold text-slate-700">{row.groupName}</span>,
       cellClassName: "px-4 py-3 whitespace-nowrap text-slate-700 align-top",
     },
     {
-      header: "Document",
-      id: "document",
+      header: "Document", id: "document",
       render: (row) => (
         <div>
           <div className="font-semibold text-slate-800">{row.name}</div>
@@ -298,123 +397,137 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
       ),
     },
     {
-      header: "Mandatory",
-      id: "mandatory",
+      header: "Mandatory", id: "mandatory",
       render: (row) => row.mandatory ? "Mandatory" : "Optional",
       cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
     },
     {
-      header: "Uploads",
-      id: "uploads",
+      header: "Uploads", id: "uploads",
       render: (row) => row.uploadCount,
       cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
     },
     {
-      header: "Latest File",
-      id: "latestFile",
+      header: "Latest File", id: "latestFile",
       render: (row) => row.latestUpload ? (
         <div>
           <div className="font-medium text-slate-700">{row.latestUpload.fileName}</div>
           <div className="text-xs text-slate-400">{formatDate(row.latestUpload.uploadedAt)}</div>
         </div>
-      ) : (
-        <span className="text-slate-400">No files uploaded</span>
-      ),
+      ) : <span className="text-slate-400">No files uploaded</span>,
     },
     {
-      header: "Expiry",
-      id: "expiry",
+      header: "Expiry", id: "expiry",
       render: (row) => formatDate(row.latestUpload?.expiryDate),
       cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
     },
     {
-      header: "Status",
-      id: "status",
+      header: "Status", id: "status",
       render: (row) => (
-        <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold capitalize ${STATUS_STYLE[row.status] || STATUS_STYLE.pending}`}>{row.status}</span>
+        <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold capitalize ${STATUS_STYLE[row.status] || STATUS_STYLE.pending}`}>
+          {row.status}
+        </span>
       ),
     },
     {
-      header: "Actions",
-      id: "actions",
+      header: "Actions", id: "actions",
+      mobileLabel: "Actions", mobileCellClassName: "pt-1",
       render: (row) => (
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => setUploadRow(row)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${accentButton}`}>
+          <button onClick={() => setUploadRow(row)}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${accentButton}`}>
             <Upload size={13} /> Upload
           </button>
-          <button onClick={() => setManageRow(row)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50">
+          <button onClick={() => setManageRow(row)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50">
             <ExternalLink size={13} /> Manage
           </button>
         </div>
       ),
-      mobileLabel: "Actions",
-      mobileCellClassName: "pt-1",
     },
   ];
 
+  /* ── Loading ── */
   if (isLoading) {
-    return <div className="flex items-center justify-center py-16"><Loader2 size={24} className="animate-spin text-slate-400" /></div>;
-  }
-
-  if (error) {
-    return <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">Failed to load documents.</div>;
-  }
-
-  if (groups.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-14 text-slate-400">
-        <AlertCircle size={32} className="opacity-40" />
-        <p className="font-semibold">No compliance groups are assigned yet</p>
-        <p className="text-sm">Assign document groups from the list view or the Overview tab first.</p>
+      <div className="flex items-center justify-center py-16">
+        <Loader2 size={24} className="animate-spin text-slate-400" />
       </div>
     );
   }
 
+  /* ── Main render ── */
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+
+      {/* Demo data notice — remove once API is stable */}
+      {useMock && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-500" />
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Assigned Document Groups</h3>
-            <p className="mt-1 text-sm text-slate-400">Only document groups assigned in Client Management / Overview are shown here.</p>
+            <p className="text-sm font-semibold text-amber-700">Showing demo data</p>
+            <p className="mt-0.5 text-xs text-amber-600">
+              API is unavailable (500). Mock data is displayed for UI preview only — uploads will not persist until the server is fixed.
+            </p>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            {[
-              ["Uploaded", summary.uploaded],
-              ["Pending", summary.pending],
-              ["Expired", summary.expired],
-            ].map(([label, value]) => (
-              <div key={label} className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-lg font-bold text-slate-800">{value}</p>
-                <p className="text-[11px] font-semibold text-slate-500">{label}</p>
-              </div>
+        </div>
+      )}
+
+      {/* Summary + groups card */}
+      {groups.length === 0 && !useMock ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-14 text-slate-400">
+          <AlertCircle size={32} className="opacity-40" />
+          <p className="font-semibold">No compliance groups are assigned yet</p>
+          <p className="text-sm">Assign document groups from the list view or the Overview tab first.</p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Assigned Document Groups</h3>
+              <p className="mt-1 text-sm text-slate-400">Only document groups assigned in Client Management / Overview are shown here.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[["Uploaded", summary.uploaded], ["Pending", summary.pending], ["Expired", summary.expired]].map(([label, value]) => (
+                <div key={label} className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-lg font-bold text-slate-800">{value}</p>
+                  <p className="text-[11px] font-semibold text-slate-500">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {groups.map((group) => (
+              <span key={group.groupId} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+                <FileText size={14} className="text-slate-400" />
+                {group.groupName}
+              </span>
             ))}
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {groups.map((group) => (
-            <span key={group.groupId} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
-              <FileText size={14} className="text-slate-400" />
-              {group.groupName}
-            </span>
-          ))}
-        </div>
-      </div>
+      )}
 
+      {/* Filters */}
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search by group, document, file, or reference..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm transition-all focus:border-blue-400 focus:bg-white focus:outline-none" />
+          <input
+            value={filters.search}
+            onChange={(e) => setFilters((c) => ({ ...c, search: e.target.value }))}
+            placeholder="Search by group, document, file, or reference..."
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm transition-all focus:border-blue-400 focus:bg-white focus:outline-none"
+          />
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="Group">
-            <select value={filters.group} onChange={(event) => setFilters((current) => ({ ...current, group: event.target.value }))} className="cursor-pointer bg-transparent text-sm outline-none">
+            <select value={filters.group} onChange={(e) => setFilters((c) => ({ ...c, group: e.target.value }))}
+              className="cursor-pointer bg-transparent text-sm outline-none">
               <option value="">All</option>
-              {groups.map((group) => <option key={group.groupId} value={group.groupId}>{group.groupName}</option>)}
+              {groups.map((g) => <option key={g.groupId} value={g.groupId}>{g.groupName}</option>)}
             </select>
           </FilterChip>
           <FilterChip label="Status">
-            <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} className="cursor-pointer bg-transparent text-sm outline-none">
+            <select value={filters.status} onChange={(e) => setFilters((c) => ({ ...c, status: e.target.value }))}
+              className="cursor-pointer bg-transparent text-sm outline-none">
               <option value="">All</option>
               <option value="uploaded">Uploaded</option>
               <option value="pending">Pending</option>
@@ -422,13 +535,15 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
             </select>
           </FilterChip>
           {(filters.search || filters.group || filters.status) && (
-            <button onClick={() => setFilters({ search: "", group: "", status: "" })} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50">
+            <button onClick={() => setFilters({ search: "", group: "", status: "" })}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50">
               Clear Filters
             </button>
           )}
         </div>
       </div>
 
+      {/* Table */}
       <DataTable
         columns={columns}
         data={rows}
@@ -439,20 +554,18 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
         pageSizeOptions={[10, 20, 50]}
       />
 
+      {/* Modals */}
       {uploadRow && (
         <UploadModal
-          row={uploadRow}
-          accent={accent}
+          row={uploadRow} accent={accent}
           onClose={() => setUploadRow(null)}
           onSave={({ groupId, documentId, data }) => addUploads.mutateAsync({ groupId, documentId, data })}
           saving={addUploads.isPending}
         />
       )}
-
       {manageRow && (
         <UploadsModal
-          row={manageRow}
-          accent={accent}
+          row={manageRow} accent={accent}
           onClose={() => setManageRow(null)}
           onSave={({ groupId, documentId, uploadId, data }) => updateUpload.mutateAsync({ groupId, documentId, uploadId, data })}
           saving={updateUpload.isPending}

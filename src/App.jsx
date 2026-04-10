@@ -1,6 +1,5 @@
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider }  from "./context/AuthContext.jsx";
-import AppRouter         from "./routes/AppRouter.jsx";
+import AppRouter from "./routes/AppRouter.jsx";
 
 export default function App() {
   return (
@@ -10,9 +9,7 @@ export default function App() {
         v7_relativeSplatPath: true,
       }}
     >
-      <AuthProvider>
-        <AppRouter />
-      </AuthProvider>
+      <AppRouter />
     </BrowserRouter>
   );
 }

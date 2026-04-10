@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Network, Plus, Eye, Edit2, Trash2, X, Check,
-  ChevronRight, Search, Filter,
+  ChevronRight, Search, Filter, Building2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePCNs, useCreatePCN, useUpdatePCN, useDeletePCN } from "../../../hooks/usePCN";
@@ -9,6 +9,25 @@ import { useICBs } from "../../../hooks/useICB";
 import { useFederations } from "../../../hooks/useFederation";
 import { useDocumentGroups } from "../../../hooks/useCompliance";
 import DataTable from "../../../components/ui/DataTable";
+import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
+import { resetPcnFilters, setPcnFilters } from "../../../slices/pcnSlice";
+
+/* ─── ICB accent colours (same as ICBListPage) ───────────────────────────── */
+const ACCENTS = [
+  { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    icon: "text-blue-500"    },
+  { bg: "bg-purple-50",  border: "border-purple-200",  text: "text-purple-700",  icon: "text-purple-500"  },
+  { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", icon: "text-emerald-500" },
+  { bg: "bg-rose-50",    border: "border-rose-200",    text: "text-rose-700",    icon: "text-rose-500"    },
+  { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   icon: "text-amber-500"   },
+  { bg: "bg-cyan-50",    border: "border-cyan-200",    text: "text-cyan-700",    icon: "text-cyan-500"    },
+];
+
+/* Build a stable icbId → accent index map so same ICB always gets same colour */
+const buildAccentMap = (icbs) => {
+  const map = {};
+  icbs.forEach((icb, idx) => { map[icb._id] = idx % ACCENTS.length; });
+  return map;
+};
 
 /* ─── Shared tiny helpers ──────────────────────────────────────────────── */
 
@@ -289,9 +308,8 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
 export default function PCNListPage() {
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
-  const [filters, setFilters] = useState({
-    search: "", icb: "", contractType: "", group: "",
-  });
+  const dispatch = useAppDispatch();
+  const filters = useAppSelector((state) => state.pcn.filters);
 
   const { data: pcnData, isLoading } = usePCNs();
   const { data: icbData } = useICBs();
@@ -303,6 +321,9 @@ export default function PCNListPage() {
   const feds = fedData?.federations || [];
   const groups = groupData?.groups || [];
 
+  // Stable colour map: icbId → accent index
+  const icbAccentMap = useMemo(() => buildAccentMap(icbs), [icbs]);
+
   const createPCN = useCreatePCN();
   const updatePCN = useUpdatePCN();
   const deletePCN = useDeletePCN();
@@ -310,17 +331,12 @@ export default function PCNListPage() {
   const filteredPCNs = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     return pcns.filter((pcn) => {
-      const groupNames = getAssignedGroupNames(pcn).join(" ").toLowerCase();
       const matchSearch = !q ||
-        [pcn.name, pcn.icb?.name, pcn.federation?.name, pcn.xeroCode, pcn.contractType, groupNames]
+        [pcn.name, pcn.icb?.name, pcn.federation?.name, pcn.xeroCode, pcn.contractType]
           .filter(Boolean).join(" ").toLowerCase().includes(q);
       const matchIcb = !filters.icb || String(pcn.icb?._id || pcn.icb) === filters.icb;
       const matchContract = !filters.contractType || pcn.contractType === filters.contractType;
-      const matchGroup =
-        !filters.group ||
-        (pcn.complianceGroups || []).some((g) => String(g?._id || g) === filters.group) ||
-        String(pcn.complianceGroup?._id || pcn.complianceGroup || "") === filters.group;
-      return matchSearch && matchIcb && matchContract && matchGroup;
+      return matchSearch && matchIcb && matchContract;
     });
   }, [filters, pcns]);
 
@@ -354,8 +370,22 @@ export default function PCNListPage() {
     {
       header: "ICB",
       id: "icb",
-      render: (pcn) => pcn.icb?.name || "—",
-      cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
+      render: (pcn) => {
+        const icbId = pcn.icb?._id || pcn.icb;
+        const icbName = pcn.icb?.name;
+        if (!icbName) return <span className="text-slate-400">—</span>;
+        const accentIdx = icbAccentMap[icbId] ?? 0;
+        const accent = ACCENTS[accentIdx];
+        return (
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${accent.bg} ${accent.border} ${accent.text}`}
+          >
+            <Building2 size={11} className={accent.icon} />
+            {icbName}
+          </span>
+        );
+      },
+      cellClassName: "px-4 py-3 align-top",
       hideOnMobile: false,
     },
     {
@@ -364,25 +394,6 @@ export default function PCNListPage() {
       render: (pcn) => pcn.federation?.name || "—",
       cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
       hideOnMobile: true,
-    },
-    {
-      header: "Compliance Groups",
-      id: "groups",
-      mobileLabel: "Groups",
-      render: (pcn) => {
-        const names = getAssignedGroupNames(pcn);
-        return names.length > 0 ? (
-          <div className="flex max-w-[260px] flex-wrap gap-1">
-            {names.map((n) => (
-              <span key={n} className="rounded-full border border-purple-100 bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700">
-                {n}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span className="text-slate-400 text-sm">No groups</span>
-        );
-      },
     },
     {
       header: "Contract",
@@ -486,9 +497,9 @@ export default function PCNListPage() {
           <input
             value={filters.search}
             onChange={(e) =>
-              setFilters((cur) => ({ ...cur, search: e.target.value }))
+              dispatch(setPcnFilters({ search: e.target.value }))
             }
-            placeholder="Search PCN, ICB, federation, Xero code, group…"
+            placeholder="Search PCN, ICB, federation, Xero code…"
             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm focus:border-blue-400 focus:bg-white focus:outline-none"
           />
         </div>
@@ -498,7 +509,7 @@ export default function PCNListPage() {
             <select
               value={filters.icb}
               onChange={(e) =>
-                setFilters((cur) => ({ ...cur, icb: e.target.value }))
+                dispatch(setPcnFilters({ icb: e.target.value }))
               }
               className="cursor-pointer bg-transparent text-sm outline-none"
             >
@@ -513,7 +524,7 @@ export default function PCNListPage() {
             <select
               value={filters.contractType}
               onChange={(e) =>
-                setFilters((cur) => ({ ...cur, contractType: e.target.value }))
+                dispatch(setPcnFilters({ contractType: e.target.value }))
               }
               className="cursor-pointer bg-transparent text-sm outline-none"
             >
@@ -524,26 +535,9 @@ export default function PCNListPage() {
             </select>
           </FilterChip>
 
-          <FilterChip label="Group">
-            <select
-              value={filters.group}
-              onChange={(e) =>
-                setFilters((cur) => ({ ...cur, group: e.target.value }))
-              }
-              className="cursor-pointer bg-transparent text-sm outline-none"
-            >
-              <option value="">All</option>
-              {groups.map((g) => (
-                <option key={g._id} value={g._id}>{g.name}</option>
-              ))}
-            </select>
-          </FilterChip>
-
-          {(filters.search || filters.icb || filters.contractType || filters.group) && (
+          {(filters.search || filters.icb || filters.contractType) && (
             <button
-              onClick={() =>
-                setFilters({ search: "", icb: "", contractType: "", group: "" })
-              }
+              onClick={() => dispatch(resetPcnFilters())}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
             >
               Clear Filters

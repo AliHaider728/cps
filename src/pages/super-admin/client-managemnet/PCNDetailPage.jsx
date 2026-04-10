@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { usePCN, useUpdatePCN, useUpsertMeeting } from "../../../hooks/usePCN";
 import { useDocumentGroups } from "../../../hooks/useCompliance";
+import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
+import { setActivePcnDetailTab } from "../../../slices/pcnSlice";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
@@ -218,6 +220,7 @@ const TABS = [
 export default function PCNDetailPage() {
   const { id }   = useParams();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const { data, isLoading, refetch } = usePCN(id);
   const updatePCNMutation     = useUpdatePCN();
@@ -227,12 +230,18 @@ export default function PCNDetailPage() {
   const pcn = data?.pcn ?? null;
   const groups = groupsData?.groups || [];
 
-  const [tab,           setTab]           = useState("overview");
+  const tab = useAppSelector((state) => state.pcn.activeDetailTab);
   const [fieldSaving,   setFieldSaving]   = useState({});
   const [massEmail,     setMassEmail]     = useState(false);
   const [contactModal,  setContactModal]  = useState(null);
   const [meetingModal,  setMeetingModal]  = useState(null);
   const [templateModal, setTemplateModal] = useState(null);
+
+  useEffect(() => {
+    if (!TABS.some((item) => item.id === tab)) {
+      dispatch(setActivePcnDetailTab("overview"));
+    }
+  }, [dispatch, tab]);
 
   const patch = useCallback(async (body, fieldKey) => {
     if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: true }));
@@ -681,7 +690,7 @@ export default function PCNDetailPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex gap-1 p-2 overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
           {TABS.map(t => { const Icon = t.icon; return (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => dispatch(setActivePcnDetailTab(t.id))}
               className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 ${tab === t.id ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}>
               <Icon size={14} /> {t.label}
             </button>

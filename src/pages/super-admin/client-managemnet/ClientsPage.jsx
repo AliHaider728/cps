@@ -5,6 +5,8 @@ import {
   ChevronDown, Search, TrendingUp, MapPin, ArrowRight, Loader2
 } from "lucide-react";
 import { useHierarchy, useSearchClients } from "../../../hooks/useHierarchy";
+import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
+import { setHierarchySearch } from "../../../slices/clientsSlice";
 
 const StatCard = ({ icon: Icon, label, value, color }) => (
   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4 hover:-translate-y-1 transition-all ease-in-out hover:shadow-lg duration-200">
@@ -131,9 +133,10 @@ const SearchResults = ({ results, navigate, onClose }) => {
 
 export default function ClientsPage() {
   const navigate = useNavigate();
-  const [search,     setSearch]     = useState("");
   const [debounced,  setDebounced]  = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const dispatch = useAppDispatch();
+  const search = useAppSelector((state) => state.clients.hierarchySearch);
 
   // Debounce search input
   useEffect(() => {
@@ -185,7 +188,7 @@ export default function ClientsPage() {
         <div className="relative">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           {searching && <Loader2 size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" />}
-          <input value={search} onChange={e => setSearch(e.target.value)}
+          <input value={search} onChange={e => dispatch(setHierarchySearch(e.target.value))}
             onFocus={() => searchResults.length && setShowSearch(true)}
             onBlur={() => setTimeout(() => setShowSearch(false), 200)}
             placeholder="Search ICBs, PCNs, Practices or ODS codes…"
@@ -193,7 +196,7 @@ export default function ClientsPage() {
         </div>
         {showSearch && searchResults.length > 0 && (
           <SearchResults results={searchResults} navigate={navigate}
-            onClose={() => { setShowSearch(false); setSearch(""); }} />
+            onClose={() => { setShowSearch(false); dispatch(setHierarchySearch("")); }} />
         )}
       </div>
 
