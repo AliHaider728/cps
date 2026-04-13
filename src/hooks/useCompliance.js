@@ -232,3 +232,17 @@ export const useUpdateEntityDocumentUpload = (entityType, entityId) => {
     },
   });
 };
+
+export const useDeleteEntityDocumentUpload = (entityType, entityId) => {
+  const qc = useQueryClient();
+  const id = safeId(entityId);
+  return useMutation({
+    mutationFn: ({ groupId, documentId, uploadId }) =>
+      entityDocumentsAPI.deleteUpload(entityType, id, groupId, documentId, uploadId).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
+      qc.invalidateQueries({ queryKey: QK.PCN(id) });
+      qc.invalidateQueries({ queryKey: QK.PRACTICE(id) });
+    },
+  });
+};

@@ -147,6 +147,8 @@ export default function FederationListPage() {
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                   {fed.icb?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={11}/> {fed.icb.name}</span>}
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-md border capitalize ${TYPE_STYLE[fed.type] || TYPE_STYLE.other}`}>{fed.type}</span>
+                  <span className="text-xs text-slate-400">{fed.pcnCount || 0} PCNs</span>
+                  <span className="text-xs text-slate-400">{fed.practiceCount || 0} Practices</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">

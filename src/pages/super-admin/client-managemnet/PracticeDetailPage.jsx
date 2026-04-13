@@ -4,7 +4,7 @@ import {
   Stethoscope, Network, ChevronRight, ArrowLeft, RefreshCw,
   Users, FileCheck, MessageSquare, UserX, Mail, Check, X,
   Phone, AlertTriangle, Plus, Edit2, Trash2, Save,
-  Wifi, Activity, Hash, MapPin, CheckCircle2, XCircle
+  Wifi, Activity, Hash, MapPin, CheckCircle2, XCircle, Building2, Layers
 } from "lucide-react";
 import { usePractice, useUpdatePractice } from "../../../hooks/usePractice";
 import { useDocumentGroups } from "../../../hooks/useCompliance";
@@ -320,6 +320,8 @@ export default function PracticeDetailPage() {
           ) : (
             <div>
               <DetailRow label="ODS Code"      value={practice.odsCode} />
+              <DetailRow label="ICB"           value={practice.pcn?.icb?.name} />
+              <DetailRow label="Federation"    value={practice.pcn?.federation?.name || "Direct to ICB"} />
               <DetailRow label="PCN"           value={practice.pcn?.name} />
               <DetailRow label="Compliance Group" value={practice.complianceGroup?.name || "No compliance group assigned"} />
               <DetailRow label="Contract Type" value={practice.contractType} />
@@ -489,6 +491,12 @@ export default function PracticeDetailPage() {
       <nav className="flex items-center gap-1.5 text-sm flex-wrap">
         <button onClick={() => navigate("/dashboard/super-admin/clients")} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">Client Management</button>
         <ChevronRight size={13} className="text-slate-300" />
+        {practice.pcn?.icb?._id && (
+          <>
+            <button onClick={() => navigate(`/dashboard/super-admin/clients/icb/${practice.pcn.icb._id}`)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{practice.pcn.icb.name}</button>
+            <ChevronRight size={13} className="text-slate-300" />
+          </>
+        )}
         {practice.pcn?._id && (
           <>
             <button onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${practice.pcn._id}`)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{practice.pcn.name}</button>
@@ -505,6 +513,8 @@ export default function PracticeDetailPage() {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{practice.name}</h1>
             <div className="flex flex-wrap items-center gap-2.5 mt-2">
               {practice.odsCode    && <span className="text-sm text-slate-400 flex items-center gap-1"><Hash size={12} /> {practice.odsCode}</span>}
+              {practice.pcn?.icb?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={12} /> {practice.pcn.icb.name}</span>}
+              {practice.pcn?.federation?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {practice.pcn.federation.name}</span>}
               {practice.pcn?.name  && <span className="text-sm text-slate-400 flex items-center gap-1"><Network size={12} /> {practice.pcn.name}</span>}
               {practice.contractType && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200">{practice.contractType}</span>}
               {practice.fte        && <span className="text-sm text-slate-400">{practice.fte}</span>}

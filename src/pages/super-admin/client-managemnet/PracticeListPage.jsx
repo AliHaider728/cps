@@ -11,7 +11,7 @@ import { usePCNs } from "../../../hooks/usePCN";
 import { useDocumentGroups } from "../../../hooks/useCompliance";
 import DataTable from "../../../components/ui/DataTable";
 
-/* ─── Shared tiny helpers ──────────────────────────────────────────────── */
+/* ─── Shared tiny helpers   */
 
 const F = ({ label, children }) => (
   <div>
@@ -30,7 +30,7 @@ const FilterChip = ({ label, children }) => (
   </div>
 );
 
-/* ─── Helpers ───────────────────────────────────────────────────────────── */
+/* ─── Helpers   */
 
 const buildPracticeForm = (existing) => ({
   name: existing?.name || "",
@@ -48,7 +48,7 @@ const buildPracticeForm = (existing) => ({
   notes: existing?.notes || "",
 });
 
-/* ─── Modal ─────────────────────────────────────────────────────────────── */
+/* ─── Modal   */
 
 const PracticeModal = ({ existing, pcns, groups, onClose, onSave }) => {
   const [form, setForm] = useState(() => buildPracticeForm(existing));
@@ -232,7 +232,7 @@ const PracticeModal = ({ existing, pcns, groups, onClose, onSave }) => {
   );
 };
 
-/* ─── Page ───────────────────────────────────────────────────────────────── */
+/* ─── Page  ── */
 
 export default function PracticeListPage() {
   const navigate = useNavigate();
@@ -257,7 +257,16 @@ export default function PracticeListPage() {
     const q = filters.search.trim().toLowerCase();
     return practices.filter((p) => {
       const matchSearch = !q ||
-        [p.name, p.odsCode, p.pcn?.name, p.city, p.postcode, p.complianceGroup?.name]
+        [
+          p.name,
+          p.odsCode,
+          p.pcn?.name,
+          p.pcn?.icb?.name,
+          p.pcn?.federation?.name,
+          p.city,
+          p.postcode,
+          p.complianceGroup?.name,
+        ]
           .filter(Boolean).join(" ").toLowerCase().includes(q);
       const matchPcn = !filters.pcn || String(p.pcn?._id || p.pcn) === filters.pcn;
       const matchCity =
@@ -303,6 +312,18 @@ export default function PracticeListPage() {
       id: "pcn",
       render: (p) => p.pcn?.name || "—",
       cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
+    },
+    {
+      header: "ICB / Federation",
+      id: "hierarchy",
+      render: (p) => (
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-slate-700">{p.pcn?.icb?.name || "â€”"}</div>
+          <div className="text-xs text-slate-400">{p.pcn?.federation?.name || "Direct to ICB"}</div>
+        </div>
+      ),
+      cellClassName: "px-4 py-3 align-top",
+      hideOnMobile: true,
     },
     {
       header: "ODS",

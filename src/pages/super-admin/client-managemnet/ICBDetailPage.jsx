@@ -119,10 +119,10 @@ export default function ICBDetailPage() {
     };
 
     // Summary counts — seed data structure
-    const fedCount      = icb.federations?.length || 0;
-    const pcnCount      = icb.pcns?.length        || 0;
-    const practiceCount = icb.pcns?.reduce((s, p) => s + (p.practices?.length || 0), 0) || 0;
-    const totalSpend    = icb.pcns?.reduce((s, p) => s + (Number(p.annualSpend) || 0), 0) || 0;
+    const fedCount = icb.summary?.federationCount ?? (icb.federations?.length || 0);
+    const pcnCount = icb.summary?.pcnCount ?? (icb.pcns?.length || 0);
+    const practiceCount = icb.summary?.practiceCount ?? (icb.pcns?.reduce((s, p) => s + (p.practices?.length || 0), 0) || 0);
+    const totalSpend = icb.summary?.totalAnnualSpend ?? (icb.pcns?.reduce((s, p) => s + (Number(p.annualSpend) || 0), 0) || 0);
     const contractBreakdown = (icb.pcns || []).reduce((acc, pcn) => {
       if (pcn.contractType) acc[pcn.contractType] = (acc[pcn.contractType] || 0) + 1;
       return acc;
@@ -260,9 +260,8 @@ export default function ICBDetailPage() {
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-md border capitalize ${TYPE_STYLE[fed.type] || TYPE_STYLE.other}`}>
                       {fed.type}
                     </span>
-                    {fed.pcns?.length > 0 && (
-                      <span className="text-xs text-slate-400">{fed.pcns.length} PCN{fed.pcns.length !== 1 ? "s" : ""}</span>
-                    )}
+                    <span className="text-xs text-slate-400">{fed.pcnCount ?? fed.pcns?.length ?? 0} PCN{(fed.pcnCount ?? fed.pcns?.length ?? 0) !== 1 ? "s" : ""}</span>
+                    <span className="text-xs text-slate-400">{fed.practiceCount || 0} Practice{(fed.practiceCount || 0) !== 1 ? "s" : ""}</span>
                   </div>
                 </div>
               </div>

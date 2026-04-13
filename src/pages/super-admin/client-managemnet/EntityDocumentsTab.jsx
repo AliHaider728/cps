@@ -2,142 +2,12 @@ import { useMemo, useState } from "react";
 import { AlertCircle, ExternalLink, Eye, FileText, Filter, Loader2, Search, Upload } from "lucide-react";
 import {
   useAddEntityDocumentUploads,
+  useDeleteEntityDocumentUpload,
   useEntityDocuments,
   useUpdateEntityDocumentUpload,
 } from "../../../hooks/useCompliance";
 import DataTable from "../../../components/ui/DataTable";
 
-/* ══════════════════════════════════════════════════════════
-   MOCK DATA  (seed-based — remove once API is stable)
-══════════════════════════════════════════════════════════ */
-const MOCK_GROUPS = [
-  { groupId: "g1", groupName: "Clinical Staff Documents" },
-  { groupId: "g2", groupName: "DBS and Update"           },
-  { groupId: "g3", groupName: "Non-Clinical Staff"        },
-];
-
-const MOCK_DOCUMENTS = [
-  // ── Clinical Staff Documents ──
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d01", name: "CV",
-    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "cv_dr_ali_haider.pdf", uploadedAt: "2025-01-10", expiryDate: null, reference: "Ali Haider" },
-    uploads: [{ uploadId: "u01", fileName: "cv_dr_ali_haider.pdf", uploadedAt: "2025-01-10", status: "uploaded", expiryDate: null, reference: "Ali Haider", notes: "Latest CV", fileUrl: null }],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d02", name: "DBS Check/Update Service",
-    mandatory: true, expirable: true, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "dbs_check_2025.pdf", uploadedAt: "2025-02-14", expiryDate: "2026-02-14", reference: "DBS-2025-001" },
-    uploads: [{ uploadId: "u02", fileName: "dbs_check_2025.pdf", uploadedAt: "2025-02-14", status: "uploaded", expiryDate: "2026-02-14", reference: "DBS-2025-001", notes: "", fileUrl: null }],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d03", name: "Declaration of Interests Form",
-    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
-    latestUpload: null, uploads: [],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d04", name: "Fitness to Practise Form",
-    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "fitness_form_signed.pdf", uploadedAt: "2025-01-20", expiryDate: null, reference: "" },
-    uploads: [{ uploadId: "u04", fileName: "fitness_form_signed.pdf", uploadedAt: "2025-01-20", status: "uploaded", expiryDate: null, reference: "", notes: "Signed by GP", fileUrl: null }],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d05", name: "Health Screening Form",
-    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
-    latestUpload: null, uploads: [],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d06", name: "Reference 1",
-    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "reference_1_dr_smith.pdf", uploadedAt: "2025-01-15", expiryDate: null, reference: "Dr. Smith" },
-    uploads: [{ uploadId: "u06", fileName: "reference_1_dr_smith.pdf", uploadedAt: "2025-01-15", status: "uploaded", expiryDate: null, reference: "Dr. Smith", notes: "", fileUrl: null }],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d07", name: "Reference 2",
-    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
-    latestUpload: null, uploads: [],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d08", name: "Signed Confidentiality Statement",
-    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "confidentiality_signed.pdf", uploadedAt: "2025-01-12", expiryDate: null, reference: "" },
-    uploads: [{ uploadId: "u08", fileName: "confidentiality_signed.pdf", uploadedAt: "2025-01-12", status: "uploaded", expiryDate: null, reference: "", notes: "", fileUrl: null }],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d09", name: "Signed Data Protection Statement",
-    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "data_protection_signed.pdf", uploadedAt: "2025-01-12", expiryDate: null, reference: "" },
-    uploads: [{ uploadId: "u09", fileName: "data_protection_signed.pdf", uploadedAt: "2025-01-12", status: "uploaded", expiryDate: null, reference: "", notes: "", fileUrl: null }],
-  },
-  {
-    groupId: "g1", groupName: "Clinical Staff Documents",
-    documentId: "d10", name: "Signed Non-Disclosure Agreement",
-    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
-    latestUpload: null, uploads: [],
-  },
-
-  // ── DBS and Update ──
-  {
-    groupId: "g2", groupName: "DBS and Update",
-    documentId: "d11", name: "DBS Check/Update Service",
-    mandatory: true, expirable: true, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "dbs_check_2025.pdf", uploadedAt: "2025-02-14", expiryDate: "2026-02-14", reference: "DBS-2025-001" },
-    uploads: [{ uploadId: "u11", fileName: "dbs_check_2025.pdf", uploadedAt: "2025-02-14", status: "uploaded", expiryDate: "2026-02-14", reference: "DBS-2025-001", notes: "", fileUrl: null }],
-  },
-  {
-    groupId: "g2", groupName: "DBS and Update",
-    documentId: "d12", name: "Enhanced DBS Certificate (cert only)",
-    mandatory: true, expirable: true, uploadCount: 1, status: "expired",
-    latestUpload: { fileName: "enhanced_dbs_cert.pdf", uploadedAt: "2023-03-01", expiryDate: "2024-03-01", reference: "EDBS-2023-007" },
-    uploads: [{ uploadId: "u12", fileName: "enhanced_dbs_cert.pdf", uploadedAt: "2023-03-01", status: "expired", expiryDate: "2024-03-01", reference: "EDBS-2023-007", notes: "Needs renewal", fileUrl: null }],
-  },
-
-  // ── Non-Clinical Staff ──
-  {
-    groupId: "g3", groupName: "Non-Clinical Staff",
-    documentId: "d13", name: "CV",
-    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
-    latestUpload: null, uploads: [],
-  },
-  {
-    groupId: "g3", groupName: "Non-Clinical Staff",
-    documentId: "d14", name: "Proof of Address",
-    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "proof_of_address.pdf", uploadedAt: "2025-01-18", expiryDate: null, reference: "" },
-    uploads: [{ uploadId: "u14", fileName: "proof_of_address.pdf", uploadedAt: "2025-01-18", status: "uploaded", expiryDate: null, reference: "", notes: "", fileUrl: null }],
-  },
-  {
-    groupId: "g3", groupName: "Non-Clinical Staff",
-    documentId: "d15", name: "Reference 1",
-    mandatory: true, expirable: false, uploadCount: 0, status: "pending",
-    latestUpload: null, uploads: [],
-  },
-  {
-    groupId: "g3", groupName: "Non-Clinical Staff",
-    documentId: "d16", name: "Signed Confidentiality Statement",
-    mandatory: true, expirable: false, uploadCount: 1, status: "uploaded",
-    latestUpload: { fileName: "confidentiality_non_clinical.pdf", uploadedAt: "2025-02-01", expiryDate: null, reference: "" },
-    uploads: [{ uploadId: "u16", fileName: "confidentiality_non_clinical.pdf", uploadedAt: "2025-02-01", status: "uploaded", expiryDate: null, reference: "", notes: "", fileUrl: null }],
-  },
-];
-
-const MOCK_SUMMARY = {
-  total:    MOCK_DOCUMENTS.length,
-  uploaded: MOCK_DOCUMENTS.filter(d => d.status === "uploaded").length,
-  pending:  MOCK_DOCUMENTS.filter(d => d.status === "pending").length,
-  expired:  MOCK_DOCUMENTS.filter(d => d.status === "expired").length,
-};
-
-const MOCK_DATA = { groups: MOCK_GROUPS, documents: MOCK_DOCUMENTS, summary: MOCK_SUMMARY };
 
 /* ══════════════════════════════════════════════════════════
    CONSTANTS
@@ -249,7 +119,7 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
 /* ══════════════════════════════════════════════════════════
    UPLOADS MANAGE MODAL
 ══════════════════════════════════════════════════════════ */
-function UploadsModal({ row, accent = "blue", onClose, onSave, saving }) {
+function UploadsModal({ row, accent = "blue", onClose, onSave, onDelete, saving }) {
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
       (row.uploads || []).map((u) => [u.uploadId, {
@@ -263,6 +133,10 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, saving }) {
 
   const saveUpload = async (uploadId) => {
     await onSave({ groupId: row.groupId, documentId: row.documentId, uploadId, data: drafts[uploadId] });
+  };
+
+  const deleteUpload = async (uploadId) => {
+    await onDelete({ groupId: row.groupId, documentId: row.documentId, uploadId });
   };
 
   const columns = [
@@ -314,12 +188,18 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, saving }) {
         : "—",
     },
     {
-      header: "", id: "save", mobileLabel: "Save",
+      header: "", id: "save", mobileLabel: "Actions",
       render: (u) => (
-        <button onClick={() => saveUpload(u.uploadId)} disabled={saving}
-          className={`rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${btnCls} disabled:opacity-50`}>
-          Save
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => saveUpload(u.uploadId)} disabled={saving}
+            className={`rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${btnCls} disabled:opacity-50`}>
+            Save
+          </button>
+          <button onClick={() => deleteUpload(u.uploadId)} disabled={saving}
+            className="rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition-all hover:bg-red-50 disabled:opacity-50">
+            Delete
+          </button>
+        </div>
       ),
     },
   ];
@@ -359,10 +239,8 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
   const { data: apiData, isLoading, error } = useEntityDocuments(entityType, entityId);
   const addUploads   = useAddEntityDocumentUploads(entityType, entityId);
   const updateUpload = useUpdateEntityDocumentUpload(entityType, entityId);
-
-  /* ── Use mock when API fails ── */
-  const useMock = !!error || !apiData;
-  const data    = useMock ? MOCK_DATA : apiData;
+  const deleteUpload = useDeleteEntityDocumentUpload(entityType, entityId);
+  const data = apiData || { groups: [], documents: [], summary: { total: 0, uploaded: 0, pending: 0, expired: 0 } };
 
   const groups  = data?.groups  || [];
   const summary = data?.summary || { total: 0, uploaded: 0, pending: 0, expired: 0 };
@@ -433,10 +311,12 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
       mobileLabel: "Actions", mobileCellClassName: "pt-1",
       render: (row) => (
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => setUploadRow(row)}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${accentButton}`}>
-            <Upload size={13} /> Upload
-          </button>
+          {row.status !== "uploaded" && (
+            <button onClick={() => setUploadRow(row)}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${accentButton}`}>
+              <Upload size={13} /> Upload
+            </button>
+          )}
           <button onClick={() => setManageRow(row)}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50">
             <ExternalLink size={13} /> Manage
@@ -458,22 +338,18 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
   /* ── Main render ── */
   return (
     <div className="space-y-4">
-
-      {/* Demo data notice — remove once API is stable */}
-      {useMock && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-500" />
+      {error && (
+        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-red-500" />
           <div>
-            <p className="text-sm font-semibold text-amber-700">Showing demo data</p>
-            <p className="mt-0.5 text-xs text-amber-600">
-              API is unavailable (500). Mock data is displayed for UI preview only — uploads will not persist until the server is fixed.
-            </p>
+            <p className="text-sm font-semibold text-red-700">Unable to load documents</p>
+            <p className="mt-0.5 text-xs text-red-600">{error?.response?.data?.message || error.message || "Documents API request failed."}</p>
           </div>
         </div>
       )}
 
       {/* Summary + groups card */}
-      {groups.length === 0 && !useMock ? (
+      {groups.length === 0 && !error ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-14 text-slate-400">
           <AlertCircle size={32} className="opacity-40" />
           <p className="font-semibold">No compliance groups are assigned yet</p>
@@ -568,9 +444,11 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
           row={manageRow} accent={accent}
           onClose={() => setManageRow(null)}
           onSave={({ groupId, documentId, uploadId, data }) => updateUpload.mutateAsync({ groupId, documentId, uploadId, data })}
-          saving={updateUpload.isPending}
+          onDelete={({ groupId, documentId, uploadId }) => deleteUpload.mutateAsync({ groupId, documentId, uploadId })}
+          saving={updateUpload.isPending || deleteUpload.isPending}
         />
       )}
     </div>
   );
 }
+

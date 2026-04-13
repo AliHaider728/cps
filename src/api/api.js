@@ -116,6 +116,8 @@ export const entityDocumentsAPI = {
     api.post(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads`, data),
   updateUpload: (entityType, entityId, groupId, documentId, uploadId, data) =>
     api.patch(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads/${uploadId}`, data),
+  deleteUpload: (entityType, entityId, groupId, documentId, uploadId) =>
+    api.delete(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads/${uploadId}`),
 };
 
 export default api;
