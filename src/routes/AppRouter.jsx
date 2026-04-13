@@ -24,7 +24,7 @@ const PracticeDetailPage = lazy(() => import("../pages/super-admin/client-manage
 const ContactHistoryPanel= lazy(() => import("../pages/super-admin/client-managemnet/ContactHistoryPanel.jsx"));
 
 // Compliance Pages
-const ComplianceDocumentsListPage = lazy(() => import("../pages/super-admin/client-managemnet/ComplianceDocumentsListPage.jsx")); // ← NEW LIST PAGE
+const ComplianceDocumentsListPage = lazy(() => import("../pages/super-admin/client-managemnet/ComplianceDocumentsListPage.jsx"));  
 const ComplianceDocumentDetailPage = lazy(() => import("../pages/super-admin/client-managemnet/ComplianceDocumentDetailPage.jsx"));
 const ComplianceGroupsPage         = lazy(() => import("../pages/super-admin/client-managemnet/CompliancePanel.jsx"));
 const DocumentGroupDetailPage      = lazy(() => import("../pages/super-admin/client-managemnet/DocumentGroupDetailPage.jsx"));
@@ -89,7 +89,7 @@ const AppRouter = () => (
     {/* History */}
     <Route path="/dashboard/super-admin/clients/history" element={<P roles={["super_admin","ops_manager","director"]}><ContactHistoryPanel /></P>} />
 
-    {/* 🔥 Compliance Documents - Sidebar Route (List + Detail) */}
+    {/*   Compliance Documents - Sidebar Route (List + Detail) */}
     <Route path="/dashboard/super-admin/compliance/documents"
       element={<P roles={["super_admin","ops_manager"]}><ComplianceDocumentsListPage /></P>} />
     <Route path="/dashboard/super-admin/compliance/documents/:id"
