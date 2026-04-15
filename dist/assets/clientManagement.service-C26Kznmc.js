@@ -1,0 +1,1 @@
+import{a5 as t}from"./index-OCWLyWQG.js";const i={getHierarchy:()=>t.get("/clients/hierarchy"),search:e=>t.get("/clients/search",{params:{q:e}}),getICBs:()=>t.get("/clients/icb"),getFederations:e=>t.get("/clients/federation",{params:e?{icb:e}:{}})};export{i as c};

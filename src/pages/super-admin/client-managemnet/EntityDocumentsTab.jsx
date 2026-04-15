@@ -1,5 +1,8 @@
 import { useMemo, useState, useRef } from "react";
-import { AlertCircle, Edit2, Eye, FileText, Filter, Loader2, Search, Upload } from "lucide-react";
+import {
+  AlertCircle, Edit2, Eye, FileText, Filter,
+  Loader2, Search, Upload, CheckSquare, Square, ChevronDown, ChevronUp,
+} from "lucide-react";
 import {
   useAddEntityDocumentUploads,
   useDeleteEntityDocumentUpload,
@@ -8,17 +11,17 @@ import {
 } from "../../../hooks/useCompliance";
 import DataTable from "../../../components/ui/DataTable";
 
-
-/* ══════════════════════════════════════════════════════════
+/*  
    CONSTANTS
-══════════════════════════════════════════════════════════ */
+  */
 const STATUS_STYLE = {
   pending:  "border-amber-200 bg-amber-50 text-amber-700",
   uploaded: "border-green-200 bg-green-50 text-green-700",
   expired:  "border-red-200 bg-red-50 text-red-700",
 };
 
-const formatDate = (value) => value ? new Date(value).toLocaleDateString("en-GB") : "—";
+const formatDate = (value) =>
+  value ? new Date(value).toLocaleDateString("en-GB") : "—";
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -28,9 +31,9 @@ const readFileAsDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
-/* ══════════════════════════════════════════════════════════
+/*  
    FILTER CHIP
-══════════════════════════════════════════════════════════ */
+  */
 const FilterChip = ({ label, children }) => (
   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
     <Filter size={13} className="shrink-0 text-slate-400" />
@@ -39,16 +42,46 @@ const FilterChip = ({ label, children }) => (
   </div>
 );
 
-/* ══════════════════════════════════════════════════════════
-   UPLOAD MODAL — naya file upload karne ke liye
-══════════════════════════════════════════════════════════ */
+/*  
+   EXPIRY FIELD — reusable
+   expirable=true  → date picker
+   expirable=false → "Non-Expirable" badge, no input
+  */
+const ExpiryField = ({ expirable, value, onChange, size = "md" }) => {
+  const inputCls =
+    size === "sm"
+      ? "w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs focus:border-blue-400 focus:bg-white focus:outline-none transition-all"
+      : "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:bg-white focus:outline-none transition-all";
+
+  if (!expirable) {
+    return (
+      <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-500">
+        Non-Expirable
+      </span>
+    );
+  }
+  return (
+    <input
+      type="date"
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      className={inputCls}
+    />
+  );
+};
+
+/*  
+   SINGLE UPLOAD MODAL
+  */
 function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
   const [files, setFiles]           = useState([]);
   const [expiryDate, setExpiryDate] = useState("");
   const [reference, setReference]   = useState("");
   const [notes, setNotes]           = useState("");
   const [error, setError]           = useState("");
-  const btnCls = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
+
+  const btnCls =
+    accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
 
   const handleSubmit = async () => {
     if (files.length === 0) { setError("Please choose at least one file"); return; }
@@ -59,7 +92,7 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
         fileUrl:    await readFileAsDataUrl(file),
         mimeType:   file.type || "application/octet-stream",
         fileSize:   file.size,
-        expiryDate: expiryDate || null,
+        expiryDate: row.expirable ? (expiryDate || null) : null,
         notes,
         reference,
       }))
@@ -71,12 +104,15 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
       <div className="flex max-h-[92vh] w-full max-w-xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
+
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
             <h3 className="text-base font-bold text-slate-800">Upload Document</h3>
             <p className="mt-1 text-sm text-slate-500">{row.groupName} / {row.name}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-semibold">Close</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-semibold">
+            Close
+          </button>
         </div>
 
         <div className="space-y-4 overflow-y-auto p-6">
@@ -86,7 +122,6 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
             </div>
           )}
 
-          {/* Files */}
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Files *
@@ -101,19 +136,14 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
             )}
           </div>
 
-          {/* Expiry Date */}
+          {/* Expiry — always visible */}
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Expiry Date
             </label>
-            <input
-              type="date" value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
-            />
+            <ExpiryField expirable={row.expirable} value={expiryDate} onChange={setExpiryDate} />
           </div>
 
-          {/* Reference */}
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Reference / Metadata
@@ -125,13 +155,12 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
             />
           </div>
 
-          {/* Notes */}
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Notes
             </label>
             <textarea
-              value={notes} onChange={(e) => setNotes(e.target.value)} rows={4}
+              value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
               className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
             />
           </div>
@@ -139,7 +168,7 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
 
         <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
           <button onClick={onClose}
-            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50">
+            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={saving}
@@ -152,181 +181,9 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
   );
 }
 
-/* ══════════════════════════════════════════════════════════
-   BULK UPLOAD MODAL — ek group ke saare documents ek saath
-══════════════════════════════════════════════════════════ */
-function BulkUploadModal({ group, documents, accent = "blue", onClose, onSave, saving }) {
-  // Per-document state: { [documentId]: { files, expiryDate, reference, notes } }
-  const [docStates, setDocStates] = useState(() =>
-    Object.fromEntries(
-      documents.map((doc) => [doc.documentId, { files: [], expiryDate: "", reference: "", notes: "" }])
-    )
-  );
-  const [error, setError]     = useState("");
-  const [progress, setProgress] = useState(""); // feedback during upload
-
-  const btnCls = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
-
-  const updateDoc = (documentId, field, value) =>
-    setDocStates((c) => ({ ...c, [documentId]: { ...c[documentId], [field]: value } }));
-
-  const anyFileSelected = Object.values(docStates).some((s) => s.files.length > 0);
-
-  const handleSubmit = async () => {
-    if (!anyFileSelected) { setError("Please select at least one file for any document"); return; }
-    setError("");
-
-    const docsWithFiles = documents.filter((doc) => docStates[doc.documentId].files.length > 0);
-
-    for (let i = 0; i < docsWithFiles.length; i++) {
-      const doc   = docsWithFiles[i];
-      const state = docStates[doc.documentId];
-      setProgress(`Uploading ${i + 1} / ${docsWithFiles.length}: ${doc.name}…`);
-
-      const uploads = await Promise.all(
-        state.files.map(async (file) => ({
-          fileName:   file.name,
-          fileUrl:    await readFileAsDataUrl(file),
-          mimeType:   file.type || "application/octet-stream",
-          fileSize:   file.size,
-          expiryDate: state.expiryDate || null,
-          notes:      state.notes,
-          reference:  state.reference,
-        }))
-      );
-
-      await onSave({ groupId: doc.groupId, documentId: doc.documentId, data: { uploads } });
-    }
-
-    setProgress("");
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
-
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">Bulk Upload — {group.groupName}</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Upload files for all {documents.length} document(s) in this group at once.
-            </p>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-semibold">
-            Close
-          </button>
-        </div>
-
-        {/* Per-document rows */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-          {error && (
-            <div className="mx-5 mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-              {error}
-            </div>
-          )}
-
-          {documents.map((doc) => {
-            const state = docStates[doc.documentId];
-            return (
-              <div key={doc.documentId} className="p-5 space-y-3">
-                {/* Doc name + mandatory badge */}
-                <div className="flex items-center gap-2">
-                  <FileText size={14} className="shrink-0 text-slate-400" />
-                  <span className="text-sm font-bold text-slate-800">{doc.name}</span>
-                  {doc.mandatory && (
-                    <span className="rounded-lg border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700">
-                      Mandatory
-                    </span>
-                  )}
-                  <span className={`ml-auto rounded-lg border px-2 py-0.5 text-xs font-bold capitalize ${STATUS_STYLE[doc.status] || STATUS_STYLE.pending}`}>
-                    {doc.status}
-                  </span>
-                </div>
-
-                {/* File picker */}
-                <div>
-                  <input
-                    type="file" multiple
-                    onChange={(e) => updateDoc(doc.documentId, "files", Array.from(e.target.files || []))}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                  />
-                  {state.files.length > 0 && (
-                    <p className="mt-1.5 text-xs text-slate-400">{state.files.length} file(s) selected</p>
-                  )}
-                </div>
-
-                {/* Optional metadata — only show when files selected */}
-                {state.files.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Expiry Date
-                      </label>
-                      <input type="date"
-                        value={state.expiryDate}
-                        onChange={(e) => updateDoc(doc.documentId, "expiryDate", e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Reference
-                      </label>
-                      <input
-                        value={state.reference}
-                        placeholder="Cert ref / batch no."
-                        onChange={(e) => updateDoc(doc.documentId, "reference", e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Notes
-                      </label>
-                      <input
-                        value={state.notes}
-                        placeholder="Additional notes…"
-                        onChange={(e) => updateDoc(doc.documentId, "notes", e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center gap-3 border-t border-slate-100 px-6 py-4">
-          {progress && (
-            <p className="flex-1 text-xs text-slate-500 font-medium">{progress}</p>
-          )}
-          <div className="ml-auto flex gap-3">
-            <button onClick={onClose}
-              className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50">
-              Cancel
-            </button>
-            <button onClick={handleSubmit} disabled={saving || !anyFileSelected}
-              className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all ${btnCls} disabled:opacity-50`}>
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-              {saving ? "Uploading…" : "Upload All"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
-   UPLOADS EDIT MODAL
-    FIXED: Replace File option added
-   — Edit button yahi kholega
-   — uploaded files ki full details + replace karne ka option
-══════════════════════════════════════════════════════════ */
+/*  
+   UPLOADS EDIT MODAL — Replace File option
+  */
 function UploadsModal({ row, accent = "blue", onClose, onSave, onDelete, onAdd, saving }) {
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
@@ -347,7 +204,6 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, onDelete, onAdd, 
 
   const saveUpload   = (uploadId) =>
     onSave({ groupId: row.groupId, documentId: row.documentId, uploadId, data: drafts[uploadId] });
-
   const deleteUpload = (uploadId) =>
     onDelete({ groupId: row.groupId, documentId: row.documentId, uploadId });
 
@@ -359,55 +215,36 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, onDelete, onAdd, 
   const handleFileSelected = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !replacingId) return;
-
     const fileUrl = await readFileAsDataUrl(file);
-
     await onAdd({
-      groupId:    row.groupId,
-      documentId: row.documentId,
-      data: {
-        uploads: [{
-          fileName:   file.name,
-          fileUrl,
-          mimeType:   file.type || "application/octet-stream",
-          fileSize:   file.size,
-          expiryDate: drafts[replacingId]?.expiryDate || null,
-          notes:      drafts[replacingId]?.notes      || "",
-          reference:  drafts[replacingId]?.reference  || "",
-        }],
-      },
+      groupId: row.groupId, documentId: row.documentId,
+      data: { uploads: [{
+        fileName: file.name, fileUrl,
+        mimeType: file.type || "application/octet-stream",
+        fileSize: file.size,
+        expiryDate: row.expirable ? (drafts[replacingId]?.expiryDate || null) : null,
+        notes: drafts[replacingId]?.notes || "",
+        reference: drafts[replacingId]?.reference || "",
+      }] },
     });
-
     await onDelete({ groupId: row.groupId, documentId: row.documentId, uploadId: replacingId });
-
     setReplacingId(null);
     e.target.value = "";
   };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={handleFileSelected}
-      />
+      <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelected} />
 
       <div className="flex max-h-[92vh] w-full max-w-4xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
-
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
             <h3 className="text-base font-bold text-slate-800">Edit Uploaded Files</h3>
             <p className="mt-1 text-sm text-slate-500">{row.groupName} / {row.name}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-semibold">
-            Close
-          </button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-semibold">Close</button>
         </div>
 
-        {/* Files list */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
           {(row.uploads || []).length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-14 text-slate-400">
@@ -417,17 +254,13 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, onDelete, onAdd, 
           ) : (
             (row.uploads || []).map((u) => (
               <div key={u.uploadId} className="p-5 space-y-4">
-
-                {/* File info header */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
                       <FileText size={15} className="text-slate-500" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-800 truncate">
-                        {u.fileName || "Unnamed file"}
-                      </p>
+                      <p className="text-sm font-bold text-slate-800 truncate">{u.fileName || "Unnamed file"}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
                         Uploaded: {formatDate(u.uploadedAt)}
                         {u.fileSize && ` · ${(u.fileSize / 1024).toFixed(1)} KB`}
@@ -447,76 +280,54 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, onDelete, onAdd, 
                   </div>
                 </div>
 
-                {/* Editable fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`grid grid-cols-1 gap-3 ${row.expirable ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                   <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
                       Expiry Date
                     </label>
-                    <input type="date"
+                    <ExpiryField
+                      expirable={row.expirable}
                       value={drafts[u.uploadId]?.expiryDate || ""}
-                      onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], expiryDate: e.target.value } }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:bg-white focus:outline-none transition-all"
+                      onChange={(v) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], expiryDate: v } }))}
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Reference
-                    </label>
-                    <input
-                      value={drafts[u.uploadId]?.reference || ""}
-                      placeholder="Certificate ref / batch no."
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Reference</label>
+                    <input value={drafts[u.uploadId]?.reference || ""} placeholder="Certificate ref / batch no."
                       onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], reference: e.target.value } }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:bg-white focus:outline-none transition-all"
-                    />
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:bg-white focus:outline-none transition-all" />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Notes
-                    </label>
-                    <input
-                      value={drafts[u.uploadId]?.notes || ""}
-                      placeholder="Additional notes..."
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Notes</label>
+                    <input value={drafts[u.uploadId]?.notes || ""} placeholder="Additional notes..."
                       onChange={(e) => setDrafts((c) => ({ ...c, [u.uploadId]: { ...c[u.uploadId], notes: e.target.value } }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:bg-white focus:outline-none transition-all"
-                    />
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:bg-white focus:outline-none transition-all" />
                   </div>
                 </div>
 
-                {/* Action buttons */}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    onClick={() => saveUpload(u.uploadId)}
-                    disabled={saving}
+                  <button onClick={() => saveUpload(u.uploadId)} disabled={saving}
                     className={`rounded-xl px-4 py-2 text-xs font-semibold text-white transition-all ${btnCls} disabled:opacity-50`}>
                     Save Changes
                   </button>
-
-                  <button
-                    onClick={() => handleReplaceClick(u.uploadId)}
-                    disabled={saving}
+                  <button onClick={() => handleReplaceClick(u.uploadId)} disabled={saving}
                     className={`inline-flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-semibold transition-all ${btnSmCls} disabled:opacity-50`}>
                     <Upload size={12} />
                     {replacingId === u.uploadId ? "Replacing..." : "Replace File"}
                   </button>
-
-                  <button
-                    onClick={() => deleteUpload(u.uploadId)}
-                    disabled={saving}
-                    className="rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 transition-all hover:bg-red-50 disabled:opacity-50">
+                  <button onClick={() => deleteUpload(u.uploadId)} disabled={saving}
+                    className="rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-all disabled:opacity-50">
                     Delete File
                   </button>
                 </div>
-
               </div>
             ))
           )}
         </div>
 
-        {/* Footer */}
         <div className="border-t border-slate-100 px-6 py-4">
           <button onClick={onClose}
-            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50">
+            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
             Close
           </button>
         </div>
@@ -525,14 +336,383 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, onDelete, onAdd, 
   );
 }
 
-/* ══════════════════════════════════════════════════════════
+/*  
+   BULK UPLOAD MODAL
+   FIX 1: Only show non-uploaded documents (status !== "uploaded")
+   FIX 2: Metadata fields always visible — not hidden behind file selection
+   FIX 3: Expiry date field hidden for non-expirable docs
+  */
+function BulkUploadModal({ allDocuments, accent = "blue", onClose, onSave, saving }) {
+  const btnCls   = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
+  const btnSmCls = accent === "teal"
+    ? "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
+    : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100";
+
+  const [step,     setStep]     = useState(1);
+  const [selected, setSelected] = useState({});
+  const [expanded, setExpanded] = useState({});
+  const [docStates, setDocStates] = useState({});
+  const [progress, setProgress]   = useState("");
+  const [error,    setError]      = useState("");
+
+  // ── FIX 1: exclude already-uploaded documents ──
+  const uploadableDocuments = useMemo(
+    () => allDocuments.filter((doc) => doc.status !== "uploaded"),
+    [allDocuments]
+  );
+
+  const selectedIds = Object.keys(selected).filter((k) => selected[k]);
+
+  // Group by groupId — only uploadable docs
+  const grouped = useMemo(() => {
+    const map = {};
+    uploadableDocuments.forEach((doc) => {
+      if (!map[doc.groupId]) map[doc.groupId] = { groupId: doc.groupId, groupName: doc.groupName, docs: [] };
+      map[doc.groupId].docs.push(doc);
+    });
+    return Object.values(map);
+  }, [uploadableDocuments]);
+
+  const toggleDoc = (docId) =>
+    setSelected((c) => ({ ...c, [docId]: !c[docId] }));
+
+  const toggleGroup = (groupId) => {
+    const docs = uploadableDocuments.filter((d) => d.groupId === groupId);
+    const allSel = docs.every((d) => selected[d.documentId]);
+    const next = {};
+    docs.forEach((d) => { next[d.documentId] = !allSel; });
+    setSelected((c) => ({ ...c, ...next }));
+  };
+
+  const toggleExpand = (groupId) =>
+    setExpanded((c) => ({ ...c, [groupId]: c[groupId] === false ? true : false }));
+
+  const selectAll = () => {
+    const next = {};
+    uploadableDocuments.forEach((d) => { next[d.documentId] = true; });
+    setSelected(next);
+  };
+  const clearAll = () => setSelected({});
+
+  const goToUpload = () => {
+    if (selectedIds.length === 0) { setError("Please select at least one document"); return; }
+    setError("");
+    const init = {};
+    selectedIds.forEach((id) => { init[id] = { files: [], expiryDate: "", reference: "", notes: "" }; });
+    setDocStates(init);
+    setStep(2);
+  };
+
+  const updateDoc = (docId, field, value) =>
+    setDocStates((c) => ({ ...c, [docId]: { ...c[docId], [field]: value } }));
+
+  const anyFile = Object.values(docStates).some((s) => s.files?.length > 0);
+
+  const handleSubmit = async () => {
+    const docsWithFiles = selectedIds.filter((id) => docStates[id]?.files?.length > 0);
+    if (docsWithFiles.length === 0) { setError("Please select at least one file"); return; }
+    setError("");
+
+    for (let i = 0; i < docsWithFiles.length; i++) {
+      const docId = docsWithFiles[i];
+      const doc   = uploadableDocuments.find((d) => d.documentId === docId);
+      const state = docStates[docId];
+      setProgress(`Uploading ${i + 1} / ${docsWithFiles.length}: ${doc?.name || docId}…`);
+
+      const uploads = await Promise.all(
+        state.files.map(async (file) => ({
+          fileName:   file.name,
+          fileUrl:    await readFileAsDataUrl(file),
+          mimeType:   file.type || "application/octet-stream",
+          fileSize:   file.size,
+          expiryDate: doc?.expirable ? (state.expiryDate || null) : null,
+          notes:      state.notes,
+          reference:  state.reference,
+        }))
+      );
+
+      await onSave({ groupId: doc.groupId, documentId: docId, data: { uploads } });
+    }
+
+    setProgress("");
+    onClose();
+  };
+
+  const selectedDocs = uploadableDocuments.filter((d) => selected[d.documentId]);
+
+  // If all documents are already uploaded
+  if (uploadableDocuments.length === 0) {
+    return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+        <div className="flex max-h-[92vh] w-full max-w-md flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+            <h3 className="text-base font-bold text-slate-800">Bulk Upload</h3>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-semibold">Close</button>
+          </div>
+          <div className="flex flex-col items-center gap-3 py-14 text-slate-400 px-6 text-center">
+            <CheckSquare size={32} className="text-green-500 opacity-70" />
+            <p className="font-semibold text-slate-700">All documents are already uploaded!</p>
+            <p className="text-sm">There are no pending or expired documents left to upload.</p>
+          </div>
+          <div className="border-t border-slate-100 px-6 py-4">
+            <button onClick={onClose}
+              className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
+
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">
+              {step === 1
+                ? `Bulk Upload — Select Documents (${uploadableDocuments.length} pending/expired)`
+                : `Bulk Upload — ${selectedIds.length} Document${selectedIds.length !== 1 ? "s" : ""} Selected`}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {step === 1
+                ? "Only pending and expired documents are shown"
+                : "Add files and metadata for each selected document"}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-semibold">
+            Close
+          </button>
+        </div>
+
+        {/* ── STEP 1: checkbox selection ── */}
+        {step === 1 && (
+          <>
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-3">
+              <p className="text-xs font-semibold text-slate-500">
+                {selectedIds.length} of {uploadableDocuments.length} selected
+              </p>
+              <div className="flex gap-2">
+                <button onClick={selectAll}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${btnSmCls}`}>
+                  Select All
+                </button>
+                <button onClick={clearAll}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {error && (
+                <div className="mx-5 mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                  {error}
+                </div>
+              )}
+
+              {grouped.map((grp) => {
+                const allGroupSel  = grp.docs.every((d) => selected[d.documentId]);
+                const someGroupSel = grp.docs.some((d) => selected[d.documentId]);
+                const isOpen       = expanded[grp.groupId] !== false;
+
+                return (
+                  <div key={grp.groupId} className="border-b border-slate-100 last:border-0">
+                    {/* Group header */}
+                    <div className="flex items-center gap-3 bg-slate-50 px-5 py-3">
+                      <button
+                        onClick={() => toggleGroup(grp.groupId)}
+                        className="shrink-0 text-slate-400 hover:text-blue-600 transition-colors">
+                        {allGroupSel
+                          ? <CheckSquare size={16} className="text-blue-600" />
+                          : someGroupSel
+                            ? <CheckSquare size={16} className="text-blue-300" />
+                            : <Square size={16} />}
+                      </button>
+                      <span className="flex-1 text-sm font-bold text-slate-700">{grp.groupName}</span>
+                      <span className="text-xs text-slate-400 mr-2">
+                        {grp.docs.length} doc{grp.docs.length !== 1 ? "s" : ""}
+                      </span>
+                      <button
+                        onClick={() => toggleExpand(grp.groupId)}
+                        className="text-slate-400 hover:text-slate-600 transition-colors">
+                        {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                    </div>
+
+                    {/* Document rows */}
+                    {isOpen && grp.docs.map((doc) => (
+                      <div
+                        key={doc.documentId}
+                        onClick={() => toggleDoc(doc.documentId)}
+                        className={`flex cursor-pointer items-center gap-4 px-5 py-3.5 transition-colors border-t border-slate-50
+                          ${selected[doc.documentId] ? "bg-blue-50/60" : "hover:bg-slate-50"}`}>
+                        <div className="shrink-0">
+                          {selected[doc.documentId]
+                            ? <CheckSquare size={16} className="text-blue-600" />
+                            : <Square size={16} className="text-slate-300" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate">{doc.name}</p>
+                          <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                            {doc.mandatory && (
+                              <span className="rounded border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">
+                                Mandatory
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400">
+                              {doc.expirable ? "Expiry tracked" : "Non-Expirable"}
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-xs font-bold capitalize ${STATUS_STYLE[doc.status] || STATUS_STYLE.pending}`}>
+                          {doc.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+              <button onClick={onClose}
+                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                Cancel
+              </button>
+              <button
+                onClick={goToUpload}
+                disabled={selectedIds.length === 0}
+                className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all ${btnCls} disabled:opacity-40`}>
+                Next — Upload {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── STEP 2: upload form ── */}
+        {step === 2 && (
+          <>
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+              {error && (
+                <div className="mx-5 mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                  {error}
+                </div>
+              )}
+
+              {selectedDocs.map((doc) => {
+                const state = docStates[doc.documentId] || { files: [], expiryDate: "", reference: "", notes: "" };
+                // columns: expirable → 3 cols (expiry + ref + notes), non-expirable → 2 cols (ref + notes)
+                const gridCols = doc.expirable ? "sm:grid-cols-3" : "sm:grid-cols-2";
+                return (
+                  <div key={doc.documentId} className="p-5 space-y-3">
+                    {/* Doc header */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <FileText size={14} className="shrink-0 text-slate-400" />
+                      <span className="text-sm font-bold text-slate-800">{doc.name}</span>
+                      <span className="text-xs text-slate-400">{doc.groupName}</span>
+                      {doc.mandatory && (
+                        <span className="rounded-lg border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700">
+                          Mandatory
+                        </span>
+                      )}
+                      {!doc.expirable && (
+                        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                          Non-Expirable
+                        </span>
+                      )}
+                      <span className={`ml-auto rounded-lg border px-2 py-0.5 text-xs font-bold capitalize ${STATUS_STYLE[doc.status] || STATUS_STYLE.pending}`}>
+                        {doc.status}
+                      </span>
+                    </div>
+
+                    {/* File picker */}
+                    <input
+                      type="file" multiple
+                      onChange={(e) => updateDoc(doc.documentId, "files", Array.from(e.target.files || []))}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                    />
+                    {state.files.length > 0 && (
+                      <p className="text-xs text-slate-400">{state.files.length} file(s) selected</p>
+                    )}
+
+                    {/* ── FIX 2 & 3: Metadata ALWAYS visible; expiry only for expirable docs ── */}
+                    <div className={`grid grid-cols-1 gap-3 ${gridCols}`}>
+                      {doc.expirable && (
+                        <div>
+                          <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                            Expiry Date
+                          </label>
+                          <ExpiryField
+                            expirable={true}
+                            value={state.expiryDate}
+                            onChange={(v) => updateDoc(doc.documentId, "expiryDate", v)}
+                            size="sm"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                          Reference
+                        </label>
+                        <input value={state.reference} placeholder="Cert ref / batch no."
+                          onChange={(e) => updateDoc(doc.documentId, "reference", e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                          Notes
+                        </label>
+                        <input value={state.notes} placeholder="Additional notes…"
+                          onChange={(e) => updateDoc(doc.documentId, "notes", e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-3 border-t border-slate-100 px-6 py-4">
+              <button onClick={() => { setStep(1); setError(""); }}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                ← Back
+              </button>
+              {progress && (
+                <p className="flex-1 truncate text-xs font-medium text-slate-500">{progress}</p>
+              )}
+              <div className="ml-auto flex gap-3">
+                <button onClick={onClose}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={saving || !anyFile}
+                  className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all ${btnCls} disabled:opacity-50`}>
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  {saving ? "Uploading…" : "Upload All"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/*  
    MAIN COMPONENT
-══════════════════════════════════════════════════════════ */
+  */
 export default function EntityDocumentsTab({ entityType, entityId, accent = "blue" }) {
-  const [filters,     setFilters]     = useState({ search: "", group: "", status: "" });
-  const [uploadRow,   setUploadRow]   = useState(null);
-  const [manageRow,   setManageRow]   = useState(null);
-  const [bulkGroup,   setBulkGroup]   = useState(null); // { groupId, groupName }
+  const [filters,   setFilters]   = useState({ search: "", group: "", status: "" });
+  const [uploadRow, setUploadRow] = useState(null);
+  const [manageRow, setManageRow] = useState(null);
+  const [bulkOpen,  setBulkOpen]  = useState(false);
 
   const { data: apiData, isLoading, error } = useEntityDocuments(entityType, entityId);
   const addUploads   = useAddEntityDocumentUploads(entityType, entityId);
@@ -555,12 +735,6 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
     });
   }, [data?.documents, filters]);
 
-  // Bulk upload ke liye: selected group ke documents
-  const bulkDocuments = useMemo(() => {
-    if (!bulkGroup) return [];
-    return (data?.documents || []).filter((doc) => doc.groupId === bulkGroup.groupId);
-  }, [data?.documents, bulkGroup]);
-
   const accentButton   = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
   const accentButtonSm = accent === "teal"
     ? "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
@@ -578,7 +752,7 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
         <div>
           <div className="font-semibold text-slate-800">{row.name}</div>
           <div className="mt-1 text-xs text-slate-400">
-            {row.expirable ? "Expiry tracked" : "No expiry tracking"}
+            {row.expirable ? "Expiry tracked" : "Non-Expirable"}
           </div>
         </div>
       ),
@@ -604,7 +778,10 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
     {
       header: "Expiry", id: "expiry",
       render: (row) => {
-        if (!row.latestUpload?.expiryDate) return <span className="text-slate-400">—</span>;
+        if (!row.expirable)
+          return <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">Non-Expirable</span>;
+        if (!row.latestUpload?.expiryDate)
+          return <span className="text-slate-400">—</span>;
         const isExpired = new Date(row.latestUpload.expiryDate) < new Date();
         return (
           <span className={isExpired ? "font-semibold text-red-600" : "text-slate-600"}>
@@ -627,23 +804,18 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
       mobileLabel: "Actions", mobileCellClassName: "pt-1",
       render: (row) => (
         <div className="flex flex-wrap items-center gap-2">
-
-          {/* Upload — jab bhi pending ya expired ho */}
           {row.status !== "uploaded" && (
             <button onClick={() => setUploadRow(row)}
               className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white transition-all ${accentButton}`}>
               <Upload size={13} /> Upload
             </button>
           )}
-
-          {/* Edit — sirf jab koi file exist karti ho */}
           {row.uploadCount > 0 && (
             <button onClick={() => setManageRow(row)}
               className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${accentButtonSm}`}>
               <Edit2 size={13} /> Edit
             </button>
           )}
-
         </div>
       ),
     },
@@ -679,39 +851,51 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
         </div>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Assigned Document Groups</h3>
-              <p className="mt-1 text-sm text-slate-400">Only groups assigned in Overview are shown here.</p>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+                Assigned Document Groups
+              </h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Only groups assigned in Overview are shown here.
+              </p>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {[
-                ["Uploaded", summary.uploaded, "text-green-600"],
-                ["Pending",  summary.pending,  "text-amber-600"],
-                ["Expired",  summary.expired,  "text-red-600"],
-              ].map(([label, value, color]) => (
-                <div key={label} className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className={`text-lg font-bold ${color}`}>{value}</p>
-                  <p className="text-[11px] font-semibold text-slate-500">{label}</p>
-                </div>
-              ))}
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Summary counts */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[
+                  ["Uploaded", summary.uploaded, "text-green-600"],
+                  ["Pending",  summary.pending,  "text-amber-600"],
+                  ["Expired",  summary.expired,  "text-red-600"],
+                ].map(([label, value, color]) => (
+                  <div key={label} className="min-w-[76px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className={`text-lg font-bold ${color}`}>{value}</p>
+                    <p className="text-[11px] font-semibold text-slate-500">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bulk Upload button */}
+              {(data?.documents || []).length > 0 && (
+                <button
+                  onClick={() => setBulkOpen(true)}
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all ${accentButton}`}>
+                  <Upload size={14} />
+                  Bulk Upload
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Group chips — Bulk Upload button har group ke saath */}
+          {/* Group chips */}
           <div className="mt-4 flex flex-wrap gap-2">
             {groups.map((group) => (
-              <div key={group.groupId}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <FileText size={14} className="text-slate-400 shrink-0" />
-                <span className="text-sm font-semibold text-slate-700">{group.groupName}</span>
-                <button
-                  onClick={() => setBulkGroup(group)}
-                  className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold transition-all ${accentButtonSm}`}>
-                  <Upload size={11} />
-                  Bulk Upload
-                </button>
-              </div>
+              <span key={group.groupId}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+                <FileText size={14} className="text-slate-400" />
+                {group.groupName}
+              </span>
             ))}
           </div>
         </div>
@@ -730,14 +914,16 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="Group">
-            <select value={filters.group} onChange={(e) => setFilters((c) => ({ ...c, group: e.target.value }))}
+            <select value={filters.group}
+              onChange={(e) => setFilters((c) => ({ ...c, group: e.target.value }))}
               className="cursor-pointer bg-transparent text-sm outline-none">
               <option value="">All</option>
               {groups.map((g) => <option key={g.groupId} value={g.groupId}>{g.groupName}</option>)}
             </select>
           </FilterChip>
           <FilterChip label="Status">
-            <select value={filters.status} onChange={(e) => setFilters((c) => ({ ...c, status: e.target.value }))}
+            <select value={filters.status}
+              onChange={(e) => setFilters((c) => ({ ...c, status: e.target.value }))}
               className="cursor-pointer bg-transparent text-sm outline-none">
               <option value="">All</option>
               <option value="uploaded">Uploaded</option>
@@ -747,7 +933,7 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
           </FilterChip>
           {(filters.search || filters.group || filters.status) && (
             <button onClick={() => setFilters({ search: "", group: "", status: "" })}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50">
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
               Clear Filters
             </button>
           )}
@@ -765,12 +951,13 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
         pageSizeOptions={[10, 20, 50]}
       />
 
-      {/* Upload Modal */}
+      {/* Single Upload Modal */}
       {uploadRow && (
         <UploadModal
           row={uploadRow} accent={accent}
           onClose={() => setUploadRow(null)}
-          onSave={({ groupId, documentId, data }) => addUploads.mutateAsync({ groupId, documentId, data })}
+          onSave={({ groupId, documentId, data: d }) =>
+            addUploads.mutateAsync({ groupId, documentId, data: d })}
           saving={addUploads.isPending}
         />
       )}
@@ -780,24 +967,24 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
         <UploadsModal
           row={manageRow} accent={accent}
           onClose={() => setManageRow(null)}
-          onSave={({ groupId, documentId, uploadId, data }) =>
-            updateUpload.mutateAsync({ groupId, documentId, uploadId, data })}
+          onSave={({ groupId, documentId, uploadId, data: d }) =>
+            updateUpload.mutateAsync({ groupId, documentId, uploadId, data: d })}
           onDelete={({ groupId, documentId, uploadId }) =>
             deleteUpload.mutateAsync({ groupId, documentId, uploadId })}
-          onAdd={({ groupId, documentId, data }) =>
-            addUploads.mutateAsync({ groupId, documentId, data })}
+          onAdd={({ groupId, documentId, data: d }) =>
+            addUploads.mutateAsync({ groupId, documentId, data: d })}
           saving={updateUpload.isPending || deleteUpload.isPending || addUploads.isPending}
         />
       )}
 
       {/* Bulk Upload Modal */}
-      {bulkGroup && (
+      {bulkOpen && (
         <BulkUploadModal
-          group={bulkGroup}
-          documents={bulkDocuments}
+          allDocuments={data?.documents || []}
           accent={accent}
-          onClose={() => setBulkGroup(null)}
-          onSave={({ groupId, documentId, data }) => addUploads.mutateAsync({ groupId, documentId, data })}
+          onClose={() => setBulkOpen(false)}
+          onSave={({ groupId, documentId, data: d }) =>
+            addUploads.mutateAsync({ groupId, documentId, data: d })}
           saving={addUploads.isPending}
         />
       )}
