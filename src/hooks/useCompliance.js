@@ -5,10 +5,9 @@ import { QK } from "../lib/queryKeys";
 
 // ═══════════════════════════════════════════════
 //  ENTITY LEVEL COMPLIANCE
-//  Kisi ICB / PCN / Practice ki compliance
+//  ICB / PCN / Practice ki compliance
 // ═══════════════════════════════════════════════
 
-// GET: entity ki compliance status
 export const useComplianceStatus = (entityType, entityId) =>
   useQuery({
     queryKey: QK.COMPLIANCE(entityType, entityId),
@@ -16,14 +15,12 @@ export const useComplianceStatus = (entityType, entityId) =>
     enabled:  !!entityType && !!entityId,
   });
 
-// GET: expiring documents list
 export const useExpiringDocs = (days = 30) =>
   useQuery({
     queryKey: QK.EXPIRING(days),
     queryFn:  () => complianceAPI.getExpiring(days).then((r) => r.data),
   });
 
-// MUTATION: document upsert
 export const useUpsertComplianceDoc = (entityType, entityId) => {
   const qc = useQueryClient();
   return useMutation({
@@ -34,7 +31,6 @@ export const useUpsertComplianceDoc = (entityType, entityId) => {
   });
 };
 
-// MUTATION: document approve
 export const useApproveComplianceDoc = (entityType, entityId) => {
   const qc = useQueryClient();
   return useMutation({
@@ -45,7 +41,6 @@ export const useApproveComplianceDoc = (entityType, entityId) => {
   });
 };
 
-// MUTATION: document reject
 export const useRejectComplianceDoc = (entityType, entityId) => {
   const qc = useQueryClient();
   return useMutation({
@@ -56,7 +51,6 @@ export const useRejectComplianceDoc = (entityType, entityId) => {
   });
 };
 
-// MUTATION: manual expiry check trigger (admin)
 export const useRunExpiryCheck = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -69,14 +63,19 @@ export const useRunExpiryCheck = () => {
 //  COMPLIANCE DOCUMENTS — Master Library CRUD
 // ═══════════════════════════════════════════════
 
-// GET: all compliance documents
 export const useComplianceDocs = (params = {}) =>
   useQuery({
     queryKey: [...QK.COMPLIANCE_DOCS, params],
     queryFn:  () => complianceDocsAPI.getAll(params).then((r) => r.data),
   });
 
-// GET: single compliance document
+// ✅ NEW: summary stats by category, active/inactive etc.
+export const useComplianceDocStats = () =>
+  useQuery({
+    queryKey: [...QK.COMPLIANCE_DOCS, "stats"],
+    queryFn:  () => complianceDocsAPI.getStats().then((r) => r.data),
+  });
+
 export const useComplianceDoc = (id) =>
   useQuery({
     queryKey: QK.COMPLIANCE_DOC(id),
@@ -84,7 +83,6 @@ export const useComplianceDoc = (id) =>
     enabled:  !!id,
   });
 
-// MUTATION: create compliance document
 export const useCreateComplianceDoc = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -93,7 +91,6 @@ export const useCreateComplianceDoc = () => {
   });
 };
 
-// MUTATION: update compliance document
 export const useUpdateComplianceDoc = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -105,7 +102,6 @@ export const useUpdateComplianceDoc = () => {
   });
 };
 
-// MUTATION: delete compliance document
 export const useDeleteComplianceDoc = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -118,14 +114,20 @@ export const useDeleteComplianceDoc = () => {
 //  DOCUMENT GROUPS
 // ═══════════════════════════════════════════════
 
-// GET: all document groups
 export const useDocumentGroups = (params = {}) =>
   useQuery({
     queryKey: [...QK.DOC_GROUPS, params],
     queryFn:  () => documentGroupsAPI.getAll(params).then((r) => r.data),
   });
 
-// GET: single document group
+// ✅ NEW: groups applicable to a specific entity type (Clinician / PCN / Practice)
+export const useDocumentGroupsForEntity = (entityType) =>
+  useQuery({
+    queryKey: [...QK.DOC_GROUPS, "for-entity", entityType],
+    queryFn:  () => documentGroupsAPI.getForEntity(entityType).then((r) => r.data),
+    enabled:  !!entityType,
+  });
+
 export const useDocumentGroup = (id) =>
   useQuery({
     queryKey: QK.DOC_GROUP(id),
@@ -133,7 +135,6 @@ export const useDocumentGroup = (id) =>
     enabled:  !!id,
   });
 
-// MUTATION: create document group
 export const useCreateDocumentGroup = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -142,7 +143,6 @@ export const useCreateDocumentGroup = () => {
   });
 };
 
-// MUTATION: update document group
 export const useUpdateDocumentGroup = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -154,11 +154,19 @@ export const useUpdateDocumentGroup = () => {
   });
 };
 
-// MUTATION: delete document group
 export const useDeleteDocumentGroup = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id) => documentGroupsAPI.delete(id).then((r) => r.data),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
+  });
+};
+
+// ✅ NEW: clone an existing group with a new name
+export const useDuplicateDocumentGroup = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }) => documentGroupsAPI.duplicate(id, { name }).then((r) => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
   });
 };
@@ -168,9 +176,6 @@ export const useDeleteDocumentGroup = () => {
 //  PCN / Practice ke liye
 // ═══════════════════════════════════════════════
 
-// ✅ FIXED: entityId ko String mein cast karo
-// Agar entityId populated object aa jaye (e.g. { _id: "..." }) toh
-// API call fail ho jaati thi. Ab String(entityId) se safe hai.
 const safeId = (id) => {
   if (!id) return null;
   if (typeof id === "object" && id._id) return String(id._id);
@@ -182,11 +187,8 @@ export const useEntityDocuments = (entityType, entityId) => {
   return useQuery({
     queryKey: QK.ENTITY_DOCUMENTS(entityType, id),
     queryFn:  () => entityDocumentsAPI.getAll(entityType, id).then((r) => r.data),
-    // ✅ FIXED: enabled guard — id string honi chahiye aur non-empty
     enabled:  !!entityType && !!id && id !== "undefined" && id !== "null",
-    // ✅ ADDED: retry sirf 1 baar — 500 errors pe infinite retry na ho
-    retry: 1,
-    // ✅ ADDED: stale time — PCN page open pe baar baar re-fetch na ho
+    retry:    1,
     staleTime: 30_000,
   });
 };
