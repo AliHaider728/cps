@@ -559,7 +559,7 @@ function BulkUploadModal({ allDocuments, accent = "blue", onClose, onSave, savin
                           <p className="text-sm font-semibold text-slate-800 truncate">{doc.name}</p>
                           <div className="mt-0.5 flex items-center gap-2 flex-wrap">
                             {doc.mandatory && (
-                              <span className="rounded border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">
+                              <span className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
                                 Mandatory
                               </span>
                             )}
@@ -615,7 +615,7 @@ function BulkUploadModal({ allDocuments, accent = "blue", onClose, onSave, savin
                       <span className="text-sm font-bold text-slate-800">{doc.name}</span>
                       <span className="text-xs text-slate-400">{doc.groupName}</span>
                       {doc.mandatory && (
-                        <span className="rounded-lg border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700">
+                        <span className="rounded-lg border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">
                           Mandatory
                         </span>
                       )}
@@ -760,7 +760,7 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
     {
       header: "Mandatory", id: "mandatory",
       render: (row) => (
-        <span className={`rounded-lg border px-2 py-0.5 text-xs font-bold ${row.mandatory ? "border-purple-200 bg-purple-50 text-purple-700" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
+        <span className={`rounded-lg border px-2 py-0.5 text-xs font-bold ${row.mandatory ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
           {row.mandatory ? "Mandatory" : "Optional"}
         </span>
       ),
