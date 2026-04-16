@@ -290,7 +290,7 @@ export default function PCNDetailPage() {
   if (!pcn) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh] text-slate-400 gap-3">
       <Network size={44} className="opacity-30" />
-      <p className="font-semibold text-base">PCN not found</p>
+      <p className="font-semibold text-base">Client not found</p>
       <button onClick={() => navigate(-1)} className="text-blue-600 text-sm hover:underline">Go back</button>
     </div>
   );
@@ -659,7 +659,7 @@ export default function PCNDetailPage() {
   return (
     <div className="space-y-4 pb-8">
       <nav className="flex items-center gap-1.5 text-sm flex-wrap">
-        {[{ label:"Client Management", path:"/dashboard/super-admin/clients" }, { label:"PCNs", path:"/dashboard/super-admin/clients/pcn" }].map((c, i) => (
+        {[{ label:"Client Management", path:"/dashboard/super-admin/clients" }, { label:"Clients", path:"/dashboard/super-admin/clients/pcn" }].map((c, i) => (
           <span key={i} className="flex items-center gap-1.5">
             <button onClick={() => navigate(c.path)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{c.label}</button>
             <ChevronRight size={13} className="text-slate-300" />

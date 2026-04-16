@@ -167,7 +167,7 @@ export default function ClientsPage() {
       <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Client Management</h1>
-          <p className="text-slate-500 text-sm mt-1">Full hierarchy: ICB → Federation / INT → PCN → Practice</p>
+          <p className="text-slate-500 text-sm mt-1">Full hierarchy: ICB → Federation / INT → Client → Practice</p>
         </div>
         <button onClick={() => navigate("/dashboard/super-admin/clients/icb")}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all">
@@ -179,7 +179,7 @@ export default function ClientsPage() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-7">
         <StatCard icon={Building2}   label="ICBs"        value={counts.icbs}       color="bg-blue-600"   />
         <StatCard icon={Layers}      label="Federations" value={counts.federations} color="bg-indigo-500" />
-        <StatCard icon={Network}     label="PCNs"        value={counts.pcns}        color="bg-purple-600" />
+        <StatCard icon={Network}     label="Client"        value={counts.pcns}        color="bg-purple-600" />
         <StatCard icon={Stethoscope} label="Practices"   value={counts.practices}   color="bg-teal-600"   />
       </div>
 

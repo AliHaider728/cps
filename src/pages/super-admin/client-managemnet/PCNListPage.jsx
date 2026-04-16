@@ -144,7 +144,7 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
           <h3 className="text-base font-bold text-slate-800">
-            {existing ? "Edit PCN" : "Add PCN"}
+            {existing ? "Edit Client" : "Add Client"}
           </h3>
           <button
             onClick={onClose}
@@ -162,7 +162,7 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
             </div>
           )}
 
-          <F label="PCN Name *">{input("name", "e.g. Salford Central PCN")}</F>
+          <F label="Client Name *">{input("name", "e.g. Salford Central Client")}</F>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <F label="ICB *">
@@ -476,14 +476,14 @@ export default function PCNListPage() {
             Primary Care Networks
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {filteredPCNs.length} visible of {pcns.length} PCNs
+            {filteredPCNs.length} visible of {pcns.length} Clients
           </p>
         </div>
         <button
           onClick={() => setModal("add")}
           className="flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-purple-700"
         >
-          <Plus size={15} /> Add PCN
+          <Plus size={15} /> Add Client
         </button>
       </div>
 
@@ -552,12 +552,12 @@ export default function PCNListPage() {
         data={filteredPCNs}
         rowKey="_id"
         loading={isLoading}
-        loadingText="Loading PCNs…"
+        loadingText="Loading Clients…"
         emptyState={
           <div className="flex flex-col items-center p-12 text-center">
             <Network size={36} className="mb-3 text-slate-300" />
             <p className="font-semibold text-slate-500">
-              No PCNs match the current filters
+              No Client match the current filters
             </p>
           </div>
         }

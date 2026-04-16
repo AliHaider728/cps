@@ -2,7 +2,9 @@ import axios from "axios";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  "https://cps-backend-ten.vercel.app/api";
+  (import.meta.env.DEV
+    ? "http://localhost:5000/api"
+    : "https://cps-backend-ten.vercel.app/api");
 
 export const storage = {
   getToken: () => localStorage.getItem("cps_token"),
@@ -33,6 +35,9 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const token = storage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
   return config;
 });
 

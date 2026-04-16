@@ -23,13 +23,14 @@ const STATUS_STYLE = {
 const formatDate = (value) =>
   value ? new Date(value).toLocaleDateString("en-GB") : "—";
 
-const readFileAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
+const buildUploadFormData = ({ files, expiryDate, notes, reference }) => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+  if (expiryDate) formData.append("expiryDate", expiryDate);
+  if (notes) formData.append("notes", notes);
+  if (reference) formData.append("reference", reference);
+  return formData;
+};
 
 /*  
    FILTER CHIP
@@ -86,18 +87,13 @@ function UploadModal({ row, accent = "blue", onClose, onSave, saving }) {
   const handleSubmit = async () => {
     if (files.length === 0) { setError("Please choose at least one file"); return; }
     setError("");
-    const uploads = await Promise.all(
-      files.map(async (file) => ({
-        fileName:   file.name,
-        fileUrl:    await readFileAsDataUrl(file),
-        mimeType:   file.type || "application/octet-stream",
-        fileSize:   file.size,
-        expiryDate: row.expirable ? (expiryDate || null) : null,
-        notes,
-        reference,
-      }))
-    );
-    await onSave({ groupId: row.groupId, documentId: row.documentId, data: { uploads } });
+    const formData = buildUploadFormData({
+      files,
+      expiryDate: row.expirable ? expiryDate : "",
+      notes,
+      reference,
+    });
+    await onSave({ groupId: row.groupId, documentId: row.documentId, data: formData });
     onClose();
   };
 
@@ -215,17 +211,15 @@ function UploadsModal({ row, accent = "blue", onClose, onSave, onDelete, onAdd, 
   const handleFileSelected = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !replacingId) return;
-    const fileUrl = await readFileAsDataUrl(file);
+    const formData = buildUploadFormData({
+      files: [file],
+      expiryDate: row.expirable ? (drafts[replacingId]?.expiryDate || "") : "",
+      notes: drafts[replacingId]?.notes || "",
+      reference: drafts[replacingId]?.reference || "",
+    });
     await onAdd({
       groupId: row.groupId, documentId: row.documentId,
-      data: { uploads: [{
-        fileName: file.name, fileUrl,
-        mimeType: file.type || "application/octet-stream",
-        fileSize: file.size,
-        expiryDate: row.expirable ? (drafts[replacingId]?.expiryDate || null) : null,
-        notes: drafts[replacingId]?.notes || "",
-        reference: drafts[replacingId]?.reference || "",
-      }] },
+      data: formData,
     });
     await onDelete({ groupId: row.groupId, documentId: row.documentId, uploadId: replacingId });
     setReplacingId(null);
@@ -419,19 +413,14 @@ function BulkUploadModal({ allDocuments, accent = "blue", onClose, onSave, savin
       const state = docStates[docId];
       setProgress(`Uploading ${i + 1} / ${docsWithFiles.length}: ${doc?.name || docId}…`);
 
-      const uploads = await Promise.all(
-        state.files.map(async (file) => ({
-          fileName:   file.name,
-          fileUrl:    await readFileAsDataUrl(file),
-          mimeType:   file.type || "application/octet-stream",
-          fileSize:   file.size,
-          expiryDate: doc?.expirable ? (state.expiryDate || null) : null,
-          notes:      state.notes,
-          reference:  state.reference,
-        }))
-      );
+      const formData = buildUploadFormData({
+        files: state.files,
+        expiryDate: doc?.expirable ? state.expiryDate : "",
+        notes: state.notes,
+        reference: state.reference,
+      });
 
-      await onSave({ groupId: doc.groupId, documentId: docId, data: { uploads } });
+      await onSave({ groupId: doc.groupId, documentId: docId, data: formData });
     }
 
     setProgress("");

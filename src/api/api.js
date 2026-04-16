@@ -80,7 +80,10 @@ export const emailAPI = {
 ══════════════════════════════════════════════ */
 export const complianceAPI = {
   getStatus:    (entityType, entityId)               => api.get(`/clients/${entityType}/${entityId}/compliance/status`),
-  upsertDoc:    (entityType, entityId, docKey, data) => api.patch(`/clients/${entityType}/${entityId}/compliance/${docKey}`, data),
+  upsertDoc:    (entityType, entityId, docKey, data) =>
+    api.patch(`/clients/${entityType}/${entityId}/compliance/${docKey}`, data, {
+      headers: data instanceof FormData ? { "Content-Type": "multipart/form-data" } : undefined,
+    }),
   approveDoc:   (entityType, entityId, docKey)       => api.post(`/clients/${entityType}/${entityId}/compliance/${docKey}/approve`),
   rejectDoc:    (entityType, entityId, docKey, reason) =>
     api.post(`/clients/${entityType}/${entityId}/compliance/${docKey}/reject`, { reason }),
@@ -124,10 +127,14 @@ export const entityDocumentsAPI = {
     api.get(`/clients/${entityType}/${entityId}/documents`),
 
   update: (entityType, entityId, documentId, data) =>
-    api.patch(`/clients/${entityType}/${entityId}/documents/${documentId}`, data),
+    api.patch(`/clients/${entityType}/${entityId}/documents/${documentId}`, data, {
+      headers: data instanceof FormData ? { "Content-Type": "multipart/form-data" } : undefined,
+    }),
 
   addUploads: (entityType, entityId, groupId, documentId, data) =>
-    api.post(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads`, data),
+    api.post(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads`, data, {
+      headers: data instanceof FormData ? { "Content-Type": "multipart/form-data" } : undefined,
+    }),
 
   updateUpload: (entityType, entityId, groupId, documentId, uploadId, data) =>
     api.patch(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads/${uploadId}`, data),
