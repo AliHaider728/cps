@@ -32,6 +32,31 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+function normalizeApiError(error) {
+  const status = error.response?.status;
+  const serverMessage = error.response?.data?.message;
+
+  if (status === 503) {
+    error.message = "Server unavailable";
+    error.response.data = {
+      ...(error.response?.data || {}),
+      message: "Server unavailable",
+    };
+    return error;
+  }
+
+  if (!error.response) {
+    error.message = "Server unavailable";
+    return error;
+  }
+
+  if (serverMessage) {
+    error.message = serverMessage;
+  }
+
+  return error;
+}
+
 apiClient.interceptors.request.use((config) => {
   const token = storage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -44,6 +69,8 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    normalizeApiError(error);
+
     if (error.response?.status === 401) {
       storage.clearSession();
       if (window.location.pathname !== "/login") {

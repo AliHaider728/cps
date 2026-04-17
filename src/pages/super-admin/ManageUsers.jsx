@@ -72,7 +72,7 @@ export default function ManageUsers() {
       }
       close();
     } catch (err) {
-      setError(err.message || "Something went wrong");
+      setError(err.response?.data?.message || err.message || "Something went wrong");
     } finally {
       setSaving(false);
     }

@@ -1,19 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+// Frontend data access must go through the backend API.
+// This placeholder keeps import compatibility if any code references it later.
+export const supabase = null;
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!supabaseUrl) {
-  throw new Error("VITE_SUPABASE_URL is not configured");
-}
-
-if (!supabaseKey) {
-  throw new Error("VITE_SUPABASE_PUBLISHABLE_KEY is not configured");
-}
-
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-});
+export default supabase;
