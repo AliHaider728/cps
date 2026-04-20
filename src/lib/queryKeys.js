@@ -1,47 +1,60 @@
-// src/lib/queryKeys.js
+/**
+ * queryKeys.js
+ * Central registry for all TanStack Query cache keys.
+ *
+ 
+ */
+
 export const QK = {
-  // ── Auth
-  ME:    ["auth", "me"],
-  USERS: ["auth", "users"],
+  // ── Auth / Users ────────────────────────────────────────
+  ME:    ["me"],
+  USERS: ["users"],
+  USER:  (id) => ["users", id],
 
-  // ── Hierarchy
+  // ── Hierarchy & Search ──────────────────────────────────
   HIERARCHY: ["hierarchy"],
-  SEARCH:    (q) => ["clients", "search", q],
+  SEARCH:    (q) => ["search", q],
 
-  // ── ICB
-  ICBS: ["icb"],
-  ICB:  (id) => ["icb", id],
+  // ── ICBs ────────────────────────────────────────────────
+  ICBS:  ["icbs"],
+  ICB:   (id) => ["icbs", id],
 
-  // ── Federation
-  FEDERATIONS:        ["federation"],
-  FEDERATIONS_BY_ICB: (icbId) => ["federation", { icbId }],
+  // ── Federations ─────────────────────────────────────────
+  FEDERATIONS:          ["federations"],
+  FEDERATIONS_BY_ICB:   (icbId) => ["federations", "icb", icbId],
 
-  // ── PCN
-  PCNS:         ["pcn"],
-  PCN:          (id) => ["pcn", id],
-  PCN_ROLLUP:   (id) => ["pcn", id, "rollup"],
-  PCN_MEETINGS: (id) => ["pcn", id, "meetings"],
+  // ── PCNs ────────────────────────────────────────────────
+  PCNS:         ["pcns"],
+  PCN:          (id) => ["pcns", id],
+  PCN_ROLLUP:   (id) => ["pcns", id, "rollup"],
+  PCN_MEETINGS: (id) => ["pcns", id, "meetings"],
 
-  // ── Practice
-  PRACTICES: ["practice"],
-  PRACTICE:  (id) => ["practice", id],
+  // ── Practices ───────────────────────────────────────────
+  PRACTICES: ["practices"],
+  PRACTICE:  (id) => ["practices", id],
 
-  // ── History
-  HISTORY: (type, id) => ["history", type, id],
+  // ── Contact History ─────────────────────────────────────
+  HISTORY: (entityType, entityId) => ["history", entityType, entityId],
 
-  // ── Compliance — Entity Level (ICB/PCN/Practice)
-  COMPLIANCE: (type, id) => ["compliance", type, id],
-  EXPIRING:   (days)     => ["compliance", "expiring", days],
+  // ── Compliance (entity level) ───────────────────────────
+  COMPLIANCE:  (entityType, entityId) => ["compliance", entityType, entityId],
+  EXPIRING:    (days) => ["compliance", "expiring", days],
 
-  // ── Compliance Docs — Master Document Library
+  // ── Compliance Documents (master library) ───────────────
   COMPLIANCE_DOCS: ["compliance-docs"],
   COMPLIANCE_DOC:  (id) => ["compliance-docs", id],
 
-  // ── Document Groups
+  // ── Document Groups ─────────────────────────────────────
   DOC_GROUPS: ["doc-groups"],
   DOC_GROUP:  (id) => ["doc-groups", id],
-  ENTITY_DOCUMENTS: (type, id) => ["entity-documents", type, id],
 
-  // ── Audit
+  // ── Entity Documents (group-based upload system) ────────
+  ENTITY_DOCUMENTS: (entityType, entityId) => ["entity-documents", entityType, entityId],
+
+  // ── Reporting Archive ───────────────────────────────────
+  // NEW: PCN/Practice monthly reporting archive
+  REPORTING_ARCHIVE: (entityType, entityId) => ["reporting-archive", entityType, entityId],
+
+  // ── Audit ───────────────────────────────────────────────
   AUDIT: (params) => ["audit", params],
 };

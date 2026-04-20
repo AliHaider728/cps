@@ -1,9 +1,7 @@
 /**
- * CompliancePanelEnhanced.jsx — UPDATED
- * Changes:
- *     PCN Compliance tab completely removed (extra lag raha tha)
- *     Ab sirf "Document Groups" tab rahega (default)
- *     Code clean aur simple kar diya
+ * CompliancePanelEnhanced.jsx
+ * UPDATED (Apr 2026): GroupModal +applicableContractTypes, +colour, +notes
+ *                     GroupListTab: colour badge, contractTypes display
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -19,82 +17,87 @@ import {
 } from "../../../hooks/useCompliance";
 import DataTable from "../../../components/ui/DataTable";
 
-/* ══════ ATOMS ════ */
 const Spinner = ({ cls = "border-blue-600" }) => (
   <span className={`inline-block w-4 h-4 border-2 ${cls} border-t-transparent rounded-full animate-spin`} />
 );
-
 const ActivePill = ({ active }) => (
-  <span className={`text-sm font-semibold px-3 py-1 rounded border ${active ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+  <span className={`text-sm font-semibold px-3 py-1 rounded border
+    ${active ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>
     {active ? "Active" : "Inactive"}
   </span>
 );
 
-/* ══════ FILTER BAR ════ */
 const FilterBar = ({ search, setSearch, filters, setFilters, filterOptions, searchPlaceholder }) => (
   <div className="flex flex-wrap items-center gap-2">
     <div className="relative flex-1 min-w-[180px]">
       <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder={searchPlaceholder || "Search…"}
-        className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 transition-all"
-      />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder={searchPlaceholder || "Search…"}
+        className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 transition-all" />
     </div>
     {filterOptions.map(opt => (
       <div key={opt.key} className="flex items-center gap-1.5 border border-slate-200 rounded-xl px-3 py-2 bg-white">
         <Filter size={12} className="text-slate-400 shrink-0" />
-        <select
-          value={filters[opt.key] ?? ""}
-          onChange={e => setFilters(f => ({ ...f, [opt.key]: e.target.value }))}
-          className="text-xs text-slate-700 outline-none bg-transparent cursor-pointer font-medium"
-        >
+        <select value={filters[opt.key] ?? ""} onChange={e => setFilters(f => ({ ...f, [opt.key]: e.target.value }))}
+          className="text-xs text-slate-700 outline-none bg-transparent cursor-pointer font-medium">
           <option value="">{opt.label}</option>
           {opt.options.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
         </select>
       </div>
     ))}
     {(search || Object.values(filters).some(Boolean)) && (
-      <button
-        onClick={() => { setSearch(""); setFilters({}); }}
-        className="text-xs font-semibold text-red-500 hover:text-red-700 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-all flex items-center gap-1"
-      >
+      <button onClick={() => { setSearch(""); setFilters({}); }}
+        className="text-xs font-semibold text-red-500 hover:text-red-700 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-all flex items-center gap-1">
         <X size={11} /> Clear
       </button>
     )}
   </div>
 );
 
-/* ══════ GROUP MODAL ══ */
+/* ── CONTRACT_TYPES options ── */
+const CONTRACT_TYPE_OPTIONS = ["ARRS", "EA", "Direct", "Mixed"];
+
+/* ── GroupModal — UPDATED: +applicableContractTypes, +colour, +notes ── */
 const GroupModal = ({ existing, allDocs, onClose, onSave }) => {
   const isEdit = !!existing?._id;
   const [form, setForm] = useState({
     name: "", displayOrder: 0, active: true, documents: [],
-    ...(existing ? { ...existing, documents: (existing.documents || []).map(d => d._id || d) } : {}),
+    // ── NEW FIELDS ────────────────────────────────────────────────────
+    applicableContractTypes: [],
+    colour: "#3b82f6",
+    notes: "",
+    ...(existing
+      ? {
+          ...existing,
+          documents: (existing.documents || []).map(d => d._id || d),
+          applicableContractTypes: existing.applicableContractTypes || [],
+          colour: existing.colour || "#3b82f6",
+          notes:  existing.notes  || "",
+        }
+      : {}),
   });
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
+  const [err,    setErr]    = useState("");
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
   const toggleDoc = id => {
     const docs = form.documents || [];
     set("documents")(docs.includes(id) ? docs.filter(d => d !== id) : [...docs, id]);
   };
+  const toggleContractType = (type) => {
+    const types = form.applicableContractTypes || [];
+    set("applicableContractTypes")(types.includes(type) ? types.filter(t => t !== type) : [...types, type]);
+  };
 
   const allChecked = (form.documents || []).length === allDocs.length;
-  const toggleAll = () => set("documents")(allChecked ? [] : allDocs.map(d => d._id));
-
-  const cols = [
-    allDocs.filter((_, i) => i % 3 === 0),
-    allDocs.filter((_, i) => i % 3 === 1),
-    allDocs.filter((_, i) => i % 3 === 2),
-  ];
+  const toggleAll  = () => set("documents")(allChecked ? [] : allDocs.map(d => d._id));
+  const cols = [allDocs.filter((_, i) => i % 3 === 0), allDocs.filter((_, i) => i % 3 === 1), allDocs.filter((_, i) => i % 3 === 2)];
 
   const handle = async () => {
     if (!form.name.trim()) { setErr("Group name is required"); return; }
     setSaving(true); setErr("");
-    try { await onSave(form); onClose(); } catch (e) { setErr(e.message); } finally { setSaving(false); }
+    try { await onSave(form); onClose(); }
+    catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -104,8 +107,11 @@ const GroupModal = ({ existing, allDocs, onClose, onSave }) => {
           <h3 className="text-[15px] font-bold text-slate-800">{isEdit ? "Edit Document Group" : "Add New Document Group"}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all"><X size={16} /></button>
         </div>
+
         <div className="flex-1 overflow-y-auto p-6 space-y-5 [scrollbar-width:thin]">
           {err && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-3 py-2">{err}</div>}
+
+          {/* Name + Order */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Group Name *</label>
@@ -118,10 +124,48 @@ const GroupModal = ({ existing, allDocs, onClose, onSave }) => {
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
             </div>
           </div>
+
+          {/* Active */}
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input type="checkbox" checked={!!form.active} onChange={e => set("active")(e.target.checked)} className="w-4 h-4 accent-blue-600 cursor-pointer" />
             <span className="text-sm font-medium text-slate-700">Active</span>
           </label>
+
+          {/* ── NEW: Contract types ── */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Applicable Contract Types</label>
+            <div className="flex flex-wrap gap-2">
+              {CONTRACT_TYPE_OPTIONS.map(type => (
+                <button key={type} type="button" onClick={() => toggleContractType(type)}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all
+                    ${(form.applicableContractTypes || []).includes(type)
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"}`}>
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── NEW: Colour + Notes row ── */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Badge Colour</label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={form.colour || "#3b82f6"} onChange={e => set("colour")(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer" />
+                <input value={form.colour || ""} onChange={e => set("colour")(e.target.value)} placeholder="#3b82f6"
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Admin Notes (internal)</label>
+              <textarea rows={2} value={form.notes} onChange={e => set("notes")(e.target.value)} placeholder="Internal notes…"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white resize-none transition-all" />
+            </div>
+          </div>
+
+          {/* Documents checkboxes */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
               <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Documents</span>
@@ -146,11 +190,13 @@ const GroupModal = ({ existing, allDocs, onClose, onSave }) => {
             </div>
           </div>
         </div>
+
         <div className="flex gap-3 px-6 pb-5 pt-3 border-t border-slate-100 shrink-0">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
           <button onClick={handle} disabled={saving || !form.name.trim()}
             className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-            {saving ? <Spinner cls="border-white" /> : <Check size={15} />}{isEdit ? "Save Changes" : "Add Group"}
+            {saving ? <Spinner cls="border-white" /> : <Check size={15} />}
+            {isEdit ? "Save Changes" : "Add Group"}
           </button>
         </div>
       </div>
@@ -158,13 +204,13 @@ const GroupModal = ({ existing, allDocs, onClose, onSave }) => {
   );
 };
 
-/* ══════ GROUPS LIST TAB (Ab yahi sirf tab hai) ════ */
+/* ── Groups List Tab — UPDATED: colour badge + contractTypes ── */
 const GROUP_FILTER_OPTIONS = [
-  { key: "active", label: "All Status", options: [["true", "Active"], ["false", "Inactive"]] },
+  { key: "active", label: "All Status", options: [["true","Active"],["false","Inactive"]] },
 ];
 
 const GroupListTab = ({ groups, loading, onAdd, onEdit, onDelete, navigate }) => {
-  const [search, setSearch] = useState("");
+  const [search,  setSearch]  = useState("");
   const [filters, setFilters] = useState({});
 
   const filtered = groups
@@ -177,49 +223,59 @@ const GroupListTab = ({ groups, loading, onAdd, onEdit, onDelete, navigate }) =>
 
   const columns = [
     {
-      header: "Group Name",
-      id: "name",
-      render: (grp) => (
-        <button onClick={() => navigate(`/dashboard/super-admin/compliance/groups/${grp._id}`)}
-          className="flex items-center gap-1 text-left font-medium text-blue-600 hover:text-blue-800 hover:underline">
-          {grp.name}<ExternalLink size={11} className="shrink-0 opacity-50" />
-        </button>
-      ),
-    },
-    {
-      header: "Display Order",
-      id: "displayOrder",
-      render: (grp) => grp.displayOrder,
-      cellClassName: "px-4 py-3 text-slate-500 align-top",
-    },
-    {
-      header: "Documents",
-      id: "documents",
-      render: (grp) => {
-        const docCount = (grp.documents || []).length;
-        return <span className="text-xs text-slate-500">{docCount} doc{docCount !== 1 ? "s" : ""}</span>;
-      },
-    },
-    {
-      header: "Status",
-      id: "status",
-      render: (grp) => <ActivePill active={grp.active} />,
-    },
-    {
-      header: "",
-      id: "actions",
-      render: (grp) => (
-        <div className="flex items-center gap-1">
-          <button onClick={() => onEdit(grp)} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600">
-            <Edit2 size={13} />
-          </button>
-          <button onClick={() => onDelete(grp._id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-red-50 hover:text-red-500">
-            <Trash2 size={13} />
+      header: "Group Name", id: "name",
+      render: grp => (
+        <div className="flex items-center gap-2.5">
+          {/* ── NEW: colour dot ── */}
+          {grp.colour && (
+            <span className="w-3 h-3 rounded-full shrink-0 border border-white shadow-sm" style={{ background: grp.colour }} />
+          )}
+          <button onClick={() => navigate(`/dashboard/super-admin/compliance/groups/${grp._id}`)}
+            className="flex items-center gap-1 text-left font-medium text-blue-600 hover:text-blue-800 hover:underline">
+            {grp.name}<ExternalLink size={11} className="shrink-0 opacity-50" />
           </button>
         </div>
       ),
-      mobileLabel: "Actions",
-      mobileCellClassName: "pt-1",
+    },
+    {
+      header: "Order", id: "displayOrder",
+      render: grp => grp.displayOrder,
+      cellClassName: "px-4 py-3 text-slate-500 align-top",
+    },
+    {
+      header: "Contract Types", id: "contractTypes",
+      render: grp => {
+        const types = grp.applicableContractTypes || [];
+        if (!types.length) return <span className="text-xs text-slate-400">Any</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {types.map(t => (
+              <span key={t} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">{t}</span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      header: "Documents", id: "documents",
+      render: grp => {
+        const n = (grp.documents || []).length;
+        return <span className="text-xs text-slate-500">{n} doc{n !== 1 ? "s" : ""}</span>;
+      },
+    },
+    {
+      header: "Status", id: "status",
+      render: grp => <ActivePill active={grp.active} />,
+    },
+    {
+      header: "", id: "actions",
+      render: grp => (
+        <div className="flex items-center gap-1">
+          <button onClick={() => onEdit(grp)} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"><Edit2 size={13} /></button>
+          <button onClick={() => onDelete(grp._id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-red-50 hover:text-red-500"><Trash2 size={13} /></button>
+        </div>
+      ),
+      mobileLabel: "Actions", mobileCellClassName: "pt-1",
     },
   ];
 
@@ -235,14 +291,8 @@ const GroupListTab = ({ groups, loading, onAdd, onEdit, onDelete, navigate }) =>
             <Plus size={14} /> Add New Document Group
           </button>
         </div>
-        <FilterBar 
-          search={search} 
-          setSearch={setSearch} 
-          filters={filters} 
-          setFilters={setFilters}
-          filterOptions={GROUP_FILTER_OPTIONS} 
-          searchPlaceholder="Search groups…" 
-        />
+        <FilterBar search={search} setSearch={setSearch} filters={filters} setFilters={setFilters}
+          filterOptions={GROUP_FILTER_OPTIONS} searchPlaceholder="Search groups…" />
       </div>
 
       <DataTable
@@ -254,23 +304,21 @@ const GroupListTab = ({ groups, loading, onAdd, onEdit, onDelete, navigate }) =>
         emptyTitle="No groups match your filters"
         initialPageSize={10}
         pageSizeOptions={[10, 20, 50]}
-        getRowClassName={(grp) => `${!grp.active ? "opacity-60" : ""} hover:bg-slate-50 transition-colors`}
+        getRowClassName={grp => `${!grp.active ? "opacity-60" : ""} hover:bg-slate-50 transition-colors`}
       />
     </div>
   );
 };
 
-/* ══════ MAIN EXPORT   ════ */
-export default function CompliancePanelEnhanced({ entityType = "PCN", entity, fieldSaving = {}, onToggle, onPatch, practiceRollup = [] }) {
-  const navigate = useNavigate();
-
-  // Ab sirf ek tab hai
+/* ── Main export ── */
+export default function CompliancePanelEnhanced() {
+  const navigate    = useNavigate();
   const [groupModal, setGroupModal] = useState(null);
 
-  const { data: docsData, isLoading: docsLoading } = useComplianceDocs();
+  const { data: docsData,   isLoading: docsLoading   } = useComplianceDocs();
   const { data: groupsData, isLoading: groupsLoading } = useDocumentGroups();
 
-  const docs = docsData?.docs || [];
+  const docs   = docsData?.docs    || [];
   const groups = groupsData?.groups || [];
 
   const createGroup = useCreateDocumentGroup();
@@ -279,9 +327,8 @@ export default function CompliancePanelEnhanced({ entityType = "PCN", entity, fi
 
   const handleSaveGroup = async (form) => {
     if (form._id) await updateGroup.mutateAsync({ id: form._id, data: form });
-    else await createGroup.mutateAsync(form);
+    else          await createGroup.mutateAsync(form);
   };
-
   const handleDeleteGroup = async (id) => {
     if (!confirm("Delete this document group?")) return;
     await deleteGroup.mutateAsync(id);
@@ -291,23 +338,20 @@ export default function CompliancePanelEnhanced({ entityType = "PCN", entity, fi
 
   return (
     <div className="space-y-4">
-       
-
-      <GroupListTab 
-        groups={groups} 
+      <GroupListTab
+        groups={groups}
         loading={groupsLoading}
-        onAdd={() => setGroupModal({})} 
+        onAdd={() => setGroupModal({})}
         onEdit={g => setGroupModal(g)}
-        onDelete={handleDeleteGroup} 
-        navigate={navigate} 
+        onDelete={handleDeleteGroup}
+        navigate={navigate}
       />
-
       {groupModal !== null && (
-        <GroupModal 
-          existing={groupModal?._id ? groupModal : null} 
+        <GroupModal
+          existing={groupModal?._id ? groupModal : null}
           allDocs={activeDocs}
-          onClose={() => setGroupModal(null)} 
-          onSave={handleSaveGroup} 
+          onClose={() => setGroupModal(null)}
+          onSave={handleSaveGroup}
         />
       )}
     </div>

@@ -4,13 +4,15 @@ import {
   Stethoscope, Network, ChevronRight, ArrowLeft, RefreshCw,
   Users, FileCheck, MessageSquare, UserX, Mail, Check, X,
   Phone, AlertTriangle, Plus, Edit2, Trash2, Save,
-  Wifi, Activity, Hash, MapPin, CheckCircle2, XCircle, Building2, Layers
+  Wifi, Activity, Hash, MapPin, CheckCircle2, XCircle,
+  Building2, Layers, Archive
 } from "lucide-react";
 import { usePractice, useUpdatePractice } from "../../../hooks/usePractice";
 import { useDocumentGroups } from "../../../hooks/useCompliance";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
+import ReportingArchivePanel from "./ReportingArchivePanel.jsx";
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS
@@ -155,7 +157,7 @@ const AccessModal = ({ existing, onClose, onSave }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   TABS
+   TABS — Archive tab added (restricted se pehle)
 ══════════════════════════════════════════════════════════ */
 const TABS = [
   { id: "overview",   label: "Overview",   icon: Stethoscope   },
@@ -163,6 +165,7 @@ const TABS = [
   { id: "documents",  label: "Documents",  icon: FileCheck     },
   { id: "access",     label: "Sys Access", icon: Wifi          },
   { id: "history",    label: "History",    icon: MessageSquare },
+  { id: "archive",    label: "Archive",    icon: Archive       }, // ✅ NEW
   { id: "restricted", label: "Restricted", icon: UserX         },
 ];
 
@@ -319,16 +322,16 @@ export default function PracticeDetailPage() {
             </div>
           ) : (
             <div>
-              <DetailRow label="ODS Code"      value={practice.odsCode} />
-              <DetailRow label="ICB"           value={practice.pcn?.icb?.name} />
-              <DetailRow label="Federation"    value={practice.pcn?.federation?.name || "Direct to ICB"} />
-              <DetailRow label="PCN"           value={practice.pcn?.name} />
+              <DetailRow label="ODS Code"         value={practice.odsCode} />
+              <DetailRow label="ICB"              value={practice.pcn?.icb?.name} />
+              <DetailRow label="Federation"       value={practice.pcn?.federation?.name || "Direct to ICB"} />
+              <DetailRow label="PCN"              value={practice.pcn?.name} />
               <DetailRow label="Compliance Group" value={practice.complianceGroup?.name || "No compliance group assigned"} />
-              <DetailRow label="Contract Type" value={practice.contractType} />
-              <DetailRow label="FTE"           value={practice.fte} />
-              <DetailRow label="Xero Code"     value={practice.xeroCode} />
-              <DetailRow label="Xero Category" value={practice.xeroCategory} />
-              <DetailRow label="Patient List"  value={practice.patientListSize ? practice.patientListSize.toLocaleString() : null} />
+              <DetailRow label="Contract Type"    value={practice.contractType} />
+              <DetailRow label="FTE"              value={practice.fte} />
+              <DetailRow label="Xero Code"        value={practice.xeroCode} />
+              <DetailRow label="Xero Category"    value={practice.xeroCategory} />
+              <DetailRow label="Patient List"     value={practice.patientListSize ? practice.patientListSize.toLocaleString() : null} />
               {practice.notes && <div className="pt-4 mt-2 border-t border-slate-50"><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p><p className="text-sm text-slate-600 leading-relaxed">{practice.notes}</p></div>}
             </div>
           )}
@@ -340,8 +343,8 @@ export default function PracticeDetailPage() {
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0"><MapPin size={16} className="text-slate-500" /></div>
               <div className="text-sm text-slate-700 leading-relaxed">
-                {practice.address && <p>{practice.address}</p>}
-                {practice.city    && <p>{practice.city}</p>}
+                {practice.address  && <p>{practice.address}</p>}
+                {practice.city     && <p>{practice.city}</p>}
                 {practice.postcode && <p className="font-bold text-slate-800">{practice.postcode}</p>}
               </div>
             </div>
@@ -399,13 +402,8 @@ export default function PracticeDetailPage() {
     );
   };
 
-  // ✅ UPDATED: sirf entityType + entity pass ho raha hai
   const DocumentsPanel = () => (
-    <EntityDocumentsTab
-      entityType="Practice"
-      entityId={practice._id}
-      accent="teal"
-    />
+    <EntityDocumentsTab entityType="Practice" entityId={practice._id} accent="teal" />
   );
 
   const AccessPanel = () => {
@@ -453,12 +451,52 @@ export default function PracticeDetailPage() {
 
   const RestrictedPanel = () => {
     const restricted = practice.restrictedClinicians || [];
+    const [addModal, setAddModal] = useState(false);
+    const [newName,  setNewName]  = useState("");
+    const [newEmail, setNewEmail] = useState("");
+    const [newRole,  setNewRole]  = useState("");
+    const [newReason,setNewReason]= useState("");
+    const [saving,   setSaving]   = useState(false);
+
+    const handleAdd = async () => {
+      if (!newName.trim()) return;
+      setSaving(true);
+      try {
+        const updated = [...restricted, {
+          _id:    `manual-${Date.now()}`,
+          name:   newName.trim(),
+          email:  newEmail.trim(),
+          role:   newRole.trim() || "clinician",
+          reason: newReason.trim(),
+        }];
+        await patch({ restrictedClinicians: updated });
+        setAddModal(false);
+        setNewName(""); setNewEmail(""); setNewRole(""); setNewReason("");
+      } catch (e) { alert(e.message); }
+      finally { setSaving(false); }
+    };
+
+    const handleRemove = async (cid) => {
+      if (!confirm("Remove this restriction?")) return;
+      const updated = restricted.filter(c => (c._id || c) !== cid);
+      await patch({ restrictedClinicians: updated });
+    };
+
     return (
       <div className="space-y-4">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
-          <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
-          <div><p className="text-sm font-bold text-red-700">Restricted / Unsuitable Clinicians</p><p className="text-xs text-red-600 mt-0.5 leading-relaxed">These clinicians will not be scheduled at this practice.</p></div>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 flex-1">
+            <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-red-700">Restricted / Unsuitable Clinicians</p>
+              <p className="text-xs text-red-600 mt-0.5 leading-relaxed">These clinicians will not be scheduled at this practice.</p>
+            </div>
+          </div>
+          <Btn variant="danger" size="sm" onClick={() => setAddModal(true)}>
+            <Plus size={13} /> Add Restriction
+          </Btn>
         </div>
+
         {restricted.length === 0 ? (
           <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
             <UserX size={32} className="opacity-40" /><p className="font-semibold">No restricted clinicians</p>
@@ -466,12 +504,56 @@ export default function PracticeDetailPage() {
         ) : (
           <div className="grid gap-2.5">
             {restricted.map(c => (
-              <div key={c._id} className="bg-white rounded-2xl border border-red-100 p-5 flex items-center gap-4">
+              <div key={c._id} className="bg-white rounded-2xl border border-red-100 p-5 flex items-center gap-4 group">
                 <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0"><UserX size={17} className="text-red-500" /></div>
-                <div className="min-w-0"><p className="text-[15px] font-bold text-slate-800">{c.name}</p><p className="text-xs text-slate-400 mt-0.5">{c.email} · <span className="capitalize">{c.role}</span></p></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-bold text-slate-800">{c.name}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{c.email} · <span className="capitalize">{c.role}</span></p>
+                  {c.reason && <p className="text-xs text-red-500 mt-1">Reason: {c.reason}</p>}
+                </div>
+                <button
+                  onClick={() => handleRemove(c._id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-red-200 shrink-0">
+                  <Trash2 size={11} /> Remove
+                </button>
               </div>
             ))}
           </div>
+        )}
+
+        {addModal && (
+          <ModalShell title="Add Restricted Clinician" onClose={() => setAddModal(false)}
+            footer={
+              <>
+                <Btn variant="ghost" cls="flex-1" onClick={() => setAddModal(false)}>Cancel</Btn>
+                <Btn variant="danger" cls="flex-1" onClick={handleAdd} disabled={saving || !newName.trim()}>
+                  {saving ? <Spinner /> : <UserX size={14} />} Flag as Restricted
+                </Btn>
+              </>
+            }>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Clinician Name *</label>
+              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Dr. John Smith"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
+                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" placeholder="email@example.com"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Role</label>
+                <input value={newRole} onChange={e => setNewRole(e.target.value)} placeholder="Clinician"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Reason for Restriction</label>
+              <textarea rows={3} value={newReason} onChange={e => setNewReason(e.target.value)} placeholder="e.g. Patient complaint, conduct issue..."
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 resize-none transition-all" />
+            </div>
+          </ModalShell>
         )}
       </div>
     );
@@ -483,6 +565,7 @@ export default function PracticeDetailPage() {
     documents:  <DocumentsPanel />,
     access:     <AccessPanel />,
     history:    <ContactHistoryPanel entityType="Practice" entityId={practice._id} />,
+    archive:    <ReportingArchivePanel entityType="Practice" entityId={practice._id} />, // ✅ NEW
     restricted: <RestrictedPanel />,
   };
 
@@ -506,18 +589,30 @@ export default function PracticeDetailPage() {
         <span className="text-slate-700 font-bold truncate">{practice.name}</span>
       </nav>
 
+      {/* ✅ Header with priority badge + tags */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
         <div className="flex flex-wrap items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-teal-600 flex items-center justify-center shrink-0"><Stethoscope size={22} className="text-white" /></div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{practice.name}</h1>
             <div className="flex flex-wrap items-center gap-2.5 mt-2">
-              {practice.odsCode    && <span className="text-sm text-slate-400 flex items-center gap-1"><Hash size={12} /> {practice.odsCode}</span>}
+              {practice.odsCode       && <span className="text-sm text-slate-400 flex items-center gap-1"><Hash size={12} /> {practice.odsCode}</span>}
               {practice.pcn?.icb?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={12} /> {practice.pcn.icb.name}</span>}
               {practice.pcn?.federation?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {practice.pcn.federation.name}</span>}
-              {practice.pcn?.name  && <span className="text-sm text-slate-400 flex items-center gap-1"><Network size={12} /> {practice.pcn.name}</span>}
-              {practice.contractType && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200">{practice.contractType}</span>}
-              {practice.fte        && <span className="text-sm text-slate-400">{practice.fte}</span>}
+              {practice.pcn?.name     && <span className="text-sm text-slate-400 flex items-center gap-1"><Network size={12} /> {practice.pcn.name}</span>}
+              {practice.contractType  && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200">{practice.contractType}</span>}
+              {practice.fte           && <span className="text-sm text-slate-400">{practice.fte}</span>}
+              {/* ✅ Priority badge */}
+              {practice.priority && practice.priority !== "normal" && (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border
+                  ${practice.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                  {practice.priority.toUpperCase()}
+                </span>
+              )}
+              {/* ✅ Tags */}
+              {(practice.tags || []).map(tag => (
+                <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{tag}</span>
+              ))}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

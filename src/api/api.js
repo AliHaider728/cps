@@ -7,7 +7,8 @@ export const authAPI = {
   logout:          authService.logout,
   getMe:           authService.getMe,
   changePassword:  authService.changePassword,
-  getAllUsers:      authService.getAllUsers,
+  getAllUsers:      (params) => api.get("/auth/users", { params }),
+  getUserById:     (id)     => api.get(`/auth/users/${id}`),          // ✅ NEW
   createUser:      authService.createUser,
   updateUser:      authService.updateUser,
   deleteUser:      authService.deleteUser,
@@ -25,17 +26,17 @@ export const hierarchyAPI = {
 
 export const icbAPI = {
   getAll:  clientManagementService.getICBs,
-  getById: (id)         => api.get(`/clients/icb/${id}`),
-  create:  (data)       => api.post("/clients/icb", data),
-  update:  (id, data)   => api.put(`/clients/icb/${id}`, data),
-  delete:  (id)         => api.delete(`/clients/icb/${id}`),
+  getById: (id)       => api.get(`/clients/icb/${id}`),
+  create:  (data)     => api.post("/clients/icb", data),
+  update:  (id, data) => api.put(`/clients/icb/${id}`, data),
+  delete:  (id)       => api.delete(`/clients/icb/${id}`),
 };
 
 export const federationAPI = {
   getAll:  clientManagementService.getFederations,
-  create:  (data)       => api.post("/clients/federation", data),
-  update:  (id, data)   => api.put(`/clients/federation/${id}`, data),
-  delete:  (id)         => api.delete(`/clients/federation/${id}`),
+  create:  (data)     => api.post("/clients/federation", data),
+  update:  (id, data) => api.put(`/clients/federation/${id}`, data),
+  delete:  (id)       => api.delete(`/clients/federation/${id}`),
 };
 
 export const pcnAPI = {
@@ -51,14 +52,13 @@ export const pcnAPI = {
 };
 
 export const practiceAPI = {
-  getAll:              (params)              => api.get("/clients/practice", { params }),
-  getById:             (id)                  => api.get(`/clients/practice/${id}`),
-  create:              (data)                => api.post("/clients/practice", data),
-  update:              (id, data)            => api.put(`/clients/practice/${id}`, data),
-  delete:              (id)                  => api.delete(`/clients/practice/${id}`),
-  updateRestricted:    (id, clinicianIds)    => api.patch(`/clients/practice/${id}/restricted`, { clinicianIds }),
-  requestSystemAccess: (entityType, entityId, data) =>
-    api.post(`/clients/${entityType}/${entityId}/system-access-request`, data),
+  getAll:              (params)                      => api.get("/clients/practice", { params }),
+  getById:             (id)                           => api.get(`/clients/practice/${id}`),
+  create:              (data)                         => api.post("/clients/practice", data),
+  update:              (id, data)                     => api.put(`/clients/practice/${id}`, data),
+  delete:              (id)                           => api.delete(`/clients/practice/${id}`),
+  updateRestricted:    (id, clinicianIds)             => api.patch(`/clients/practice/${id}/restricted`, { clinicianIds }),
+  requestSystemAccess: (entityType, entityId, data)  => api.post(`/clients/${entityType}/${entityId}/system-access-request`, data),
 };
 
 export const historyAPI = {
@@ -74,54 +74,38 @@ export const emailAPI = {
     api.post(`/clients/${entityType}/${entityId}/mass-email`, data),
 };
 
-/* ══════════════════════════════════════════════
-   ENTITY-LEVEL COMPLIANCE
-   (ICB / PCN / Practice ki compliance status)
-══════════════════════════════════════════════ */
 export const complianceAPI = {
-  getStatus:    (entityType, entityId)               => api.get(`/clients/${entityType}/${entityId}/compliance/status`),
-  upsertDoc:    (entityType, entityId, docKey, data) =>
+  getStatus:      (entityType, entityId)                => api.get(`/clients/${entityType}/${entityId}/compliance/status`),
+  upsertDoc:      (entityType, entityId, docKey, data)  =>
     api.patch(`/clients/${entityType}/${entityId}/compliance/${docKey}`, data, {
       headers: data instanceof FormData ? { "Content-Type": "multipart/form-data" } : undefined,
     }),
-  approveDoc:   (entityType, entityId, docKey)       => api.post(`/clients/${entityType}/${entityId}/compliance/${docKey}/approve`),
-  rejectDoc:    (entityType, entityId, docKey, reason) =>
+  approveDoc:     (entityType, entityId, docKey)        => api.post(`/clients/${entityType}/${entityId}/compliance/${docKey}/approve`),
+  rejectDoc:      (entityType, entityId, docKey, reason) =>
     api.post(`/clients/${entityType}/${entityId}/compliance/${docKey}/reject`, { reason }),
-  getExpiring:  (days = 30) => api.get("/clients/compliance/expiring", { params: { days } }),
-  runExpiryCheck: ()        => api.post("/clients/compliance/run-expiry"),
+  getExpiring:    (days = 30) => api.get("/clients/compliance/expiring", { params: { days } }),
+  runExpiryCheck: ()          => api.post("/clients/compliance/run-expiry"),
 };
 
-/* ══════════════════════════════════════════════
-   COMPLIANCE DOCUMENTS — Master Library
-   Admin: document templates CRUD
-══════════════════════════════════════════════ */
 export const complianceDocsAPI = {
-  getAll:   (params)      => api.get("/compliance/documents", { params }),
-  getStats: ()            => api.get("/compliance/documents/stats"),        // ✅ NEW
-  getById:  (id)          => api.get(`/compliance/documents/${id}`),
-  create:   (data)        => api.post("/compliance/documents", data),
-  update:   (id, data)    => api.put(`/compliance/documents/${id}`, data),
-  delete:   (id)          => api.delete(`/compliance/documents/${id}`),
+  getAll:   (params)   => api.get("/compliance/documents", { params }),
+  getStats: ()         => api.get("/compliance/documents/stats"),
+  getById:  (id)       => api.get(`/compliance/documents/${id}`),
+  create:   (data)     => api.post("/compliance/documents", data),
+  update:   (id, data) => api.put(`/compliance/documents/${id}`, data),
+  delete:   (id)       => api.delete(`/compliance/documents/${id}`),
 };
 
-/* ══════════════════════════════════════════════
-   DOCUMENT GROUPS
-   Admin: group templates CRUD
-══════════════════════════════════════════════ */
 export const documentGroupsAPI = {
-  getAll:         (params)       => api.get("/compliance/groups", { params }),
-  getForEntity:   (entityType)   => api.get(`/compliance/groups/for-entity/${entityType}`), // ✅ NEW
-  getById:        (id)           => api.get(`/compliance/groups/${id}`),
-  create:         (data)         => api.post("/compliance/groups", data),
-  update:         (id, data)     => api.put(`/compliance/groups/${id}`, data),
-  delete:         (id)           => api.delete(`/compliance/groups/${id}`),
-  duplicate:      (id, data)     => api.post(`/compliance/groups/${id}/duplicate`, data),   // ✅ NEW
+  getAll:       (params)     => api.get("/compliance/groups", { params }),
+  getForEntity: (entityType) => api.get(`/compliance/groups/for-entity/${entityType}`),
+  getById:      (id)         => api.get(`/compliance/groups/${id}`),
+  create:       (data)       => api.post("/compliance/groups", data),
+  update:       (id, data)   => api.put(`/compliance/groups/${id}`, data),
+  delete:       (id)         => api.delete(`/compliance/groups/${id}`),
+  duplicate:    (id, data)   => api.post(`/compliance/groups/${id}/duplicate`, data),
 };
 
-/* ══════════════════════════════════════════════
-   ENTITY DOCUMENTS
-   PCN / Practice k documents (group-based)
-══════════════════════════════════════════════ */
 export const entityDocumentsAPI = {
   getAll: (entityType, entityId) =>
     api.get(`/clients/${entityType}/${entityId}/documents`),
@@ -141,6 +125,21 @@ export const entityDocumentsAPI = {
 
   deleteUpload: (entityType, entityId, groupId, documentId, uploadId) =>
     api.delete(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads/${uploadId}`),
+};
+
+//   NEW — Reporting Archive API
+// Routes: GET/POST/DELETE /:entityType/:entityId/reporting-archive
+export const reportingArchiveAPI = {
+  getAll: (entityType, entityId) =>
+    api.get(`/clients/${entityType}/${entityId}/reporting-archive`),
+
+  add: (entityType, entityId, formData) =>
+    api.post(`/clients/${entityType}/${entityId}/reporting-archive`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+
+  delete: (entityType, entityId, reportId) =>
+    api.delete(`/clients/${entityType}/${entityId}/reporting-archive/${reportId}`),
 };
 
 export default api;

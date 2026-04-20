@@ -4,7 +4,8 @@ import {
   Network, Building2, Layers, ChevronRight, ArrowLeft, RefreshCw,
   Users, FileCheck, Calendar, Stethoscope, MessageSquare,
   UserX, Mail, Check, X, Phone, AlertTriangle, Plus, Edit2, Trash2,
-  Save, FileText, CheckCircle2, XCircle, Hash, DollarSign, Clock
+  Save, FileText, CheckCircle2, XCircle, Hash, DollarSign, Clock,
+  Archive
 } from "lucide-react";
 import { usePCN, useUpdatePCN, useUpsertMeeting } from "../../../hooks/usePCN";
 import { useDocumentGroups } from "../../../hooks/useCompliance";
@@ -13,6 +14,7 @@ import { setActivePcnDetailTab } from "../../../slices/pcnSlice";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
+import ReportingArchivePanel from "./ReportingArchivePanel.jsx";
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS
@@ -201,7 +203,7 @@ const TemplateModal = ({ existing, onClose, onSave }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   TABS
+   TABS — Archive tab added (restricted se pehle)
 ══════════════════════════════════════════════════════════ */
 const TABS = [
   { id: "overview",   label: "Overview",   icon: Network       },
@@ -211,6 +213,7 @@ const TABS = [
   { id: "meetings",   label: "Meetings",   icon: Calendar      },
   { id: "templates",  label: "Templates",  icon: FileText      },
   { id: "history",    label: "History",    icon: MessageSquare },
+  { id: "archive",    label: "Archive",    icon: Archive       }, // ✅ NEW
   { id: "restricted", label: "Restricted", icon: UserX         },
 ];
 
@@ -479,13 +482,8 @@ export default function PCNDetailPage() {
     );
   };
 
-  // ✅ UPDATED: sirf entityType + entity pass ho raha hai
   const DocumentsPanel = () => (
-    <EntityDocumentsTab
-      entityType="PCN"
-      entityId={pcn._id}
-      accent="blue"
-    />
+    <EntityDocumentsTab entityType="PCN" entityId={pcn._id} accent="blue" />
   );
 
   const PracticesPanel = () => {
@@ -621,12 +619,56 @@ export default function PCNDetailPage() {
 
   const RestrictedPanel = () => {
     const restricted = pcn.restrictedClinicians || [];
+    const [addModal, setAddModal] = useState(false);
+    const [newName,  setNewName]  = useState("");
+    const [newEmail, setNewEmail] = useState("");
+    const [newRole,  setNewRole]  = useState("");
+    const [newReason,setNewReason]= useState("");
+    const [saving,   setSaving]   = useState(false);
+
+    const handleAdd = async () => {
+      if (!newName.trim()) return;
+      setSaving(true);
+      try {
+        const current = restricted.map(c => c._id || c);
+        // Add as a plain object — backend stores it in restrictedClinicians array
+        const updated = [...restricted, {
+          _id:    `manual-${Date.now()}`,
+          name:   newName.trim(),
+          email:  newEmail.trim(),
+          role:   newRole.trim() || "clinician",
+          reason: newReason.trim(),
+        }];
+        await patch({ restrictedClinicians: updated.map(c => c._id || c) });
+        // Also save the full objects so they show up without re-fetch needing populate
+        await patch({ restrictedClinicians: updated });
+        setAddModal(false);
+        setNewName(""); setNewEmail(""); setNewRole(""); setNewReason("");
+      } catch (e) { alert(e.message); }
+      finally { setSaving(false); }
+    };
+
+    const handleRemove = async (cid) => {
+      if (!confirm("Remove this restriction?")) return;
+      const updated = restricted.filter(c => (c._id || c) !== cid);
+      await patch({ restrictedClinicians: updated.map(c => c._id || c) });
+    };
+
     return (
       <div className="space-y-4">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
-          <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
-          <div><p className="text-sm font-bold text-red-700">Restricted / Unsuitable Clinicians</p><p className="text-xs text-red-600 mt-0.5 leading-relaxed">These clinicians are flagged as unsuitable for this PCN.</p></div>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 flex-1">
+            <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-red-700">Restricted / Unsuitable Clinicians</p>
+              <p className="text-xs text-red-600 mt-0.5 leading-relaxed">These clinicians are flagged as unsuitable for this Client and will be blocked from bookings.</p>
+            </div>
+          </div>
+          <Btn variant="danger" size="sm" onClick={() => setAddModal(true)}>
+            <Plus size={13} /> Add Restriction
+          </Btn>
         </div>
+
         {restricted.length === 0 ? (
           <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
             <UserX size={32} className="opacity-40" /><p className="font-semibold">No restricted clinicians</p>
@@ -634,12 +676,58 @@ export default function PCNDetailPage() {
         ) : (
           <div className="grid gap-2.5">
             {restricted.map(c => (
-              <div key={c._id} className="bg-white rounded-2xl border border-red-100 p-4 flex items-center gap-4">
+              <div key={c._id} className="bg-white rounded-2xl border border-red-100 p-4 flex items-center gap-4 group">
                 <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0"><UserX size={17} className="text-red-500" /></div>
-                <div className="min-w-0"><p className="text-[15px] font-bold text-slate-800">{c.name}</p><p className="text-xs text-slate-400 mt-0.5">{c.email} · <span className="capitalize">{c.role}</span></p></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-bold text-slate-800">{c.name}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {[c.email, c.role && <span className="capitalize">{c.role}</span>].filter(Boolean).join(" · ")}
+                  </p>
+                  {c.reason && <p className="text-xs text-red-500 mt-1">Reason: {c.reason}</p>}
+                </div>
+                <button
+                  onClick={() => handleRemove(c._id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-red-200 shrink-0">
+                  <Trash2 size={11} /> Remove
+                </button>
               </div>
             ))}
           </div>
+        )}
+
+        {addModal && (
+          <ModalShell title="Add Restricted Clinician" onClose={() => setAddModal(false)}
+            footer={
+              <>
+                <Btn variant="ghost" cls="flex-1" onClick={() => setAddModal(false)}>Cancel</Btn>
+                <Btn variant="danger" cls="flex-1" onClick={handleAdd} disabled={saving || !newName.trim()}>
+                  {saving ? <Spinner /> : <UserX size={14} />} Flag as Restricted
+                </Btn>
+              </>
+            }>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Clinician Name *</label>
+              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Dr. John Smith"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
+                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" placeholder="email@example.com"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Role</label>
+                <input value={newRole} onChange={e => setNewRole(e.target.value)} placeholder="Clinician"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Reason for Restriction</label>
+              <textarea rows={3} value={newReason} onChange={e => setNewReason(e.target.value)} placeholder="e.g. Patient complaint, conduct issue..."
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 resize-none transition-all" />
+            </div>
+          </ModalShell>
         )}
       </div>
     );
@@ -653,6 +741,7 @@ export default function PCNDetailPage() {
     meetings:   <MeetingsPanel />,
     templates:  <TemplatesPanel />,
     history:    <ContactHistoryPanel entityType="PCN" entityId={pcn._id} />,
+    archive:    <ReportingArchivePanel entityType="PCN" entityId={pcn._id} />, // ✅ NEW
     restricted: <RestrictedPanel />,
   };
 
@@ -668,6 +757,7 @@ export default function PCNDetailPage() {
         <span className="text-slate-700 font-bold truncate">{pcn.name}</span>
       </nav>
 
+      {/* ✅ Header with priority badge + tags */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
         <div className="flex flex-wrap items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shrink-0"><Network size={22} className="text-white" /></div>
@@ -678,6 +768,17 @@ export default function PCNDetailPage() {
               {(pcn.federation?.name || pcn.federationName) && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {pcn.federation?.name || pcn.federationName}</span>}
               {pcn.contractType && <span className="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-md border border-purple-200">{pcn.contractType}</span>}
               {pcn.annualSpend > 0 && <span className="text-sm text-green-600 font-bold flex items-center gap-1"><DollarSign size={12} />£{Number(pcn.annualSpend).toLocaleString()}</span>}
+              {/* ✅ Priority badge */}
+              {pcn.priority && pcn.priority !== "normal" && (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border
+                  ${pcn.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                  {pcn.priority.toUpperCase()}
+                </span>
+              )}
+              {/* ✅ Tags */}
+              {(pcn.tags || []).map(tag => (
+                <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{tag}</span>
+              ))}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

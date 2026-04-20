@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
   MessageSquare, Phone, Mail, Users, FileText, AlertTriangle,
-  HardDrive, Star, Plus, Search, Trash2, Edit2, X, Check, Clock, Wifi
+  HardDrive, Star, Plus, Search, Trash2, Edit2, X, Check, Clock,
+  Wifi, CalendarCheck, Target
 } from "lucide-react";
 import { useHistory, useAddHistory, useUpdateHistory, useToggleStar, useDeleteHistory } from "../../../hooks/useHistory";
 
@@ -15,33 +16,44 @@ const TYPE_META = {
   system_access: { icon: Wifi,          color: "text-cyan-600",   bg: "bg-cyan-50",   border: "border-cyan-200",   label: "System Access" },
 };
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
-const fmtTime = (d, t) => t || (d ? new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
+const fmtDate  = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
+const fmtTime  = (d, t) => t || (d ? new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
+const fmtShort = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "";
 
+/* ── Log Modal — UPDATED: +outcome, +followUpDate, +followUpNote ── */
 const LogModal = ({ onClose, onSave, existing }) => {
   const [form, setForm] = useState({
-    type:    existing?.type    || "call",
-    subject: existing?.subject || "",
-    notes:   existing?.notes   || "",
-    date:    existing?.date    ? new Date(existing.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-    time:    existing?.time    || new Date().toTimeString().slice(0,5),
+    type:        existing?.type        || "call",
+    subject:     existing?.subject     || "",
+    notes:       existing?.notes       || "",
+    date:        existing?.date        ? new Date(existing.date).toISOString().split("T")[0]
+                                       : new Date().toISOString().split("T")[0],
+    time:        existing?.time        || new Date().toTimeString().slice(0, 5),
+    // ── NEW FIELDS ──────────────────────────────────────────────
+    outcome:     existing?.outcome     || "",
+    followUpDate:existing?.followUpDate? new Date(existing.followUpDate).toISOString().split("T")[0] : "",
+    followUpNote:existing?.followUpNote|| "",
   });
   const [saving, setSaving] = useState(false);
 
   const handle = async () => {
     if (!form.subject.trim()) return;
     setSaving(true);
-    try { await onSave(form); onClose(); } catch (e) { alert(e.message); } finally { setSaving(false); }
+    try { await onSave(form); onClose(); }
+    catch (e) { alert(e.message); }
+    finally { setSaving(false); }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h3 className="text-base font-bold text-slate-800">{existing ? "Edit Log" : "Add Contact Log"}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"><X size={16} /></button>
         </div>
-        <div className="p-6 space-y-4">
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 [scrollbar-width:thin]">
+          {/* Type picker */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Type</label>
             <div className="grid grid-cols-4 gap-2">
@@ -49,23 +61,30 @@ const LogModal = ({ onClose, onSave, existing }) => {
                 const Icon = v.icon;
                 return (
                   <button key={k} onClick={() => setForm(f => ({...f, type: k}))}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-semibold transition-all ${form.type === k ? `${v.bg} ${v.border} ${v.color}` : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"}`}>
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-semibold transition-all
+                      ${form.type === k ? `${v.bg} ${v.border} ${v.color}` : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"}`}>
                     <Icon size={16} />{v.label}
                   </button>
                 );
               })}
             </div>
           </div>
+
+          {/* Subject */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Subject *</label>
             <input value={form.subject} onChange={e => setForm(f => ({...f, subject: e.target.value}))} placeholder="Brief description…"
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all placeholder:text-slate-400" />
           </div>
+
+          {/* Notes */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
-            <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} rows={4} placeholder="Detailed notes…"
+            <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} rows={3} placeholder="Detailed notes…"
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all resize-none placeholder:text-slate-400" />
           </div>
+
+          {/* Date + Time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Date</label>
@@ -78,8 +97,36 @@ const LogModal = ({ onClose, onSave, existing }) => {
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
             </div>
           </div>
+
+          {/* ── NEW: Outcome ─────────────────────────────────────── */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+              <Target size={11} /> Outcome
+            </label>
+            <input value={form.outcome} onChange={e => setForm(f => ({...f, outcome: e.target.value}))}
+              placeholder="What was the result of this contact?"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all placeholder:text-slate-400" />
+          </div>
+
+          {/* ── NEW: Follow-up ───────────────────────────────────── */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+                <CalendarCheck size={11} /> Follow-up Date
+              </label>
+              <input type="date" value={form.followUpDate} onChange={e => setForm(f => ({...f, followUpDate: e.target.value}))}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Follow-up Note</label>
+              <input value={form.followUpNote} onChange={e => setForm(f => ({...f, followUpNote: e.target.value}))}
+                placeholder="Action needed…"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all placeholder:text-slate-400" />
+            </div>
+          </div>
         </div>
-        <div className="flex gap-3 px-6 pb-5">
+
+        <div className="flex gap-3 px-6 pb-5 pt-3 border-t border-slate-100 shrink-0">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
           <button onClick={handle} disabled={saving || !form.subject.trim()}
             className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
@@ -101,10 +148,9 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
 
   const apiEntityType = entityType?.toLowerCase() === "practice" ? "Practice" : entityType;
 
-  // ✅ React Query — auto refetches when filterType/starred changes
   const params = {};
-  if (filterType !== "all") params.type = filterType;
-  if (starred) params.starred = "true";
+  if (filterType !== "all") params.type    = filterType;
+  if (starred)              params.starred = "true";
 
   const { data, isLoading, isError, error } = useHistory(apiEntityType, entityId, params);
   const logs = data?.logs || [];
@@ -120,21 +166,16 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
     setEditing(null);
   };
 
-  const handleStar = async (id) => {
-    await toggleStar.mutateAsync(id);
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this log entry?")) return;
-    await deleteHistory.mutateAsync(id);
-  };
-
   const filtered = logs.filter(l =>
-    !search || l.subject?.toLowerCase().includes(search.toLowerCase()) || l.notes?.toLowerCase().includes(search.toLowerCase())
+    !search ||
+    l.subject?.toLowerCase().includes(search.toLowerCase()) ||
+    l.notes?.toLowerCase().includes(search.toLowerCase()) ||
+    l.outcome?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Header */}
       <div className="px-6 py-5 border-b border-slate-100 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <MessageSquare size={20} className="text-blue-600 shrink-0" />
@@ -153,7 +194,8 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
             {Object.entries(TYPE_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <button onClick={() => setStarred(s => !s)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${starred ? "bg-amber-50 border-amber-300 text-amber-600" : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600"}`}>
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all
+              ${starred ? "bg-amber-50 border-amber-300 text-amber-600" : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600"}`}>
             <Star size={13} fill={starred ? "currentColor" : "none"} /> Starred
           </button>
           <button onClick={() => { setEditing(null); setShowModal(true); }}
@@ -163,7 +205,8 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
         </div>
       </div>
 
-      <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto [scrollbar-width:thin]">
+      {/* Log list */}
+      <div className="divide-y divide-slate-100 max-h-[650px] overflow-y-auto [scrollbar-width:thin]">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-7 h-7 border-[3px] border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -187,10 +230,14 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
           filtered.map((log) => {
             const meta = TYPE_META[log.type] || TYPE_META.note;
             const Icon = meta.icon;
+            const hasFollowUp = log.followUpDate && new Date(log.followUpDate) > new Date();
+            const followUpOverdue = log.followUpDate && new Date(log.followUpDate) < new Date();
             return (
               <div key={log._id} className="px-6 py-5 hover:bg-slate-50/80 transition-colors group">
                 <div className="flex items-start gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.bg} ${meta.color}`}><Icon size={18} /></div>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.bg} ${meta.color}`}>
+                    <Icon size={18} />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -201,18 +248,47 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
                         </div>
                         <p className="text-sm font-bold text-slate-800 mt-2 leading-tight">{log.subject}</p>
                         {log.notes && <p className="text-sm text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">{log.notes}</p>}
+
+                        {/* ── NEW: Outcome display ─────────────────────── */}
+                        {log.outcome && (
+                          <div className="mt-2 flex items-start gap-1.5">
+                            <Target size={11} className="text-green-500 shrink-0 mt-0.5" />
+                            <p className="text-xs text-green-700 font-medium leading-relaxed">{log.outcome}</p>
+                          </div>
+                        )}
+
+                        {/* ── NEW: Follow-up display ───────────────────── */}
+                        {log.followUpDate && (
+                          <div className={`mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold w-fit
+                            ${followUpOverdue ? "bg-red-50 text-red-600 border border-red-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                            <CalendarCheck size={11} />
+                            Follow-up: {fmtDate(log.followUpDate)}
+                            {log.followUpNote && <span className="ml-1 opacity-75">— {log.followUpNote}</span>}
+                            {followUpOverdue && <span className="ml-1 font-bold">OVERDUE</span>}
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-3 mt-2.5 flex-wrap">
                           <span className="text-xs text-slate-400 flex items-center gap-1.5"><Clock size={12} />{fmtDate(log.date)} {fmtTime(log.date, log.time)}</span>
                           {log.createdBy && <span className="text-xs text-slate-400">by <span className="font-semibold text-slate-600">{log.createdBy.name}</span></span>}
                         </div>
                       </div>
+
+                      {/* Action buttons */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        <button onClick={() => handleStar(log._id)}
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${log.starred ? "text-amber-500 bg-amber-50" : "text-slate-400 hover:text-amber-500 hover:bg-amber-50"}`}>
+                        <button onClick={() => toggleStar.mutateAsync(log._id)}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all
+                            ${log.starred ? "text-amber-500 bg-amber-50" : "text-slate-400 hover:text-amber-500 hover:bg-amber-50"}`}>
                           <Star size={14} fill={log.starred ? "currentColor" : "none"} />
                         </button>
-                        <button onClick={() => { setEditing(log); setShowModal(true); }} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"><Edit2 size={14} /></button>
-                        <button onClick={() => handleDelete(log._id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={14} /></button>
+                        <button onClick={() => { setEditing(log); setShowModal(true); }}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => { if (!confirm("Delete this log entry?")) return; deleteHistory.mutateAsync(log._id); }}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   </div>
