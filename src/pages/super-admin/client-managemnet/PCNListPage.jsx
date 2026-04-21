@@ -29,29 +29,25 @@ const buildAccentMap = (icbs) => {
   return map;
 };
 
-/* ─── Federation name resolver (FIXED)
-   Backend stores federation as:
-   - populated object  { _id, name, type }   → from mongoose populate
-   - plain object      { _id, id, name }      → from seed upsert
-   - string ID         "abc123"               → unpopulated ref
-   - null / undefined                         → not set
-──────────────────────────────────────────────────────────────────────────── */
+/* ─── Federation name resolver (FINAL FIXED VERSION) ─────────────────────── */
 const resolveFederationName = (pcn, fedMap) => {
+  if (!pcn) return null;
+
+  // 1. Seed.js mein jo federationName directly set kiya hai → sabse pehle check
+  if (pcn.federationName) return pcn.federationName;
+
   const f = pcn.federation;
   if (!f) return null;
 
-  // Already a populated object with name
+  // 2. Populated object
   if (typeof f === "object" && f.name) return f.name;
 
-  // Plain string ID — look up in fedMap
+  // 3. String ID
   if (typeof f === "string" && fedMap[f]) return fedMap[f].name;
 
-  // Object with _id or id but no name — look up
+  // 4. Object with _id or id
   const fid = f._id || f.id;
   if (fid && fedMap[String(fid)]) return fedMap[String(fid)].name;
-
-  // federationName fallback (set by seed)
-  if (pcn.federationName) return pcn.federationName;
 
   return null;
 };
@@ -355,7 +351,6 @@ export default function PCNListPage() {
       header: "Federation",
       id: "federation",
       render: (pcn) => {
-        // ✅ FIXED: use resolveFederationName helper
         const name = resolveFederationName(pcn, fedMap);
         if (!name) return <span className="text-slate-400">—</span>;
         return (
