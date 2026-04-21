@@ -18,22 +18,21 @@ const TYPE_META = {
 
 const fmtDate  = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
 const fmtTime  = (d, t) => t || (d ? new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
+const fmtShort = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "";
 
-/* ── Log Modal ─────────────────────────────────────────────────── */
+/* ── Log Modal — UPDATED: +outcome, +followUpDate, +followUpNote ── */
 const LogModal = ({ onClose, onSave, existing }) => {
   const [form, setForm] = useState({
-    type:         existing?.type         || "call",
-    subject:      existing?.subject      || "",
-    notes:        existing?.notes        || "",
-    date:         existing?.date
-                    ? new Date(existing.date).toISOString().split("T")[0]
-                    : new Date().toISOString().split("T")[0],
-    time:         existing?.time         || new Date().toTimeString().slice(0, 5),
-    outcome:      existing?.outcome      || "",
-    followUpDate: existing?.followUpDate
-                    ? new Date(existing.followUpDate).toISOString().split("T")[0]
-                    : "",
-    followUpNote: existing?.followUpNote || "",
+    type:        existing?.type        || "call",
+    subject:     existing?.subject     || "",
+    notes:       existing?.notes       || "",
+    date:        existing?.date        ? new Date(existing.date).toISOString().split("T")[0]
+                                       : new Date().toISOString().split("T")[0],
+    time:        existing?.time        || new Date().toTimeString().slice(0, 5),
+    // ── NEW FIELDS ──────────────────────────────────────────────
+    outcome:     existing?.outcome     || "",
+    followUpDate:existing?.followUpDate? new Date(existing.followUpDate).toISOString().split("T")[0] : "",
+    followUpNote:existing?.followUpNote|| "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -99,7 +98,7 @@ const LogModal = ({ onClose, onSave, existing }) => {
             </div>
           </div>
 
-          {/* Outcome */}
+          {/* ── NEW: Outcome ─────────────────────────────────────── */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
               <Target size={11} /> Outcome
@@ -109,7 +108,7 @@ const LogModal = ({ onClose, onSave, existing }) => {
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all placeholder:text-slate-400" />
           </div>
 
-          {/* Follow-up */}
+          {/* ── NEW: Follow-up ───────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
@@ -147,33 +146,13 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
   const [showModal,  setShowModal]  = useState(false);
   const [editing,    setEditing]    = useState(null);
 
-  // ✅ FIX: Normalize entityType to correct casing for backend
-  // Backend expects: "Client", "Practice", "ICB", "Federation"
-  const normalizeType = (t) => {
-    if (!t) return null;
-    const lower = String(t).trim().toLowerCase();
-    if (lower === "practice")   return "Practice";
-    if (lower === "client" || lower === "pcn") return "Client";
-    if (lower === "icb")        return "ICB";
-    if (lower === "federation") return "Federation";
-    // Already normalized (starts with uppercase)
-    return t;
-  };
-
-  const apiEntityType = normalizeType(entityType);
-
-  // ✅ FIX: Don't call API if entityType or entityId is missing/undefined
-  const isReady = !!apiEntityType && !!entityId && entityId !== "undefined" && entityId !== "null";
+  const apiEntityType = entityType?.toLowerCase() === "practice" ? "Practice" : entityType;
 
   const params = {};
   if (filterType !== "all") params.type    = filterType;
   if (starred)              params.starred = "true";
 
-  const { data, isLoading, isError, error } = useHistory(
-    isReady ? apiEntityType : null,
-    isReady ? entityId      : null,
-    params
-  );
+  const { data, isLoading, isError, error } = useHistory(apiEntityType, entityId, params);
   const logs = data?.logs || [];
 
   const addHistory    = useAddHistory(apiEntityType, entityId);
@@ -193,17 +172,6 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
     l.notes?.toLowerCase().includes(search.toLowerCase()) ||
     l.outcome?.toLowerCase().includes(search.toLowerCase())
   );
-
-  // ✅ FIX: Show helpful message if not ready
-  if (!isReady) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 flex flex-col items-center text-slate-400 gap-3">
-        <MessageSquare size={32} className="opacity-30" />
-        <p className="text-sm font-semibold">Unable to load history</p>
-        <p className="text-xs text-slate-400">Entity information is missing</p>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -262,6 +230,7 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
           filtered.map((log) => {
             const meta = TYPE_META[log.type] || TYPE_META.note;
             const Icon = meta.icon;
+            const hasFollowUp = log.followUpDate && new Date(log.followUpDate) > new Date();
             const followUpOverdue = log.followUpDate && new Date(log.followUpDate) < new Date();
             return (
               <div key={log._id} className="px-6 py-5 hover:bg-slate-50/80 transition-colors group">
@@ -280,7 +249,7 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
                         <p className="text-sm font-bold text-slate-800 mt-2 leading-tight">{log.subject}</p>
                         {log.notes && <p className="text-sm text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">{log.notes}</p>}
 
-                        {/* Outcome */}
+                        {/* ── NEW: Outcome display ─────────────────────── */}
                         {log.outcome && (
                           <div className="mt-2 flex items-start gap-1.5">
                             <Target size={11} className="text-green-500 shrink-0 mt-0.5" />
@@ -288,7 +257,7 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
                           </div>
                         )}
 
-                        {/* Follow-up */}
+                        {/* ── NEW: Follow-up display ───────────────────── */}
                         {log.followUpDate && (
                           <div className={`mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold w-fit
                             ${followUpOverdue ? "bg-red-50 text-red-600 border border-red-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
@@ -301,7 +270,7 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
 
                         <div className="flex items-center gap-3 mt-2.5 flex-wrap">
                           <span className="text-xs text-slate-400 flex items-center gap-1.5"><Clock size={12} />{fmtDate(log.date)} {fmtTime(log.date, log.time)}</span>
-                          {log.createdBy && <span className="text-xs text-slate-400">by <span className="font-semibold text-slate-600">{log.createdBy?.name || log.createdBy}</span></span>}
+                          {log.createdBy && <span className="text-xs text-slate-400">by <span className="font-semibold text-slate-600">{log.createdBy.name}</span></span>}
                         </div>
                       </div>
 
