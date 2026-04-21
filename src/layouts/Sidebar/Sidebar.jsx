@@ -161,10 +161,10 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
       `}</style>
 
       {/* Mobile overlay */}
-      {isOpen && (
-        <div className="fixed inset-0 z-30 md:hidden bg-slate-900/50 backdrop-blur-sm"
-          onClick={() => setIsOpen(false)} />
-      )}
+     {isOpen && (
+  <div className="fixed inset-0 z-30 md:hidden bg-slate-900/50 backdrop-blur-sm"
+    onClick={() => setIsOpen(false)} />
+)}
 
       <div
         className={`fixed top-0 left-0 h-full z-40

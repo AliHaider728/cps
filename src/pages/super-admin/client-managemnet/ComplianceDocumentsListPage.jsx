@@ -269,7 +269,7 @@ export default function ComplianceDocumentsListPage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
           <FileText size={26} /> Compliance Documents
