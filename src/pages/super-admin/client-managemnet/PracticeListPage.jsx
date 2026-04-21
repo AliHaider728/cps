@@ -33,19 +33,19 @@ const FilterChip = ({ label, children }) => (
 /* ─── Helpers   */
 
 const buildPracticeForm = (existing) => ({
-  name: existing?.name || "",
-  pcn: existing?.pcn?._id || existing?.pcn || "",
-  complianceGroup: existing?.complianceGroup?._id || existing?.complianceGroup || "",
-  odsCode: existing?.odsCode || "",
-  address: existing?.address || "",
-  city: existing?.city || "",
-  postcode: existing?.postcode || "",
-  fte: existing?.fte || "",
-  contractType: existing?.contractType || "",
-  xeroCode: existing?.xeroCode || "",
-  xeroCategory: existing?.xeroCategory || "",
-  patientListSize: existing?.patientListSize || "",
-  notes: existing?.notes || "",
+  name:           existing?.name           || "",
+  pcn:            existing?.client?._id    || existing?.client || existing?.pcn?._id || existing?.pcn || "",
+  complianceGroup:existing?.complianceGroup?._id || existing?.complianceGroup || "",
+  odsCode:        existing?.odsCode        || "",
+  address:        existing?.address        || "",
+  city:           existing?.city           || "",
+  postcode:       existing?.postcode       || "",
+  fte:            existing?.fte            || "",
+  contractType:   existing?.contractType   || "",
+  xeroCode:       existing?.xeroCode       || "",
+  xeroCategory:   existing?.xeroCategory   || "",
+  patientListSize:existing?.patientListSize|| "",
+  notes:          existing?.notes          || "",
 });
 
 /* ─── Modal   */
@@ -59,7 +59,7 @@ const PracticeModal = ({ existing, pcns, groups, onClose, onSave }) => {
 
   const handle = async () => {
     if (!form.name.trim()) { setError("Practice name is required"); return; }
-    if (!form.pcn) { setError("PCN is required"); return; }
+    if (!form.pcn)         { setError("PCN / Client is required"); return; }
     setSaving(true);
     setError("");
     try {
@@ -111,14 +111,14 @@ const PracticeModal = ({ existing, pcns, groups, onClose, onSave }) => {
           <F label="Practice Name *">{input("name", "e.g. Pendleton Medical Centre")}</F>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <F label="PCN *">
+            <F label="PCN / Client *">
               <select
                 value={form.pcn}
                 autoComplete="off"
                 onChange={(e) => setForm((cur) => ({ ...cur, pcn: e.target.value }))}
                 className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[13px] focus:border-blue-400 focus:outline-none"
               >
-                <option value="">Select PCN…</option>
+                <option value="">Select PCN / Client…</option>
                 {pcns.map((pcn) => (
                   <option key={pcn._id} value={pcn._id}>{pcn.name}</option>
                 ))}
@@ -242,12 +242,12 @@ export default function PracticeListPage() {
   });
 
   const { data: practiceData, isLoading } = usePractices();
-  const { data: pcnData } = usePCNs();
+  const { data: pcnData }   = usePCNs();
   const { data: groupData } = useDocumentGroups({ active: true });
 
   const practices = practiceData?.practices || [];
-  const pcns = pcnData?.pcns || [];
-  const groups = groupData?.groups || [];
+  const pcns      = pcnData?.pcns           || [];
+  const groups    = groupData?.groups        || [];
 
   const createPractice = useCreatePractice();
   const updatePractice = useUpdatePractice();
@@ -256,33 +256,43 @@ export default function PracticeListPage() {
   const filteredPractices = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     return practices.filter((p) => {
+      // ✅ FIX: use p.client instead of p.pcn
+      const clientObj = p.client || {};
+
       const matchSearch = !q ||
         [
           p.name,
           p.odsCode,
-          p.pcn?.name,
-          p.pcn?.icb?.name,
-          p.pcn?.federation?.name,
+          clientObj.name,
+          clientObj.icb?.name,
+          clientObj.federation?.name,
           p.city,
           p.postcode,
           p.complianceGroup?.name,
         ]
           .filter(Boolean).join(" ").toLowerCase().includes(q);
-      const matchPcn = !filters.pcn || String(p.pcn?._id || p.pcn) === filters.pcn;
+
+      // ✅ FIX: match against client._id
+      const matchPcn = !filters.pcn ||
+        String(clientObj._id || clientObj.id || p.client) === filters.pcn;
+
       const matchCity =
         !filters.city ||
         String(p.city || "").toLowerCase().includes(filters.city.toLowerCase());
+
       const matchContract = !filters.contractType || p.contractType === filters.contractType;
+
       const matchGroup =
         !filters.group ||
         String(p.complianceGroup?._id || p.complianceGroup || "") === filters.group;
+
       return matchSearch && matchPcn && matchCity && matchContract && matchGroup;
     });
   }, [filters, practices]);
 
   const handleSave = async (form) => {
     if (modal?._id) await updatePractice.mutateAsync({ id: modal._id, data: form });
-    else await createPractice.mutateAsync(form);
+    else            await createPractice.mutateAsync(form);
     setModal(null);
   };
 
@@ -310,7 +320,8 @@ export default function PracticeListPage() {
     {
       header: "PCN",
       id: "pcn",
-      render: (p) => p.pcn?.name || "—",
+      // ✅ FIX: use p.client
+      render: (p) => p.client?.name || "—",
       cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
     },
     {
@@ -318,8 +329,13 @@ export default function PracticeListPage() {
       id: "hierarchy",
       render: (p) => (
         <div className="space-y-1">
-          <div className="text-sm font-medium text-slate-700">{p.pcn?.icb?.name || "â€”"}</div>
-          <div className="text-xs text-slate-400">{p.pcn?.federation?.name || "Direct to ICB"}</div>
+          {/* ✅ FIX: use p.client.icb and p.client.federation */}
+          <div className="text-sm font-medium text-slate-700">
+            {p.client?.icb?.name || "—"}
+          </div>
+          <div className="text-xs text-slate-400">
+            {p.client?.federation?.name || "Direct to ICB"}
+          </div>
         </div>
       ),
       cellClassName: "px-4 py-3 align-top",

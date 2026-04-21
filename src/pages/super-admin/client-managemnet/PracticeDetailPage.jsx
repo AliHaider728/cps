@@ -157,7 +157,7 @@ const AccessModal = ({ existing, onClose, onSave }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   TABS — Archive tab added (restricted se pehle)
+   TABS
 ══════════════════════════════════════════════════════════ */
 const TABS = [
   { id: "overview",   label: "Overview",   icon: Stethoscope   },
@@ -165,7 +165,7 @@ const TABS = [
   { id: "documents",  label: "Documents",  icon: FileCheck     },
   { id: "access",     label: "Sys Access", icon: Wifi          },
   { id: "history",    label: "History",    icon: MessageSquare },
-  { id: "archive",    label: "Archive",    icon: Archive       }, // ✅ NEW
+  { id: "archive",    label: "Archive",    icon: Archive       },
   { id: "restricted", label: "Restricted", icon: UserX         },
 ];
 
@@ -181,7 +181,7 @@ export default function PracticeDetailPage() {
   const { data: groupsData } = useDocumentGroups({ active: true });
 
   const practice = data?.practice ?? null;
-  const groups = groupsData?.groups || [];
+  const groups   = groupsData?.groups || [];
 
   const [tab,          setTab]          = useState("overview");
   const [fieldSaving,  setFieldSaving]  = useState({});
@@ -230,52 +230,62 @@ export default function PracticeDetailPage() {
     </div>
   );
 
+  //   practice.client is the linked PCN/Client object (not practice.pcn)
+  const linkedClient = practice.client || {};
+
   /* ════════════ PANELS ════════════════════════════════════ */
 
   const OverviewPanel = () => {
     const [editing, setEditing] = useState(false);
     const [saving,  setSaving]  = useState(false);
     const [form, setForm] = useState({
-      odsCode: practice.odsCode || "", address: practice.address || "",
-      city: practice.city || "", postcode: practice.postcode || "",
-      fte: practice.fte || "", contractType: practice.contractType || "",
-      xeroCode: practice.xeroCode || "", xeroCategory: practice.xeroCategory || "",
-      patientListSize: practice.patientListSize || "",
-      complianceGroup: practice.complianceGroup?._id || practice.complianceGroup || "",
-      systemAccessNotes: practice.systemAccessNotes || "", notes: practice.notes || "",
+      odsCode:           practice.odsCode            || "",
+      address:           practice.address            || "",
+      city:              practice.city               || "",
+      postcode:          practice.postcode           || "",
+      fte:               practice.fte               || "",
+      contractType:      practice.contractType       || "",
+      xeroCode:          practice.xeroCode           || "",
+      xeroCategory:      practice.xeroCategory       || "",
+      patientListSize:   practice.patientListSize    || "",
+      complianceGroup:   practice.complianceGroup?._id || practice.complianceGroup || "",
+      systemAccessNotes: practice.systemAccessNotes  || "",
+      notes:             practice.notes              || "",
     });
+
     useEffect(() => {
       setForm({
-        odsCode: practice.odsCode || "",
-        address: practice.address || "",
-        city: practice.city || "",
-        postcode: practice.postcode || "",
-        fte: practice.fte || "",
-        contractType: practice.contractType || "",
-        xeroCode: practice.xeroCode || "",
-        xeroCategory: practice.xeroCategory || "",
-        patientListSize: practice.patientListSize || "",
-        complianceGroup: practice.complianceGroup?._id || practice.complianceGroup || "",
-        systemAccessNotes: practice.systemAccessNotes || "",
-        notes: practice.notes || "",
+        odsCode:           practice.odsCode            || "",
+        address:           practice.address            || "",
+        city:              practice.city               || "",
+        postcode:          practice.postcode           || "",
+        fte:               practice.fte               || "",
+        contractType:      practice.contractType       || "",
+        xeroCode:          practice.xeroCode           || "",
+        xeroCategory:      practice.xeroCategory       || "",
+        patientListSize:   practice.patientListSize    || "",
+        complianceGroup:   practice.complianceGroup?._id || practice.complianceGroup || "",
+        systemAccessNotes: practice.systemAccessNotes  || "",
+        notes:             practice.notes              || "",
       });
     }, [practice]);
+
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
-    const handleSave = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
+    const handleSave   = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
     const handleCancel = () => {
       setForm({
-        odsCode: practice.odsCode || "",
-        address: practice.address || "",
-        city: practice.city || "",
-        postcode: practice.postcode || "",
-        fte: practice.fte || "",
-        contractType: practice.contractType || "",
-        xeroCode: practice.xeroCode || "",
-        xeroCategory: practice.xeroCategory || "",
-        patientListSize: practice.patientListSize || "",
-        complianceGroup: practice.complianceGroup?._id || practice.complianceGroup || "",
-        systemAccessNotes: practice.systemAccessNotes || "",
-        notes: practice.notes || "",
+        odsCode:           practice.odsCode            || "",
+        address:           practice.address            || "",
+        city:              practice.city               || "",
+        postcode:          practice.postcode           || "",
+        fte:               practice.fte               || "",
+        contractType:      practice.contractType       || "",
+        xeroCode:          practice.xeroCode           || "",
+        xeroCategory:      practice.xeroCategory       || "",
+        patientListSize:   practice.patientListSize    || "",
+        complianceGroup:   practice.complianceGroup?._id || practice.complianceGroup || "",
+        systemAccessNotes: practice.systemAccessNotes  || "",
+        notes:             practice.notes              || "",
       });
       setEditing(false);
     };
@@ -317,22 +327,30 @@ export default function PracticeDetailPage() {
               <EditRow label="Address"       value={form.address}         onChange={set("address")} />
               <EditRow label="City"          value={form.city}            onChange={set("city")} />
               <EditRow label="Postcode"      value={form.postcode}        onChange={set("postcode")} />
-              <div className="pt-3"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes</span>
-                <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none" /></div>
+              <div className="pt-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes</span>
+                <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none" />
+              </div>
             </div>
           ) : (
             <div>
               <DetailRow label="ODS Code"         value={practice.odsCode} />
-              <DetailRow label="ICB"              value={practice.pcn?.icb?.name} />
-              <DetailRow label="Federation"       value={practice.pcn?.federation?.name || "Direct to ICB"} />
-              <DetailRow label="PCN"              value={practice.pcn?.name} />
+              {/*   use linkedClient (practice.client) instead of practice.pcn */}
+              <DetailRow label="ICB"              value={linkedClient.icb?.name} />
+              <DetailRow label="Federation"       value={linkedClient.federation?.name || "Direct to ICB"} />
+              <DetailRow label="PCN / Client"     value={linkedClient.name} />
               <DetailRow label="Compliance Group" value={practice.complianceGroup?.name || "No compliance group assigned"} />
               <DetailRow label="Contract Type"    value={practice.contractType} />
               <DetailRow label="FTE"              value={practice.fte} />
               <DetailRow label="Xero Code"        value={practice.xeroCode} />
               <DetailRow label="Xero Category"    value={practice.xeroCategory} />
               <DetailRow label="Patient List"     value={practice.patientListSize ? practice.patientListSize.toLocaleString() : null} />
-              {practice.notes && <div className="pt-4 mt-2 border-t border-slate-50"><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p><p className="text-sm text-slate-600 leading-relaxed">{practice.notes}</p></div>}
+              {practice.notes && (
+                <div className="pt-4 mt-2 border-t border-slate-50">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{practice.notes}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -565,51 +583,51 @@ export default function PracticeDetailPage() {
     documents:  <DocumentsPanel />,
     access:     <AccessPanel />,
     history:    <ContactHistoryPanel entityType="Practice" entityId={practice._id} />,
-    archive:    <ReportingArchivePanel entityType="Practice" entityId={practice._id} />, // ✅ NEW
+    archive:    <ReportingArchivePanel entityType="Practice" entityId={practice._id} />,
     restricted: <RestrictedPanel />,
   };
 
   return (
     <div className="space-y-4 pb-8">
+      {/*   Breadcrumb uses linkedClient (practice.client) instead of practice.pcn */}
       <nav className="flex items-center gap-1.5 text-sm flex-wrap">
         <button onClick={() => navigate("/dashboard/super-admin/clients")} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">Client Management</button>
         <ChevronRight size={13} className="text-slate-300" />
-        {practice.pcn?.icb?._id && (
+        {linkedClient.icb?._id && (
           <>
-            <button onClick={() => navigate(`/dashboard/super-admin/clients/icb/${practice.pcn.icb._id}`)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{practice.pcn.icb.name}</button>
+            <button onClick={() => navigate(`/dashboard/super-admin/clients/icb/${linkedClient.icb._id}`)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{linkedClient.icb.name}</button>
             <ChevronRight size={13} className="text-slate-300" />
           </>
         )}
-        {practice.pcn?._id && (
+        {linkedClient._id && (
           <>
-            <button onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${practice.pcn._id}`)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{practice.pcn.name}</button>
+            <button onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${linkedClient._id}`)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{linkedClient.name}</button>
             <ChevronRight size={13} className="text-slate-300" />
           </>
         )}
         <span className="text-slate-700 font-bold truncate">{practice.name}</span>
       </nav>
 
-      {/* ✅ Header with priority badge + tags */}
+      {/* Header */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
         <div className="flex flex-wrap items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-teal-600 flex items-center justify-center shrink-0"><Stethoscope size={22} className="text-white" /></div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{practice.name}</h1>
             <div className="flex flex-wrap items-center gap-2.5 mt-2">
-              {practice.odsCode       && <span className="text-sm text-slate-400 flex items-center gap-1"><Hash size={12} /> {practice.odsCode}</span>}
-              {practice.pcn?.icb?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={12} /> {practice.pcn.icb.name}</span>}
-              {practice.pcn?.federation?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {practice.pcn.federation.name}</span>}
-              {practice.pcn?.name     && <span className="text-sm text-slate-400 flex items-center gap-1"><Network size={12} /> {practice.pcn.name}</span>}
-              {practice.contractType  && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200">{practice.contractType}</span>}
-              {practice.fte           && <span className="text-sm text-slate-400">{practice.fte}</span>}
-              {/* ✅ Priority badge */}
+              {practice.odsCode           && <span className="text-sm text-slate-400 flex items-center gap-1"><Hash size={12} /> {practice.odsCode}</span>}
+              {/*   use linkedClient for ICB, Federation, PCN name in header */}
+              {linkedClient.icb?.name     && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={12} /> {linkedClient.icb.name}</span>}
+              {linkedClient.federation?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {linkedClient.federation.name}</span>}
+              {linkedClient.name          && <span className="text-sm text-slate-400 flex items-center gap-1"><Network size={12} /> {linkedClient.name}</span>}
+              {practice.contractType      && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200">{practice.contractType}</span>}
+              {practice.fte               && <span className="text-sm text-slate-400">{practice.fte}</span>}
               {practice.priority && practice.priority !== "normal" && (
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-md border
                   ${practice.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
                   {practice.priority.toUpperCase()}
                 </span>
               )}
-              {/* ✅ Tags */}
               {(practice.tags || []).map(tag => (
                 <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{tag}</span>
               ))}
@@ -622,6 +640,7 @@ export default function PracticeDetailPage() {
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex gap-1 p-2 overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
           {TABS.map(t => { const Icon = t.icon; return (
