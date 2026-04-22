@@ -131,7 +131,7 @@ export const entityDocumentsAPI = {
 // Routes: GET/POST/DELETE /:entityType/:entityId/reporting-archive
 export const reportingArchiveAPI = {
   getAll: (entityType, entityId) =>
-    api.get(`/clients/${entityType}/${entityId}/reporting-archive`),
+    api.get(`/clients/${entityType}/${entityId}/reporting-archive`),  
 
   add: (entityType, entityId, formData) =>
     api.post(`/clients/${entityType}/${entityId}/reporting-archive`, formData, {

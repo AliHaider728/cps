@@ -100,7 +100,7 @@ const LogModal = ({ onClose, onSave, existing }) => {
 
           {/* ── NEW: Outcome ─────────────────────────────────────── */}
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <Target size={11} /> Outcome
             </label>
             <input value={form.outcome} onChange={e => setForm(f => ({...f, outcome: e.target.value}))}
@@ -111,7 +111,7 @@ const LogModal = ({ onClose, onSave, existing }) => {
           {/* ── NEW: Follow-up ───────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block items-center gap-1.5">
                 <CalendarCheck size={11} /> Follow-up Date
               </label>
               <input type="date" value={form.followUpDate} onChange={e => setForm(f => ({...f, followUpDate: e.target.value}))}
