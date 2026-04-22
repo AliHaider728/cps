@@ -21,7 +21,7 @@ const PCNListPage        = lazy(() => import("../pages/super-admin/client-manage
 const PCNDetailPage      = lazy(() => import("../pages/super-admin/client-managemnet/PCNDetailPage.jsx"));
 const PracticeListPage   = lazy(() => import("../pages/super-admin/client-managemnet/PracticeListPage.jsx"));
 const PracticeDetailPage = lazy(() => import("../pages/super-admin/client-managemnet/PracticeDetailPage.jsx"));
-const ContactHistoryPanel= lazy(() => import("../pages/super-admin/client-managemnet/ContactHistoryPanel.jsx"));
+// ❌ ContactHistoryPanel import removed — it is used as a tab inside PCNDetailPage and PracticeDetailPage, not as a standalone page
 
 // Compliance Pages
 const ComplianceDocumentsListPage = lazy(() => import("../pages/super-admin/client-managemnet/ComplianceDocumentsListPage.jsx"));  
@@ -86,17 +86,15 @@ const AppRouter = () => (
     <Route path="/dashboard/super-admin/clients/practice" element={<P roles={["super_admin","director","ops_manager","finance"]}><PracticeListPage /></P>} />
     <Route path="/dashboard/super-admin/clients/practice/:id" element={<P roles={["super_admin","director","ops_manager","finance"]}><PracticeDetailPage /></P>} />
 
-    {/* History */}
-    <Route path="/dashboard/super-admin/clients/history" element={<P roles={["super_admin","ops_manager","director"]}><ContactHistoryPanel /></P>} />
+    {/* ❌ /clients/history standalone route removed — ContactHistoryPanel is a tab inside PCN/Practice detail pages */}
 
-    {/*   Compliance Documents - Sidebar Route (List + Detail) */}
+    {/* Compliance Documents - Sidebar Route (List + Detail) */}
     <Route path="/dashboard/super-admin/compliance/documents"
       element={<P roles={["super_admin","ops_manager"]}><ComplianceDocumentsListPage /></P>} />
     <Route path="/dashboard/super-admin/compliance/documents/:id"
       element={<P roles={["super_admin","ops_manager"]}><ComplianceDocumentDetailPage /></P>} />
     <Route path="/dashboard/super-admin/compliance/groups"
       element={<P roles={["super_admin","ops_manager"]}><ComplianceGroupsPage /></P>} />
-
     <Route path="/dashboard/super-admin/compliance/groups/:id"
       element={<P roles={["super_admin","ops_manager"]}><DocumentGroupDetailPage /></P>} />
 
@@ -105,7 +103,7 @@ const AppRouter = () => (
     <Route path="/dashboard/ops-manager" element={<P roles={["ops_manager","super_admin"]}><OpsDashboard /></P>} />
     <Route path="/dashboard/finance"     element={<P roles={["finance","super_admin","director"]}><FinanceDashboard /></P>} />
     <Route path="/dashboard/training"    element={<P roles={["training","super_admin"]}><TrainingDashboard /></P>} />
-    <Route path="/dashboard/workforce"   element={<P roles={["workforce","super_admin"]}><WorkforceDashboard /></P>} /> {/* Typo fixed */}
+    <Route path="/dashboard/workforce"   element={<P roles={["workforce","super_admin"]}><WorkforceDashboard /></P>} />
 
     {/* Clinician Portal */}
     <Route path="/portal/clinician"   element={<P roles={["clinician","super_admin"]}><ClinicianDashboard /></P>} />
