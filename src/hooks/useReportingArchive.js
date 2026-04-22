@@ -6,8 +6,8 @@
  *   DELETE /:entityType/:entityId/reporting-archive/:reportId
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { QK } from "../lib/queryKeys";
-import { reportingArchiveAPI } from "../api/api";
+import { QK } from "../lib/queryKeys.js";
+import { reportingArchiveAPI } from "../api/api.js";
 
 // ── GET: all reports for an entity ───────────────────────────────────
 export function useReportingArchive(entityType, entityId) {

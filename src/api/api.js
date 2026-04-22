@@ -8,7 +8,7 @@ export const authAPI = {
   getMe:           authService.getMe,
   changePassword:  authService.changePassword,
   getAllUsers:      (params) => api.get("/auth/users", { params }),
-  getUserById:     (id)     => api.get(`/auth/users/${id}`),          // ✅ NEW
+  getUserById:     (id)     => api.get(`/auth/users/${id}`),
   createUser:      authService.createUser,
   updateUser:      authService.updateUser,
   deleteUser:      authService.deleteUser,
@@ -127,16 +127,17 @@ export const entityDocumentsAPI = {
     api.delete(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads/${uploadId}`),
 };
 
-//   NEW — Reporting Archive API
-// Routes: GET/POST/DELETE /:entityType/:entityId/reporting-archive
+//  FIXED — Reporting Archive API
+// Backend now expects plain JSON (no FormData / no multer)
+// Frontend uploads file to Supabase first, then sends metadata as JSON
 export const reportingArchiveAPI = {
   getAll: (entityType, entityId) =>
-    api.get(`/clients/${entityType}/${entityId}/reporting-archive`),  
+    api.get(`/clients/${entityType}/${entityId}/reporting-archive`),
 
-  add: (entityType, entityId, formData) =>
-    api.post(`/clients/${entityType}/${entityId}/reporting-archive`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    }),
+  //  FIXED: removed multipart/form-data header — now sends plain JSON
+  // axios automatically sets Content-Type: application/json
+  add: (entityType, entityId, jsonPayload) =>
+    api.post(`/clients/${entityType}/${entityId}/reporting-archive`, jsonPayload),
 
   delete: (entityType, entityId, reportId) =>
     api.delete(`/clients/${entityType}/${entityId}/reporting-archive/${reportId}`),

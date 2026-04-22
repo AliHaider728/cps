@@ -16,7 +16,7 @@ import {
   useAddToReportingArchive,
   useDeleteFromReportingArchive,
 } from "../../../hooks/useReportingArchive";
-import { uploadFileToSupabase } from "../../../lib/supabase"; // ✅ NEW
+import { uploadFileToSupabase } from "../../../lib/supabase.js"; // ✅ NEW
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
