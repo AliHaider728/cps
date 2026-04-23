@@ -29,26 +29,16 @@ const buildAccentMap = (icbs) => {
   return map;
 };
 
-/* ─── Federation name resolver (FINAL FIXED VERSION) ─────────────────────── */
+/* ─── Federation name resolver ─────────────────────────────────────────────── */
 const resolveFederationName = (pcn, fedMap) => {
   if (!pcn) return null;
-
-  // 1. Seed.js mein jo federationName directly set kiya hai → sabse pehle check
   if (pcn.federationName) return pcn.federationName;
-
   const f = pcn.federation;
   if (!f) return null;
-
-  // 2. Populated object
   if (typeof f === "object" && f.name) return f.name;
-
-  // 3. String ID
   if (typeof f === "string" && fedMap[f]) return fedMap[f].name;
-
-  // 4. Object with _id or id
   const fid = f._id || f.id;
   if (fid && fedMap[String(fid)]) return fedMap[String(fid)].name;
-
   return null;
 };
 
@@ -257,7 +247,6 @@ export default function PCNListPage() {
   const feds   = fedData?.federations  || [];
   const groups = groupData?.groups     || [];
 
-  // Build federation lookup map: id → federation object
   const fedMap = useMemo(() => {
     const map = {};
     feds.forEach(f => {
@@ -286,7 +275,6 @@ export default function PCNListPage() {
     });
   }, [filters, pcns, fedMap]);
 
-  // Summary stats
   const totalSpend = useMemo(() =>
     filteredPCNs.reduce((s, p) => s + (Number(p.annualSpend) || 0), 0), [filteredPCNs]);
 
@@ -305,67 +293,67 @@ export default function PCNListPage() {
   /* ─── Table columns ──────────────────────────────────────────────── */
   const columns = [
     {
+      /* ✅ UPDATED: ICB + Federation stacked inside PCN/Client column */
       header: "PCN / Client",
       id: "pcn",
+      cellClassName: "px-4 py-3 align-top",
       render: (pcn) => {
         const priorityStyle = PRIORITY_STYLE[pcn.priority];
+        const icbId     = String(pcn.icb?._id || pcn.icb || "");
+        const icbName   = pcn.icb?.name;
+        const accentIdx = icbAccentMap[icbId] ?? 0;
+        const accent    = ACCENTS[accentIdx];
+        const fedName   = resolveFederationName(pcn, fedMap);
+
         return (
-          <div>
+          <div className="space-y-1.5 min-w-[180px]">
+            {/* Name + priority + tags */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-slate-800">{pcn.name}</span>
+              <span className="font-semibold text-slate-800 text-sm leading-tight">{pcn.name}</span>
               {pcn.priority && pcn.priority !== "normal" && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${priorityStyle}`}>
                   {pcn.priority.toUpperCase()}
                 </span>
               )}
               {(pcn.tags || []).map(tag => (
-                <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{tag}</span>
+                <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                  {tag}
+                </span>
               ))}
             </div>
+
+            {/* ICB badge — stacked below name */}
+            {icbName && (
+              <div>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${accent.bg} ${accent.border} ${accent.text}`}>
+                  <Building2 size={10} className={accent.icon} />
+                  {icbName}
+                </span>
+              </div>
+            )}
+
+            {/* Federation — stacked below ICB */}
+            {fedName && (
+              <div className="flex items-center gap-1">
+                <Layers size={11} className="text-slate-400 shrink-0" />
+                <span className="text-[11px] text-slate-500 leading-tight">{fedName}</span>
+              </div>
+            )}
+
+            {/* Notes */}
             {pcn.notes && (
-              <div className="mt-0.5 max-w-[260px] line-clamp-1 text-xs text-slate-400">{pcn.notes}</div>
+              <div className="max-w-[260px] line-clamp-1 text-xs text-slate-400">
+                {pcn.notes}
+              </div>
             )}
           </div>
         );
       },
     },
     {
-      header: "ICB",
-      id: "icb",
-      render: (pcn) => {
-        const icbId   = String(pcn.icb?._id || pcn.icb || "");
-        const icbName = pcn.icb?.name;
-        if (!icbName) return <span className="text-slate-400">—</span>;
-        const accentIdx = icbAccentMap[icbId] ?? 0;
-        const accent    = ACCENTS[accentIdx];
-        return (
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${accent.bg} ${accent.border} ${accent.text}`}>
-            <Building2 size={11} className={accent.icon} />
-            {icbName}
-          </span>
-        );
-      },
-      cellClassName: "px-4 py-3 align-top",
-    },
-    {
-      header: "Federation",
-      id: "federation",
-      render: (pcn) => {
-        const name = resolveFederationName(pcn, fedMap);
-        if (!name) return <span className="text-slate-400">—</span>;
-        return (
-          <span className="inline-flex items-center gap-1.5 text-sm text-slate-600">
-            <Layers size={12} className="text-slate-400 shrink-0" />
-            {name}
-          </span>
-        );
-      },
-      cellClassName: "px-4 py-3 align-top",
-      hideOnMobile: true,
-    },
-    {
       header: "Contract",
       id: "contract",
+      hideOnMobile: true,
       render: (pcn) => pcn.contractType
         ? <span className="text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-md">{pcn.contractType}</span>
         : <span className="text-slate-400">—</span>,
@@ -374,15 +362,16 @@ export default function PCNListPage() {
     {
       header: "Annual Spend",
       id: "annualSpend",
+      hideOnMobile: true,
       render: (pcn) => pcn.annualSpend
         ? <span className="text-sm font-semibold text-green-700">£{Number(pcn.annualSpend).toLocaleString()}</span>
         : <span className="text-slate-400">—</span>,
       cellClassName: "px-4 py-3 align-top whitespace-nowrap",
-      hideOnMobile: true,
     },
     {
       header: "Renewal",
       id: "renewal",
+      hideOnMobile: true,
       render: (pcn) => {
         if (!pcn.contractRenewalDate) return <span className="text-slate-400">—</span>;
         const date     = new Date(pcn.contractRenewalDate);
@@ -398,18 +387,17 @@ export default function PCNListPage() {
         );
       },
       cellClassName: "px-4 py-3 align-top whitespace-nowrap",
-      hideOnMobile: true,
     },
     {
       header: "Xero",
       id: "xero",
+      hideOnMobile: true,
       render: (pcn) => (
         <div>
           <div className="text-sm text-slate-600">{pcn.xeroCode || "—"}</div>
           <div className="text-xs text-slate-400">{pcn.xeroCategory || ""}</div>
         </div>
       ),
-      hideOnMobile: true,
     },
     {
       header: "Actions",

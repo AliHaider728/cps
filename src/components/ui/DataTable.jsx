@@ -3,9 +3,6 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50];
 
-/**
- * Helper to resolve column values based on accessor or render functions.
- */
 function resolveValue(column, row, index, mode = "desktop") {
   if (mode === "mobile" && column.mobileRender) {
     return column.mobileRender(row, index);
@@ -22,9 +19,6 @@ function resolveValue(column, row, index, mode = "desktop") {
   return "";
 }
 
-/**
- * Mobile view card representation.
- */
 function MobileCard({ row, index, columns, renderMobileRow, getRowClassName }) {
   if (renderMobileRow) {
     return renderMobileRow(row, index);
@@ -54,10 +48,6 @@ function MobileCard({ row, index, columns, renderMobileRow, getRowClassName }) {
   );
 }
 
-/**
- * DataTable Component
- * UPDATED: Responsive container with internal horizontal scrolling.
- */
 export default function DataTable({
   columns,
   data = [],
@@ -83,13 +73,13 @@ export default function DataTable({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
-  const isControlledPage = typeof controlledPage === "number";
+  const isControlledPage     = typeof controlledPage === "number";
   const isControlledPageSize = typeof controlledPageSize === "number";
 
-  const activePage = isControlledPage ? controlledPage : page;
+  const activePage     = isControlledPage     ? controlledPage     : page;
   const activePageSize = isControlledPageSize ? controlledPageSize : pageSize;
-  const totalCount = typeof totalItems === "number" ? totalItems : data.length;
-  const pageCount = pagination ? Math.max(1, Math.ceil(totalCount / activePageSize)) : 1;
+  const totalCount     = typeof totalItems === "number" ? totalItems : data.length;
+  const pageCount      = pagination ? Math.max(1, Math.ceil(totalCount / activePageSize)) : 1;
 
   useEffect(() => {
     if (!pagination) return;
@@ -111,7 +101,7 @@ export default function DataTable({
   }, [activePage, activePageSize, data, pagination, totalItems]);
 
   const startItem = totalCount === 0 ? 0 : (activePage - 1) * activePageSize + 1;
-  const endItem = Math.min(totalCount, activePage * activePageSize);
+  const endItem   = Math.min(totalCount, activePage * activePageSize);
 
   const updatePage = (nextPage) => {
     if (isControlledPage) onPageChange?.(nextPage);
@@ -137,7 +127,7 @@ export default function DataTable({
     ) {
       range.push(i);
     }
-    if (activePage - delta > 2) range.unshift("...");
+    if (activePage - delta > 2)         range.unshift("...");
     if (activePage + delta < pageCount - 1) range.push("...");
     range.unshift(1);
     range.push(pageCount);
@@ -145,72 +135,95 @@ export default function DataTable({
   }, [activePage, pageCount]);
 
   return (
-    /* 
-       MAIN WRAPPER: 
-       - min-w-0: Allows the flex child to shrink properly.
-       - w-full: Takes full available width of parent.
-       - overflow-hidden: Ensures rounded corners work correctly.
-    */
     <div className={`w-full min-w-0 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
-      
-      {/* ── Desktop Table Wrapper (Scroll Restricted Here) ── */}
-      <div className="hidden md:block w-full overflow-x-auto relative scrollbar-thin scrollbar-thumb-slate-200">
-        <table className={`w-full border-collapse ${tableClassName}`}>
-          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
-            <tr>
-              {columns.map((column) => (
-                <th
-                  key={column.id || column.key || column.header}
-                  className={
-                    column.headerClassName ||
-                    "px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap"
-                  }
-                >
-                  {column.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
+
+      {/* ── Desktop Table ── */}
+      <div
+        className="hidden md:block w-full overflow-x-auto"
+        style={{
+          /* Custom scrollbar — always visible at bottom of table area */
+          scrollbarWidth: "thin",
+          scrollbarColor: "#cbd5e1 #f1f5f9",
+        }}
+      >
+        {/* webkit scrollbar styles injected via a <style> tag inside the component */}
+        <style>{`
+          .dt-scroll::-webkit-scrollbar {
+            height: 6px;
+          }
+          .dt-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 0 0 16px 16px;
+          }
+          .dt-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 99px;
+          }
+          .dt-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+          }
+        `}</style>
+
+        <div className="dt-scroll w-full overflow-x-auto">
+          <table className={`w-full border-collapse ${tableClassName}`}>
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
-                <td colSpan={columns.length} className="px-4 py-16 text-center text-sm text-slate-400">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-                    {loadingText}
-                  </div>
-                </td>
+                {columns.map((column) => (
+                  <th
+                    key={column.id || column.key || column.header}
+                    className={
+                      column.headerClassName ||
+                      "px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap"
+                    }
+                  >
+                    {column.header}
+                  </th>
+                ))}
               </tr>
-            ) : visibleRows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="px-4 py-16">
-                  {emptyState || (
-                    <div className="text-center">
-                      <p className="font-semibold text-slate-500">{emptyTitle}</p>
-                      {emptyDescription && <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>}
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-4 py-16 text-center text-sm text-slate-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
+                      {loadingText}
                     </div>
-                  )}
-                </td>
-              </tr>
-            ) : (
-              visibleRows.map((row, index) => (
-                <tr
-                  key={typeof rowKey === "function" ? rowKey(row) : row[rowKey] || index}
-                  className={getRowClassName?.(row, index) || "hover:bg-slate-50 transition-colors"}
-                >
-                  {columns.map((column) => (
-                    <td
-                      key={column.id || column.key || column.header}
-                      className={column.cellClassName || "px-4 py-3 text-sm text-slate-600 align-top"}
-                    >
-                      {resolveValue(column, row, index) ?? "—"}
-                    </td>
-                  ))}
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : visibleRows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-4 py-16">
+                    {emptyState || (
+                      <div className="text-center">
+                        <p className="font-semibold text-slate-500">{emptyTitle}</p>
+                        {emptyDescription && (
+                          <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                visibleRows.map((row, index) => (
+                  <tr
+                    key={typeof rowKey === "function" ? rowKey(row) : row[rowKey] || index}
+                    className={getRowClassName?.(row, index) || "hover:bg-slate-50 transition-colors"}
+                  >
+                    {columns.map((column) => (
+                      <td
+                        key={column.id || column.key || column.header}
+                        className={column.cellClassName || "px-4 py-3 text-sm text-slate-600 align-top"}
+                      >
+                        {resolveValue(column, row, index) ?? "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ── Mobile View ── */}
@@ -226,7 +239,9 @@ export default function DataTable({
           emptyState || (
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center">
               <p className="font-semibold text-slate-500">{emptyTitle}</p>
-              {emptyDescription && <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>}
+              {emptyDescription && (
+                <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>
+              )}
             </div>
           )
         ) : (
@@ -250,7 +265,8 @@ export default function DataTable({
         <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 shrink-0">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="text-xs text-slate-500">
-              Showing <span className="font-bold text-slate-700">{startItem}</span>–
+              Showing{" "}
+              <span className="font-bold text-slate-700">{startItem}</span>–
               <span className="font-bold text-slate-700">{endItem}</span> of{" "}
               <span className="font-bold text-slate-700">{totalCount}</span> results
             </p>
@@ -269,20 +285,12 @@ export default function DataTable({
           </div>
 
           <div className="flex items-center justify-center gap-1 flex-wrap">
-            <button
-              type="button"
-              onClick={() => updatePage(1)}
-              disabled={activePage <= 1}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <button type="button" onClick={() => updatePage(1)} disabled={activePage <= 1}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
               <ChevronsLeft size={14} />
             </button>
-            <button
-              type="button"
-              onClick={() => updatePage(Math.max(1, activePage - 1))}
-              disabled={activePage <= 1}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <button type="button" onClick={() => updatePage(Math.max(1, activePage - 1))} disabled={activePage <= 1}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
               <ChevronLeft size={14} />
             </button>
 
@@ -290,35 +298,23 @@ export default function DataTable({
               num === "..." ? (
                 <span key={`ellipsis-${i}`} className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-400">…</span>
               ) : (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => updatePage(num)}
+                <button key={num} type="button" onClick={() => updatePage(num)}
                   className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-all ${
                     num === activePage
                       ? "border-blue-500 bg-blue-500 text-white shadow-sm"
                       : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
+                  }`}>
                   {num}
                 </button>
               )
             )}
 
-            <button
-              type="button"
-              onClick={() => updatePage(Math.min(pageCount, activePage + 1))}
-              disabled={activePage >= pageCount}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <button type="button" onClick={() => updatePage(Math.min(pageCount, activePage + 1))} disabled={activePage >= pageCount}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
               <ChevronRight size={14} />
             </button>
-            <button
-              type="button"
-              onClick={() => updatePage(pageCount)}
-              disabled={activePage >= pageCount}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <button type="button" onClick={() => updatePage(pageCount)} disabled={activePage >= pageCount}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
               <ChevronsRight size={14} />
             </button>
           </div>
