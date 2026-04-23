@@ -3,6 +3,9 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50];
 
+/**
+ * Helper to resolve column values based on accessor or render functions.
+ */
 function resolveValue(column, row, index, mode = "desktop") {
   if (mode === "mobile" && column.mobileRender) {
     return column.mobileRender(row, index);
@@ -19,6 +22,9 @@ function resolveValue(column, row, index, mode = "desktop") {
   return "";
 }
 
+/**
+ * Mobile view card representation.
+ */
 function MobileCard({ row, index, columns, renderMobileRow, getRowClassName }) {
   if (renderMobileRow) {
     return renderMobileRow(row, index);
@@ -48,6 +54,10 @@ function MobileCard({ row, index, columns, renderMobileRow, getRowClassName }) {
   );
 }
 
+/**
+ * DataTable Component
+ * UPDATED: Responsive container with internal horizontal scrolling.
+ */
 export default function DataTable({
   columns,
   data = [],
@@ -116,7 +126,6 @@ export default function DataTable({
     else setPage(1);
   };
 
-  // Build page number buttons (show max 5 pages around current)
   const pageNumbers = useMemo(() => {
     if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1);
     const delta = 2;
@@ -136,13 +145,18 @@ export default function DataTable({
   }, [activePage, pageCount]);
 
   return (
-    <div
-      className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}
-    >
-      {/* ── Desktop Table ── */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className={tableClassName}>
-          <thead className="bg-slate-50 border-b border-slate-200">
+    /* 
+       MAIN WRAPPER: 
+       - min-w-0: Allows the flex child to shrink properly.
+       - w-full: Takes full available width of parent.
+       - overflow-hidden: Ensures rounded corners work correctly.
+    */
+    <div className={`w-full min-w-0 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
+      
+      {/* ── Desktop Table Wrapper (Scroll Restricted Here) ── */}
+      <div className="hidden md:block w-full overflow-x-auto relative scrollbar-thin scrollbar-thumb-slate-200">
+        <table className={`w-full border-collapse ${tableClassName}`}>
+          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
             <tr>
               {columns.map((column) => (
                 <th
@@ -160,10 +174,7 @@ export default function DataTable({
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-16 text-center text-sm text-slate-400"
-                >
+                <td colSpan={columns.length} className="px-4 py-16 text-center text-sm text-slate-400">
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
                     {loadingText}
@@ -176,9 +187,7 @@ export default function DataTable({
                   {emptyState || (
                     <div className="text-center">
                       <p className="font-semibold text-slate-500">{emptyTitle}</p>
-                      {emptyDescription ? (
-                        <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>
-                      ) : null}
+                      {emptyDescription && <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>}
                     </div>
                   )}
                 </td>
@@ -186,19 +195,13 @@ export default function DataTable({
             ) : (
               visibleRows.map((row, index) => (
                 <tr
-                  key={typeof rowKey === "function" ? rowKey(row) : row[rowKey]}
-                  className={
-                    getRowClassName?.(row, index) ||
-                    "hover:bg-slate-50 transition-colors"
-                  }
+                  key={typeof rowKey === "function" ? rowKey(row) : row[rowKey] || index}
+                  className={getRowClassName?.(row, index) || "hover:bg-slate-50 transition-colors"}
                 >
                   {columns.map((column) => (
                     <td
                       key={column.id || column.key || column.header}
-                      className={
-                        column.cellClassName ||
-                        "px-4 py-3 text-sm text-slate-600 align-top"
-                      }
+                      className={column.cellClassName || "px-4 py-3 text-sm text-slate-600 align-top"}
                     >
                       {resolveValue(column, row, index) ?? "—"}
                     </td>
@@ -210,8 +213,8 @@ export default function DataTable({
         </table>
       </div>
 
-      {/* ── Mobile Cards ── */}
-      <div className="md:hidden p-3 bg-slate-50/70">
+      {/* ── Mobile View ── */}
+      <div className="md:hidden p-3 bg-slate-50/70 w-full overflow-hidden">
         {loading ? (
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-400">
             <div className="mb-2 flex justify-center">
@@ -223,16 +226,14 @@ export default function DataTable({
           emptyState || (
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center">
               <p className="font-semibold text-slate-500">{emptyTitle}</p>
-              {emptyDescription ? (
-                <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>
-              ) : null}
+              {emptyDescription && <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>}
             </div>
           )
         ) : (
           <div className="space-y-3">
             {visibleRows.map((row, index) => (
               <MobileCard
-                key={typeof rowKey === "function" ? rowKey(row) : row[rowKey]}
+                key={typeof rowKey === "function" ? rowKey(row) : row[rowKey] || index}
                 row={row}
                 index={index}
                 columns={columns}
@@ -246,12 +247,10 @@ export default function DataTable({
 
       {/* ── Pagination Footer ── */}
       {pagination && totalCount > 0 && (
-        <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-          {/* Top row: count info + page size */}
+        <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 shrink-0">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="text-xs text-slate-500">
-              Showing{" "}
-              <span className="font-bold text-slate-700">{startItem}</span>–
+              Showing <span className="font-bold text-slate-700">{startItem}</span>–
               <span className="font-bold text-slate-700">{endItem}</span> of{" "}
               <span className="font-bold text-slate-700">{totalCount}</span> results
             </p>
@@ -260,49 +259,36 @@ export default function DataTable({
               <select
                 value={activePageSize}
                 onChange={(e) => updatePageSize(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 cursor-pointer"
               >
                 {pageSizeOptions.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
+                  <option key={size} value={size}>{size}</option>
                 ))}
               </select>
             </label>
           </div>
 
-          {/* Bottom row: page number buttons */}
           <div className="flex items-center justify-center gap-1 flex-wrap">
-            {/* First page */}
             <button
               type="button"
               onClick={() => updatePage(1)}
               disabled={activePage <= 1}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-              title="First page"
             >
               <ChevronsLeft size={14} />
             </button>
-            {/* Prev page */}
             <button
               type="button"
               onClick={() => updatePage(Math.max(1, activePage - 1))}
               disabled={activePage <= 1}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-              title="Previous page"
             >
               <ChevronLeft size={14} />
             </button>
 
-            {/* Page number pills */}
             {pageNumbers.map((num, i) =>
               num === "..." ? (
-                <span
-                  key={`ellipsis-${i}`}
-                  className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-400"
-                >
-                  …
-                </span>
+                <span key={`ellipsis-${i}`} className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-400">…</span>
               ) : (
                 <button
                   key={num}
@@ -319,23 +305,19 @@ export default function DataTable({
               )
             )}
 
-            {/* Next page */}
             <button
               type="button"
               onClick={() => updatePage(Math.min(pageCount, activePage + 1))}
               disabled={activePage >= pageCount}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-              title="Next page"
             >
               <ChevronRight size={14} />
             </button>
-            {/* Last page */}
             <button
               type="button"
               onClick={() => updatePage(pageCount)}
               disabled={activePage >= pageCount}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-              title="Last page"
             >
               <ChevronsRight size={14} />
             </button>
