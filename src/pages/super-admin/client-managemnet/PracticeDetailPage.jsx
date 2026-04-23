@@ -53,7 +53,7 @@ const Btn = ({ onClick, disabled, variant = "primary", size = "md", children, cl
 
 const DetailRow = ({ label, value }) => (
   <div className="flex justify-between gap-3 py-2.5 border-b border-slate-50 last:border-0">
-    <span className="text-sm text-slate-500 font-medium">{label}</span>
+    <span className="text-sm text-slate-500 font-medium shrink-0">{label}</span>
     <span className="text-sm text-slate-800 font-semibold text-right truncate max-w-[55%]">{value || "—"}</span>
   </div>
 );
@@ -93,36 +93,80 @@ const CONTACT_TYPE_STYLE = {
 /* ══════════════════════════════════════════════════════════
    MODALS
 ══════════════════════════════════════════════════════════ */
+
+// FIX: ContactModal — properly pre-populates existing contact data
 const ContactModal = ({ existing, onClose, onSave }) => {
-  const [form, setForm] = useState({ name: "", role: "", email: "", phone: "", type: "general", isDecisionMaker: false, ...(existing || {}) });
+  const isEdit = !!(existing?._id);
+  const [form, setForm] = useState({
+    name:            existing?.name            || "",
+    role:            existing?.role            || "",
+    email:           existing?.email           || "",
+    phone:           existing?.phone           || "",
+    type:            existing?.type            || "general",
+    isDecisionMaker: existing?.isDecisionMaker || false,
+  });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
+
   const handle = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    try { await onSave(form); onClose(); } catch (e) { alert(e.message); } finally { setSaving(false); }
+    try {
+      // Carry _id forward when editing
+      await onSave(isEdit ? { ...form, _id: existing._id } : form);
+      onClose();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
+
   const Field = ({ label, k, type = "text", opts }) => (
     <div>
       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{label}</label>
       {opts ? (
-        <select value={form[k] || ""} onChange={e => set(k)(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
+        <select value={form[k] || ""} onChange={e => set(k)(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
           {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
       ) : (
-        <input type={type} value={form[k] || ""} onChange={e => set(k)(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
+        <input type={type} value={form[k] || ""} onChange={e => set(k)(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
       )}
     </div>
   );
+
   return (
-    <ModalShell title={existing?._id ? "Edit Contact" : "Add Contact"} onClose={onClose}
-      footer={<><Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn><Btn cls="flex-1" onClick={handle} disabled={saving || !form.name.trim()}>{saving ? <Spinner /> : <Check size={14} />} Save</Btn></>}>
+    <ModalShell
+      title={isEdit ? "Edit Contact" : "Add Contact"}
+      onClose={onClose}
+      footer={
+        <>
+          <Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn>
+          <Btn cls="flex-1" onClick={handle} disabled={saving || !form.name.trim()}>
+            {saving ? <Spinner /> : <Check size={14} />} {isEdit ? "Save Changes" : "Add Contact"}
+          </Btn>
+        </>
+      }
+    >
       <Field label="Name *" k="name" />
       <Field label="Role" k="role" />
-      <div className="grid grid-cols-2 gap-3"><Field label="Email" k="email" type="email" /><Field label="Phone" k="phone" /></div>
-      <Field label="Type" k="type" opts={[["general","General"],["decision_maker","Decision Maker"],["finance","Finance"],["gp_lead","GP Lead"],["practice_manager","Practice Manager"]]} />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Email" k="email" type="email" />
+        <Field label="Phone" k="phone" />
+      </div>
+      <Field label="Type" k="type" opts={[
+        ["general","General"],
+        ["decision_maker","Decision Maker"],
+        ["finance","Finance"],
+        ["gp_lead","GP Lead"],
+        ["practice_manager","Practice Manager"]
+      ]} />
       <label className="flex items-center gap-2.5 cursor-pointer">
-        <input type="checkbox" checked={!!form.isDecisionMaker} onChange={e => set("isDecisionMaker")(e.target.checked)} className="accent-blue-600 w-4 h-4" />
+        <input type="checkbox" checked={!!form.isDecisionMaker}
+          onChange={e => set("isDecisionMaker")(e.target.checked)}
+          className="accent-blue-600 w-4 h-4" />
         <span className="text-sm text-slate-700 font-medium">Mark as Decision Maker</span>
       </label>
     </ModalShell>
@@ -130,17 +174,25 @@ const ContactModal = ({ existing, onClose, onSave }) => {
 };
 
 const AccessModal = ({ existing, onClose, onSave }) => {
-  const [form, setForm] = useState({ system: existing?.system || "EMIS", code: existing?.code || "", status: existing?.status || "not_requested", notes: existing?.notes || "" });
+  const [form, setForm] = useState({
+    system: existing?.system || "EMIS",
+    code:   existing?.code   || "",
+    status: existing?.status || "not_requested",
+    notes:  existing?.notes  || ""
+  });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
   const handle = async () => {
     setSaving(true);
-    try { await onSave({ ...form, _id: existing?._id }); onClose(); } catch (e) { alert(e.message); } finally { setSaving(false); }
+    try { await onSave({ ...form, _id: existing?._id }); onClose(); }
+    catch (e) { alert(e.message); }
+    finally { setSaving(false); }
   };
   const Sel = ({ label, k, opts }) => (
     <div>
       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{label}</label>
-      <select value={form[k]} onChange={e => set(k)(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
+      <select value={form[k]} onChange={e => set(k)(e.target.value)}
+        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
         {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     </div>
@@ -150,8 +202,12 @@ const AccessModal = ({ existing, onClose, onSave }) => {
       footer={<><Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn><Btn cls="flex-1" onClick={handle} disabled={saving}>{saving ? <Spinner /> : <Check size={14} />} Save</Btn></>}>
       <Sel label="System" k="system" opts={["EMIS","SystmOne","ICE","AccuRx","Docman","Softphone","VPN","Other"].map(s => [s,s])} />
       <Sel label="Status" k="status" opts={[["not_requested","Not Requested"],["requested","Requested"],["pending","Pending"],["granted","Granted"],["view_only","View Only"]]} />
-      <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Code / Reference</label><input value={form.code} onChange={e => set("code")(e.target.value)} placeholder="EMIS/1485566" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 transition-all" /></div>
-      <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label><textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 resize-none" /></div>
+      <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Code / Reference</label>
+        <input value={form.code} onChange={e => set("code")(e.target.value)} placeholder="EMIS/1485566"
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 transition-all" /></div>
+      <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
+        <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 resize-none" /></div>
     </ModalShell>
   );
 };
@@ -184,34 +240,47 @@ export default function PracticeDetailPage() {
   const groups   = groupsData?.groups || [];
 
   const [tab,          setTab]          = useState("overview");
-  const [fieldSaving,  setFieldSaving]  = useState({});
   const [massEmail,    setMassEmail]    = useState(false);
+
+  // FIX: contactModal — null = closed, {} = add new, {contact object} = edit existing
   const [contactModal, setContactModal] = useState(null);
   const [accessModal,  setAccessModal]  = useState(null);
 
-  const patch = useCallback(async (body, fieldKey) => {
-    if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: true }));
+  const patch = useCallback(async (body) => {
     try { await updatePracticeMutation.mutateAsync({ id, data: body }); }
     catch (e) { alert(e.message); }
-    finally { if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false })); }
   }, [id, updatePracticeMutation]);
 
+  // FIX: saveContact — correctly handles both add and edit
   const saveContact = async (form) => {
     const contacts = [...(practice?.contacts || [])];
-    if (form._id) { const i = contacts.findIndex(c => c._id === form._id); if (i > -1) contacts[i] = { ...contacts[i], ...form }; }
-    else contacts.push(form);
+    if (form._id) {
+      const i = contacts.findIndex(c => c._id === form._id);
+      if (i > -1) contacts[i] = { ...contacts[i], ...form };
+      else contacts.push(form); // fallback: shouldn't happen
+    } else {
+      contacts.push(form);
+    }
     await patch({ contacts });
   };
+
   const deleteContact = async (cid) => {
     if (!confirm("Delete contact?")) return;
     await patch({ contacts: (practice?.contacts || []).filter(c => c._id !== cid) });
   };
+
   const saveAccess = async (form) => {
     const systems = [...(practice?.systemAccess || [])];
-    if (form._id) { const i = systems.findIndex(s => s._id === form._id); if (i > -1) systems[i] = { ...systems[i], ...form }; }
-    else systems.push(form);
+    if (form._id) {
+      const i = systems.findIndex(s => s._id === form._id);
+      if (i > -1) systems[i] = { ...systems[i], ...form };
+      else systems.push(form);
+    } else {
+      systems.push(form);
+    }
     await patch({ systemAccess: systems });
   };
+
   const deleteAccess = async (sid) => {
     if (!confirm("Remove system access record?")) return;
     await patch({ systemAccess: (practice?.systemAccess || []).filter(s => s._id !== sid) });
@@ -222,6 +291,7 @@ export default function PracticeDetailPage() {
       <div className="w-9 h-9 border-[3px] border-teal-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
+
   if (!practice) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh] text-slate-400 gap-3">
       <Stethoscope size={44} className="opacity-30" />
@@ -230,7 +300,7 @@ export default function PracticeDetailPage() {
     </div>
   );
 
-  //   practice.client is the linked PCN/Client object (not practice.pcn)
+  // practice.client is the linked PCN/Client object
   const linkedClient = practice.client || {};
 
   /* ════════════ PANELS ════════════════════════════════════ */
@@ -238,12 +308,13 @@ export default function PracticeDetailPage() {
   const OverviewPanel = () => {
     const [editing, setEditing] = useState(false);
     const [saving,  setSaving]  = useState(false);
-    const [form, setForm] = useState({
+
+    const buildForm = () => ({
       odsCode:           practice.odsCode            || "",
       address:           practice.address            || "",
       city:              practice.city               || "",
       postcode:          practice.postcode           || "",
-      fte:               practice.fte               || "",
+      fte:               practice.fte                || "",
       contractType:      practice.contractType       || "",
       xeroCode:          practice.xeroCode           || "",
       xeroCategory:      practice.xeroCategory       || "",
@@ -253,46 +324,25 @@ export default function PracticeDetailPage() {
       notes:             practice.notes              || "",
     });
 
+    const [form, setForm] = useState(buildForm);
+
     useEffect(() => {
-      setForm({
-        odsCode:           practice.odsCode            || "",
-        address:           practice.address            || "",
-        city:              practice.city               || "",
-        postcode:          practice.postcode           || "",
-        fte:               practice.fte               || "",
-        contractType:      practice.contractType       || "",
-        xeroCode:          practice.xeroCode           || "",
-        xeroCategory:      practice.xeroCategory       || "",
-        patientListSize:   practice.patientListSize    || "",
-        complianceGroup:   practice.complianceGroup?._id || practice.complianceGroup || "",
-        systemAccessNotes: practice.systemAccessNotes  || "",
-        notes:             practice.notes              || "",
-      });
-    }, [practice]);
+      setForm(buildForm());
+    }, [practice.odsCode, practice.address, practice.notes]); // eslint-disable-line
 
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
-    const handleSave   = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
-    const handleCancel = () => {
-      setForm({
-        odsCode:           practice.odsCode            || "",
-        address:           practice.address            || "",
-        city:              practice.city               || "",
-        postcode:          practice.postcode           || "",
-        fte:               practice.fte               || "",
-        contractType:      practice.contractType       || "",
-        xeroCode:          practice.xeroCode           || "",
-        xeroCategory:      practice.xeroCategory       || "",
-        patientListSize:   practice.patientListSize    || "",
-        complianceGroup:   practice.complianceGroup?._id || practice.complianceGroup || "",
-        systemAccessNotes: practice.systemAccessNotes  || "",
-        notes:             practice.notes              || "",
-      });
-      setEditing(false);
+
+    const handleSave = async () => {
+      setSaving(true);
+      try { await patch(form); setEditing(false); }
+      finally { setSaving(false); }
     };
+
+    const handleCancel = () => { setForm(buildForm()); setEditing(false); };
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Practice Details</h3>
             <div className="flex items-center gap-2">
@@ -308,6 +358,7 @@ export default function PracticeDetailPage() {
               </button>
             </div>
           </div>
+
           {editing ? (
             <div>
               <EditRow label="ODS Code"      value={form.odsCode}         onChange={set("odsCode")} />
@@ -324,18 +375,18 @@ export default function PracticeDetailPage() {
                   {groups.map((group) => <option key={group._id} value={group._id}>{group.name}</option>)}
                 </select>
               </div>
-              <EditRow label="Address"       value={form.address}         onChange={set("address")} />
-              <EditRow label="City"          value={form.city}            onChange={set("city")} />
-              <EditRow label="Postcode"      value={form.postcode}        onChange={set("postcode")} />
+              <EditRow label="Address"  value={form.address}  onChange={set("address")} />
+              <EditRow label="City"     value={form.city}     onChange={set("city")} />
+              <EditRow label="Postcode" value={form.postcode} onChange={set("postcode")} />
               <div className="pt-3">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes</span>
-                <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none" />
+                <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none" />
               </div>
             </div>
           ) : (
             <div>
               <DetailRow label="ODS Code"         value={practice.odsCode} />
-              {/*   use linkedClient (practice.client) instead of practice.pcn */}
               <DetailRow label="ICB"              value={linkedClient.icb?.name} />
               <DetailRow label="Federation"       value={linkedClient.federation?.name || "Direct to ICB"} />
               <DetailRow label="PCN / Client"     value={linkedClient.name} />
@@ -355,11 +406,13 @@ export default function PracticeDetailPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
           <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-5">Location</h3>
           {(practice.address || practice.city || practice.postcode) ? (
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0"><MapPin size={16} className="text-slate-500" /></div>
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                <MapPin size={16} className="text-slate-500" />
+              </div>
               <div className="text-sm text-slate-700 leading-relaxed">
                 {practice.address  && <p>{practice.address}</p>}
                 {practice.city     && <p>{practice.city}</p>}
@@ -367,6 +420,7 @@ export default function PracticeDetailPage() {
               </div>
             </div>
           ) : <p className="text-sm text-slate-400">No address on record</p>}
+
           {practice.systemAccessNotes && (
             <div className="mt-5 pt-5 border-t border-slate-100">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">System Access Notes</p>
@@ -378,28 +432,45 @@ export default function PracticeDetailPage() {
     );
   };
 
+  /* ─── FIX: ContactsPanel — edit button opens modal with existing data ─── */
   const ContactsPanel = () => {
     const contacts = practice.contacts || [];
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{contacts.length} Contact{contacts.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+            {contacts.length} Contact{contacts.length !== 1 ? "s" : ""}
+          </p>
           <div className="flex gap-2">
-            <Btn variant="outline" size="sm" onClick={() => setMassEmail(true)}><Mail size={13} /> Mass Email</Btn>
-            <Btn size="sm" onClick={() => setContactModal({})}><Plus size={13} /> Add Contact</Btn>
+            <Btn variant="outline" size="sm" onClick={() => setMassEmail(true)}>
+              <Mail size={13} /> Mass Email
+            </Btn>
+            {/* FIX: Add button passes empty object (no _id) → triggers "Add Contact" mode */}
+            <Btn size="sm" onClick={() => setContactModal({})}>
+              <Plus size={13} /> Add Contact
+            </Btn>
           </div>
         </div>
+
         {contacts.length === 0 ? (
           <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
-            <Users size={32} className="opacity-40" /><p className="font-semibold">No contacts yet</p>
+            <Users size={32} className="opacity-40" />
+            <p className="font-semibold">No contacts yet</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {contacts.map(c => (
               <div key={c._id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 group hover:border-blue-200 hover:shadow-md transition-all">
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="min-w-0 flex-1"><p className="text-[15px] font-bold text-slate-800 truncate">{c.name}</p><p className="text-xs text-slate-500 mt-0.5">{c.role}</p></div>
-                  {c.type && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border capitalize shrink-0 ${CONTACT_TYPE_STYLE[c.type] || CONTACT_TYPE_STYLE.general}`}>{c.type.replace("_"," ")}</span>}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-bold text-slate-800 truncate">{c.name}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{c.role}</p>
+                  </div>
+                  {c.type && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border capitalize shrink-0 ${CONTACT_TYPE_STYLE[c.type] || CONTACT_TYPE_STYLE.general}`}>
+                      {c.type.replace("_"," ")}
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-1.5 mb-3">
                   {c.email && <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 truncate"><Mail size={12} className="shrink-0" />{c.email}</a>}
@@ -408,8 +479,17 @@ export default function PracticeDetailPage() {
                 <div className="flex items-center pt-2.5 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity">
                   {c.isDecisionMaker && <span className="text-[10px] bg-red-50 text-red-600 font-bold px-2 py-0.5 rounded-md border border-red-200 mr-2">Decision Maker</span>}
                   <div className="ml-auto flex gap-1">
-                    <button onClick={() => setContactModal(c)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50"><Edit2 size={11} /> Edit</button>
-                    <button onClick={() => deleteContact(c._id)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50"><Trash2 size={11} /> Del</button>
+                    {/* FIX: Edit button passes full contact object (has _id) → triggers "Edit Contact" mode */}
+                    <button
+                      onClick={() => setContactModal(c)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50">
+                      <Edit2 size={11} /> Edit
+                    </button>
+                    <button
+                      onClick={() => deleteContact(c._id)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50">
+                      <Trash2 size={11} /> Del
+                    </button>
                   </div>
                 </div>
               </div>
@@ -446,11 +526,15 @@ export default function PracticeDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {systems.map(s => (
               <div key={s._id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-start gap-4 group">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0"><Activity size={16} className="text-slate-600" /></div>
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                  <Activity size={16} className="text-slate-600" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1.5">
                     <p className="text-[15px] font-bold text-slate-800">{s.system}</p>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-md border capitalize ${ACCESS_STATUS_STYLE[s.status] || ACCESS_STATUS_STYLE.not_requested}`}>{s.status?.replace("_"," ")}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-md border capitalize ${ACCESS_STATUS_STYLE[s.status] || ACCESS_STATUS_STYLE.not_requested}`}>
+                      {s.status?.replace("_"," ")}
+                    </span>
                   </div>
                   {s.code  && <p className="text-sm text-slate-400">Code: {s.code}</p>}
                   {s.notes && <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">{s.notes}</p>}
@@ -467,6 +551,7 @@ export default function PracticeDetailPage() {
     );
   };
 
+  /* ─── FIX: RestrictedPanel — reliable save/remove + proper modal state ─── */
   const RestrictedPanel = () => {
     const restricted = practice.restrictedClinicians || [];
     const [addModal, setAddModal] = useState(false);
@@ -476,27 +561,39 @@ export default function PracticeDetailPage() {
     const [newReason,setNewReason]= useState("");
     const [saving,   setSaving]   = useState(false);
 
+    const resetForm = () => { setNewName(""); setNewEmail(""); setNewRole(""); setNewReason(""); };
+
     const handleAdd = async () => {
       if (!newName.trim()) return;
       setSaving(true);
       try {
-        const updated = [...restricted, {
-          _id:    `manual-${Date.now()}`,
-          name:   newName.trim(),
-          email:  newEmail.trim(),
-          role:   newRole.trim() || "clinician",
-          reason: newReason.trim(),
-        }];
+        const updated = [
+          ...restricted,
+          {
+            _id:    `manual-${Date.now()}`,
+            name:   newName.trim(),
+            email:  newEmail.trim(),
+            role:   newRole.trim() || "clinician",
+            reason: newReason.trim(),
+          }
+        ];
         await patch({ restrictedClinicians: updated });
         setAddModal(false);
-        setNewName(""); setNewEmail(""); setNewRole(""); setNewReason("");
-      } catch (e) { alert(e.message); }
-      finally { setSaving(false); }
+        resetForm();
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        setSaving(false);
+      }
     };
 
     const handleRemove = async (cid) => {
       if (!confirm("Remove this restriction?")) return;
-      const updated = restricted.filter(c => (c._id || c) !== cid);
+      // FIX: handle both {_id} objects and plain id strings
+      const updated = restricted.filter(c => {
+        const id = typeof c === "object" ? (c._id || c.id) : c;
+        return String(id) !== String(cid);
+      });
       await patch({ restrictedClinicians: updated });
     };
 
@@ -510,7 +607,7 @@ export default function PracticeDetailPage() {
               <p className="text-xs text-red-600 mt-0.5 leading-relaxed">These clinicians will not be scheduled at this practice.</p>
             </div>
           </div>
-          <Btn variant="danger" size="sm" onClick={() => setAddModal(true)}>
+          <Btn variant="danger" size="sm" onClick={() => { resetForm(); setAddModal(true); }}>
             <Plus size={13} /> Add Restriction
           </Btn>
         </div>
@@ -521,34 +618,47 @@ export default function PracticeDetailPage() {
           </div>
         ) : (
           <div className="grid gap-2.5">
-            {restricted.map(c => (
-              <div key={c._id} className="bg-white rounded-2xl border border-red-100 p-5 flex items-center gap-4 group">
-                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0"><UserX size={17} className="text-red-500" /></div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-bold text-slate-800">{c.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{c.email} · <span className="capitalize">{c.role}</span></p>
-                  {c.reason && <p className="text-xs text-red-500 mt-1">Reason: {c.reason}</p>}
+            {restricted.map(c => {
+              // FIX: handle both populated objects and raw ids
+              const cId   = typeof c === "object" ? (c._id || c.id) : c;
+              const cName = typeof c === "object" ? c.name  : "Unknown";
+              const cEmail= typeof c === "object" ? c.email : "";
+              const cRole = typeof c === "object" ? c.role  : "";
+              const cReason = typeof c === "object" ? c.reason : "";
+              return (
+                <div key={String(cId)} className="bg-white rounded-2xl border border-red-100 p-5 flex items-center gap-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                    <UserX size={17} className="text-red-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-bold text-slate-800">{cName}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{cEmail}{cRole ? ` · ${cRole}` : ""}</p>
+                    {cReason && <p className="text-xs text-red-500 mt-1">Reason: {cReason}</p>}
+                  </div>
+                  <button
+                    onClick={() => handleRemove(cId)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-red-200 shrink-0">
+                    <Trash2 size={11} /> Remove
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleRemove(c._id)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-red-200 shrink-0">
-                  <Trash2 size={11} /> Remove
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {addModal && (
-          <ModalShell title="Add Restricted Clinician" onClose={() => setAddModal(false)}
+          <ModalShell
+            title="Add Restricted Clinician"
+            onClose={() => { setAddModal(false); resetForm(); }}
             footer={
               <>
-                <Btn variant="ghost" cls="flex-1" onClick={() => setAddModal(false)}>Cancel</Btn>
+                <Btn variant="ghost" cls="flex-1" onClick={() => { setAddModal(false); resetForm(); }}>Cancel</Btn>
                 <Btn variant="danger" cls="flex-1" onClick={handleAdd} disabled={saving || !newName.trim()}>
                   {saving ? <Spinner /> : <UserX size={14} />} Flag as Restricted
                 </Btn>
               </>
-            }>
+            }
+          >
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Clinician Name *</label>
               <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Dr. John Smith"
@@ -568,7 +678,8 @@ export default function PracticeDetailPage() {
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Reason for Restriction</label>
-              <textarea rows={3} value={newReason} onChange={e => setNewReason(e.target.value)} placeholder="e.g. Patient complaint, conduct issue..."
+              <textarea rows={3} value={newReason} onChange={e => setNewReason(e.target.value)}
+                placeholder="e.g. Patient complaint, conduct issue…"
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 resize-none transition-all" />
             </div>
           </ModalShell>
@@ -577,86 +688,137 @@ export default function PracticeDetailPage() {
     );
   };
 
+  /* ─── FIX: History panel — pass correct lowercase entityType ─── */
+  // ContactHistoryPanel internally does: apiEntityType = entityType?.toLowerCase() === "practice" ? "Practice" : entityType
+  // But the backend normalizeEntityType expects capitalised form. Pass "Practice" directly.
+  const HistoryPanel = () => (
+    <ContactHistoryPanel entityType="Practice" entityId={practice._id} />
+  );
+
   const PANELS = {
     overview:   <OverviewPanel />,
     contacts:   <ContactsPanel />,
     documents:  <DocumentsPanel />,
     access:     <AccessPanel />,
-    history:    <ContactHistoryPanel entityType="Practice" entityId={practice._id} />,
+    history:    <HistoryPanel />,
     archive:    <ReportingArchivePanel entityType="Practice" entityId={practice._id} />,
     restricted: <RestrictedPanel />,
   };
 
   return (
-    <div className="space-y-4 pb-8">
-      {/*   Breadcrumb uses linkedClient (practice.client) instead of practice.pcn */}
+    // FIX: min-w-0 on root prevents horizontal overflow on mobile
+    <div className="space-y-4 pb-8 min-w-0 overflow-x-hidden">
+      {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm flex-wrap">
-        <button onClick={() => navigate("/dashboard/super-admin/clients")} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">Client Management</button>
-        <ChevronRight size={13} className="text-slate-300" />
+        <button onClick={() => navigate("/dashboard/super-admin/clients")}
+          className="text-slate-400 hover:text-blue-600 font-medium transition-colors">
+          Client Management
+        </button>
+        <ChevronRight size={13} className="text-slate-300 shrink-0" />
         {linkedClient.icb?._id && (
           <>
-            <button onClick={() => navigate(`/dashboard/super-admin/clients/icb/${linkedClient.icb._id}`)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{linkedClient.icb.name}</button>
-            <ChevronRight size={13} className="text-slate-300" />
+            <button
+              onClick={() => navigate(`/dashboard/super-admin/clients/icb/${linkedClient.icb._id}`)}
+              className="text-slate-400 hover:text-blue-600 font-medium transition-colors truncate max-w-[120px]">
+              {linkedClient.icb.name}
+            </button>
+            <ChevronRight size={13} className="text-slate-300 shrink-0" />
           </>
         )}
         {linkedClient._id && (
           <>
-            <button onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${linkedClient._id}`)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{linkedClient.name}</button>
-            <ChevronRight size={13} className="text-slate-300" />
+            <button
+              onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${linkedClient._id}`)}
+              className="text-slate-400 hover:text-blue-600 font-medium transition-colors truncate max-w-[120px]">
+              {linkedClient.name}
+            </button>
+            <ChevronRight size={13} className="text-slate-300 shrink-0" />
           </>
         )}
         <span className="text-slate-700 font-bold truncate">{practice.name}</span>
       </nav>
 
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 min-w-0">
         <div className="flex flex-wrap items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-teal-600 flex items-center justify-center shrink-0"><Stethoscope size={22} className="text-white" /></div>
+          <div className="w-12 h-12 rounded-xl bg-teal-600 flex items-center justify-center shrink-0">
+            <Stethoscope size={22} className="text-white" />
+          </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{practice.name}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight break-words">{practice.name}</h1>
             <div className="flex flex-wrap items-center gap-2.5 mt-2">
-              {practice.odsCode           && <span className="text-sm text-slate-400 flex items-center gap-1"><Hash size={12} /> {practice.odsCode}</span>}
-              {/*   use linkedClient for ICB, Federation, PCN name in header */}
-              {linkedClient.icb?.name     && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={12} /> {linkedClient.icb.name}</span>}
-              {linkedClient.federation?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {linkedClient.federation.name}</span>}
-              {linkedClient.name          && <span className="text-sm text-slate-400 flex items-center gap-1"><Network size={12} /> {linkedClient.name}</span>}
-              {practice.contractType      && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200">{practice.contractType}</span>}
-              {practice.fte               && <span className="text-sm text-slate-400">{practice.fte}</span>}
+              {practice.odsCode           && <span className="text-sm text-slate-400 flex items-center gap-1 shrink-0"><Hash size={12} /> {practice.odsCode}</span>}
+              {linkedClient.icb?.name     && <span className="text-sm text-slate-400 flex items-center gap-1 min-w-0 truncate"><Building2 size={12} className="shrink-0" /> {linkedClient.icb.name}</span>}
+              {linkedClient.federation?.name && <span className="text-sm text-slate-400 flex items-center gap-1 min-w-0 truncate"><Layers size={12} className="shrink-0" /> {linkedClient.federation.name}</span>}
+              {linkedClient.name          && <span className="text-sm text-slate-400 flex items-center gap-1 min-w-0 truncate"><Network size={12} className="shrink-0" /> {linkedClient.name}</span>}
+              {practice.contractType      && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200 shrink-0">{practice.contractType}</span>}
+              {practice.fte               && <span className="text-sm text-slate-400 shrink-0">{practice.fte}</span>}
               {practice.priority && practice.priority !== "normal" && (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border
-                  ${practice.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border shrink-0 ${practice.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
                   {practice.priority.toUpperCase()}
                 </span>
               )}
               {(practice.tags || []).map(tag => (
-                <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{tag}</span>
+                <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md shrink-0">{tag}</span>
               ))}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={() => refetch()} title="Refresh" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"><RefreshCw size={15} /></button>
+            <button onClick={() => refetch()} title="Refresh"
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all">
+              <RefreshCw size={15} />
+            </button>
             <Btn variant="ghost" size="sm" onClick={() => navigate(-1)}><ArrowLeft size={13} /> Back</Btn>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* FIX: Tabs — no scrollbar visible on mobile, proper overflow handling */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex gap-1 p-2 overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
-          {TABS.map(t => { const Icon = t.icon; return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 ${tab === t.id ? "bg-teal-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}>
-              <Icon size={14} /> {t.label}
-            </button>
-          ); })}
+        <div className="flex gap-1 p-2 overflow-x-auto"
+          style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+          {TABS.map(t => {
+            const Icon = t.icon;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 ${tab === t.id ? "bg-teal-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}>
+                <Icon size={14} /> {t.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div>{PANELS[tab]}</div>
+      {/* Panel content */}
+      <div className="min-w-0">{PANELS[tab]}</div>
 
-      {contactModal !== null && <ContactModal existing={contactModal?._id ? contactModal : null} onClose={() => setContactModal(null)} onSave={saveContact} />}
-      {accessModal  !== null && <AccessModal  existing={accessModal?._id  ? accessModal  : null} onClose={() => setAccessModal(null)}  onSave={saveAccess}  />}
-      {massEmail && <MassEmailModal entityType="Practice" entityId={practice._id} contacts={practice.contacts || []} onClose={() => setMassEmail(false)} />}
+      {/* FIX: Contact modal — only render when contactModal is not null */}
+      {contactModal !== null && (
+        <ContactModal
+          // FIX: pass existing only when there's an _id (edit mode)
+          // when contactModal = {} (add mode), existing = null
+          existing={contactModal?._id ? contactModal : null}
+          onClose={() => setContactModal(null)}
+          onSave={saveContact}
+        />
+      )}
+
+      {accessModal !== null && (
+        <AccessModal
+          existing={accessModal?._id ? accessModal : null}
+          onClose={() => setAccessModal(null)}
+          onSave={saveAccess}
+        />
+      )}
+
+      {massEmail && (
+        <MassEmailModal
+          entityType="Practice"
+          entityId={practice._id}
+          contacts={practice.contacts || []}
+          onClose={() => setMassEmail(false)}
+        />
+      )}
     </div>
   );
 }

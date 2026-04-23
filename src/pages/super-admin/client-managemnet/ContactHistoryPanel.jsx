@@ -18,21 +18,37 @@ const TYPE_META = {
 
 const fmtDate  = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
 const fmtTime  = (d, t) => t || (d ? new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
-const fmtShort = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "";
 
-/* ── Log Modal — UPDATED: +outcome, +followUpDate, +followUpNote ── */
+/**
+ * FIX: normalizeEntityType
+ * Backend's normalizeEntityType expects: "PCN" | "Practice" | "Federation" | "ICB"
+ * This function ensures we always pass the correctly capitalised form.
+ */
+const normalizeEntityType = (raw = "") => {
+  const s = String(raw).trim().toLowerCase();
+  if (s === "pcn")        return "PCN";
+  if (s === "practice")   return "Practice";
+  if (s === "federation") return "Federation";
+  if (s === "icb")        return "ICB";
+  // fallback: return as-is (already correct)
+  return raw;
+};
+
+/* ── Log Modal ── */
 const LogModal = ({ onClose, onSave, existing }) => {
   const [form, setForm] = useState({
-    type:        existing?.type        || "call",
-    subject:     existing?.subject     || "",
-    notes:       existing?.notes       || "",
-    date:        existing?.date        ? new Date(existing.date).toISOString().split("T")[0]
-                                       : new Date().toISOString().split("T")[0],
-    time:        existing?.time        || new Date().toTimeString().slice(0, 5),
-    // ── NEW FIELDS ──────────────────────────────────────────────
-    outcome:     existing?.outcome     || "",
-    followUpDate:existing?.followUpDate? new Date(existing.followUpDate).toISOString().split("T")[0] : "",
-    followUpNote:existing?.followUpNote|| "",
+    type:         existing?.type         || "call",
+    subject:      existing?.subject      || "",
+    notes:        existing?.notes        || "",
+    date:         existing?.date
+                    ? new Date(existing.date).toISOString().split("T")[0]
+                    : new Date().toISOString().split("T")[0],
+    time:         existing?.time         || new Date().toTimeString().slice(0, 5),
+    outcome:      existing?.outcome      || "",
+    followUpDate: existing?.followUpDate
+                    ? new Date(existing.followUpDate).toISOString().split("T")[0]
+                    : "",
+    followUpNote: existing?.followUpNote || "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -49,7 +65,9 @@ const LogModal = ({ onClose, onSave, existing }) => {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h3 className="text-base font-bold text-slate-800">{existing ? "Edit Log" : "Add Contact Log"}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"><X size={16} /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all">
+            <X size={16} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4 [scrollbar-width:thin]">
@@ -73,14 +91,16 @@ const LogModal = ({ onClose, onSave, existing }) => {
           {/* Subject */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Subject *</label>
-            <input value={form.subject} onChange={e => setForm(f => ({...f, subject: e.target.value}))} placeholder="Brief description…"
+            <input value={form.subject} onChange={e => setForm(f => ({...f, subject: e.target.value}))}
+              placeholder="Brief description…"
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all placeholder:text-slate-400" />
           </div>
 
           {/* Notes */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
-            <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} rows={3} placeholder="Detailed notes…"
+            <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))}
+              rows={3} placeholder="Detailed notes…"
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all resize-none placeholder:text-slate-400" />
           </div>
 
@@ -98,7 +118,7 @@ const LogModal = ({ onClose, onSave, existing }) => {
             </div>
           </div>
 
-          {/* ── NEW: Outcome ─────────────────────────────────────── */}
+          {/* Outcome */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <Target size={11} /> Outcome
@@ -108,12 +128,10 @@ const LogModal = ({ onClose, onSave, existing }) => {
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all placeholder:text-slate-400" />
           </div>
 
-          {/* ── NEW: Follow-up ───────────────────────────────────── */}
+          {/* Follow-up */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block items-center gap-1.5">
-                <CalendarCheck size={11} /> Follow-up Date
-              </label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Follow-up Date</label>
               <input type="date" value={form.followUpDate} onChange={e => setForm(f => ({...f, followUpDate: e.target.value}))}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
             </div>
@@ -127,10 +145,15 @@ const LogModal = ({ onClose, onSave, existing }) => {
         </div>
 
         <div className="flex gap-3 px-6 pb-5 pt-3 border-t border-slate-100 shrink-0">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+            Cancel
+          </button>
           <button onClick={handle} disabled={saving || !form.subject.trim()}
             className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : <Check size={15}/>}
+            {saving
+              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+              : <Check size={15}/>}
             {existing ? "Save Changes" : "Add Log"}
           </button>
         </div>
@@ -146,7 +169,17 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
   const [showModal,  setShowModal]  = useState(false);
   const [editing,    setEditing]    = useState(null);
 
-  const apiEntityType = entityType?.toLowerCase() === "practice" ? "Practice" : entityType;
+  /**
+   * FIX: Use normalizeEntityType here instead of the broken inline logic.
+   *
+   * The old code was:
+   *   const apiEntityType = entityType?.toLowerCase() === "practice" ? "Practice" : entityType;
+   * This only handled "practice" but NOT "pcn", "icb", "federation" — all of which
+   * would be passed through as-is (lowercase) and cause backend 500.
+   *
+   * Now we normalise all types correctly.
+   */
+  const apiEntityType = normalizeEntityType(entityType);
 
   const params = {};
   if (filterType !== "all") params.type    = filterType;
@@ -216,21 +249,25 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
           <div className="flex flex-col items-center justify-center py-16 text-red-400 gap-2">
             <AlertTriangle size={28} className="opacity-50" />
             <p className="text-sm font-semibold">Failed to load</p>
-            <p className="text-xs text-slate-400">{error?.message}</p>
+            <p className="text-xs text-slate-400">{error?.message || "Server error — check entity type and ID"}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
             <MessageSquare size={32} className="mb-3 opacity-30" />
-            <p className="text-sm font-semibold">{logs.length === 0 ? "No contact history yet" : "No logs match your search"}</p>
+            <p className="text-sm font-semibold">
+              {logs.length === 0 ? "No contact history yet" : "No logs match your search"}
+            </p>
             {logs.length === 0 && (
-              <button onClick={() => { setEditing(null); setShowModal(true); }} className="mt-3 text-blue-600 text-xs font-bold hover:underline">Add the first log</button>
+              <button onClick={() => { setEditing(null); setShowModal(true); }}
+                className="mt-3 text-blue-600 text-xs font-bold hover:underline">
+                Add the first log
+              </button>
             )}
           </div>
         ) : (
           filtered.map((log) => {
             const meta = TYPE_META[log.type] || TYPE_META.note;
             const Icon = meta.icon;
-            const hasFollowUp = log.followUpDate && new Date(log.followUpDate) > new Date();
             const followUpOverdue = log.followUpDate && new Date(log.followUpDate) < new Date();
             return (
               <div key={log._id} className="px-6 py-5 hover:bg-slate-50/80 transition-colors group">
@@ -242,14 +279,22 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${meta.bg} ${meta.color}`}>{meta.label}</span>
+                          <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${meta.bg} ${meta.color}`}>
+                            {meta.label}
+                          </span>
                           {log.starred     && <Star size={13} className="text-amber-500 fill-amber-500" />}
-                          {log.isMassEmail && <span className="text-xs bg-blue-50 text-blue-600 font-bold px-1.5 py-0.5 rounded-md border border-blue-200">Mass Email</span>}
+                          {log.isMassEmail && (
+                            <span className="text-xs bg-blue-50 text-blue-600 font-bold px-1.5 py-0.5 rounded-md border border-blue-200">
+                              Mass Email
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm font-bold text-slate-800 mt-2 leading-tight">{log.subject}</p>
-                        {log.notes && <p className="text-sm text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">{log.notes}</p>}
+                        {log.notes && (
+                          <p className="text-sm text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">{log.notes}</p>
+                        )}
 
-                        {/* ── NEW: Outcome display ─────────────────────── */}
+                        {/* Outcome */}
                         {log.outcome && (
                           <div className="mt-2 flex items-start gap-1.5">
                             <Target size={11} className="text-green-500 shrink-0 mt-0.5" />
@@ -257,10 +302,12 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
                           </div>
                         )}
 
-                        {/* ── NEW: Follow-up display ───────────────────── */}
+                        {/* Follow-up */}
                         {log.followUpDate && (
                           <div className={`mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold w-fit
-                            ${followUpOverdue ? "bg-red-50 text-red-600 border border-red-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                            ${followUpOverdue
+                              ? "bg-red-50 text-red-600 border border-red-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
                             <CalendarCheck size={11} />
                             Follow-up: {fmtDate(log.followUpDate)}
                             {log.followUpNote && <span className="ml-1 opacity-75">— {log.followUpNote}</span>}
@@ -269,8 +316,14 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
                         )}
 
                         <div className="flex items-center gap-3 mt-2.5 flex-wrap">
-                          <span className="text-xs text-slate-400 flex items-center gap-1.5"><Clock size={12} />{fmtDate(log.date)} {fmtTime(log.date, log.time)}</span>
-                          {log.createdBy && <span className="text-xs text-slate-400">by <span className="font-semibold text-slate-600">{log.createdBy.name}</span></span>}
+                          <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                            <Clock size={12} />{fmtDate(log.date)} {fmtTime(log.date, log.time)}
+                          </span>
+                          {log.createdBy && (
+                            <span className="text-xs text-slate-400">
+                              by <span className="font-semibold text-slate-600">{log.createdBy.name}</span>
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -300,7 +353,11 @@ export default function ContactHistoryPanel({ entityType, entityId }) {
       </div>
 
       {showModal && (
-        <LogModal existing={editing} onClose={() => { setShowModal(false); setEditing(null); }} onSave={handleSave} />
+        <LogModal
+          existing={editing}
+          onClose={() => { setShowModal(false); setEditing(null); }}
+          onSave={handleSave}
+        />
       )}
     </div>
   );
