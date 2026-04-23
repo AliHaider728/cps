@@ -107,7 +107,10 @@ const M_STATUS = {
    MODALS
 ══════════════════════════════════════════════════════════ */
 const ContactModal = ({ existing, onClose, onSave }) => {
-  const [form, setForm] = useState({ name: "", role: "", email: "", phone: "", type: "general", isPrimary: false, ...(existing || {}) });
+  const [form, setForm] = useState({
+    name: "", role: "", email: "", phone: "", type: "general", isPrimary: false,
+    ...(existing || {}),
+  });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
   const handle = async () => {
@@ -127,7 +130,7 @@ const ContactModal = ({ existing, onClose, onSave }) => {
   );
   return (
     <ModalShell title={existing?._id ? "Edit Contact" : "Add Contact"} onClose={onClose}
-      footer={<><Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn><Btn cls="flex-1" onClick={handle} disabled={saving || !form.name.trim()}>{saving ? <Spinner /> : <Check size={14} />} Save</Btn></>}>
+      footer={<><Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn><Btn cls="flex-1" onClick={handle} disabled={saving || !form.name.trim()}>{saving ? <Spinner /> : <Check size={14} />} {existing?._id ? "Save Changes" : "Add Contact"}</Btn></>}>
       <Field label="Name *" k="name" />
       <Field label="Role" k="role" />
       <div className="grid grid-cols-2 gap-3"><Field label="Email" k="email" type="email" /><Field label="Phone" k="phone" /></div>
@@ -140,22 +143,33 @@ const ContactModal = ({ existing, onClose, onSave }) => {
   );
 };
 
+/* ✅ FIX: MeetingModal — _id now included in onSave payload so edit works correctly */
 const MeetingModal = ({ existing, onClose, onSave }) => {
   const [form, setForm] = useState({
-    month: existing?.month || "",
-    date: existing?.date ? new Date(existing.date).toISOString().split("T")[0] : "",
-    type: existing?.type || "monthly_review",
-    status: existing?.status || "scheduled",
-    notes: existing?.notes || "",
+    month:     existing?.month  || "",
+    date:      existing?.date   ? new Date(existing.date).toISOString().split("T")[0] : "",
+    type:      existing?.type   || "monthly_review",
+    status:    existing?.status || "scheduled",
+    notes:     existing?.notes  || "",
     attendees: existing?.attendees?.join(", ") || "",
   });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
+
   const handle = async () => {
     setSaving(true);
-    try { await onSave({ ...form, attendees: form.attendees.split(",").map(a => a.trim()).filter(Boolean) }); onClose(); }
-    catch (e) { alert(e.message); } finally { setSaving(false); }
+    try {
+      // ✅ FIX: pass _id so the backend knows this is an update, not a new insert
+      await onSave({
+        ...(existing?._id ? { _id: existing._id } : {}),
+        ...form,
+        attendees: form.attendees.split(",").map(a => a.trim()).filter(Boolean),
+      });
+      onClose();
+    } catch (e) { alert(e.message); }
+    finally { setSaving(false); }
   };
+
   const Sel = ({ label, k, opts }) => (
     <div>
       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{label}</label>
@@ -203,7 +217,7 @@ const TemplateModal = ({ existing, onClose, onSave }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   TABS — Archive tab added (restricted se pehle)
+   TABS
 ══════════════════════════════════════════════════════════ */
 const TABS = [
   { id: "overview",   label: "Overview",   icon: Network       },
@@ -213,7 +227,7 @@ const TABS = [
   { id: "meetings",   label: "Meetings",   icon: Calendar      },
   { id: "templates",  label: "Templates",  icon: FileText      },
   { id: "history",    label: "History",    icon: MessageSquare },
-  { id: "archive",    label: "Archive",    icon: Archive       }, // ✅ NEW
+  { id: "archive",    label: "Archive",    icon: Archive       },
   { id: "restricted", label: "Restricted", icon: UserX         },
 ];
 
@@ -230,7 +244,7 @@ export default function PCNDetailPage() {
   const upsertMeetingMutation = useUpsertMeeting(id);
   const { data: groupsData } = useDocumentGroups({ active: true });
 
-  const pcn = data?.pcn ?? null;
+  const pcn    = data?.pcn    ?? null;
   const groups = groupsData?.groups || [];
 
   const tab = useAppSelector((state) => state.pcn.activeDetailTab);
@@ -260,10 +274,16 @@ export default function PCNDetailPage() {
 
   const saveContact = async (form) => {
     const contacts = [...(pcn?.contacts || [])];
-    if (form._id) { const i = contacts.findIndex(c => c._id === form._id); if (i > -1) contacts[i] = { ...contacts[i], ...form }; }
-    else contacts.push(form);
+    if (form._id) {
+      const i = contacts.findIndex(c => c._id === form._id);
+      if (i > -1) contacts[i] = { ...contacts[i], ...form };
+      else contacts.push(form);
+    } else {
+      contacts.push(form);
+    }
     await patch({ contacts });
   };
+
   const deleteContact = async (cid) => {
     if (!confirm("Delete this contact?")) return;
     await patch({ contacts: (pcn?.contacts || []).filter(c => c._id !== cid) });
@@ -276,10 +296,16 @@ export default function PCNDetailPage() {
 
   const saveTemplate = async (form) => {
     const templates = [...(pcn?.emailTemplates || [])];
-    if (form._id) { const i = templates.findIndex(t => t._id === form._id); if (i > -1) templates[i] = { ...templates[i], ...form }; }
-    else templates.push(form);
+    if (form._id) {
+      const i = templates.findIndex(t => t._id === form._id);
+      if (i > -1) templates[i] = { ...templates[i], ...form };
+      else templates.push(form);
+    } else {
+      templates.push(form);
+    }
     await patch({ emailTemplates: templates });
   };
+
   const deleteTemplate = async (tid) => {
     if (!confirm("Delete template?")) return;
     await patch({ emailTemplates: (pcn?.emailTemplates || []).filter(t => t._id !== tid) });
@@ -303,62 +329,31 @@ export default function PCNDetailPage() {
   const OverviewPanel = () => {
     const [editing, setEditing] = useState(false);
     const [saving,  setSaving]  = useState(false);
-    const [form, setForm] = useState({
-      contractType: pcn.contractType || "", annualSpend: pcn.annualSpend || "",
-      xeroCode: pcn.xeroCode || "", xeroCategory: pcn.xeroCategory || "",
+    const buildForm = () => ({
+      contractType:        pcn.contractType       || "",
+      annualSpend:         pcn.annualSpend        || "",
+      xeroCode:            pcn.xeroCode           || "",
+      xeroCategory:        pcn.xeroCategory       || "",
       contractRenewalDate: pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
       contractExpiryDate:  pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
       complianceGroups: (pcn.complianceGroups?.length
-        ? pcn.complianceGroups.map((group) => group?._id || group).filter(Boolean)
+        ? pcn.complianceGroups.map((g) => g?._id || g).filter(Boolean)
         : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
       notes: pcn.notes || "",
     });
-    useEffect(() => {
-      setForm({
-        contractType: pcn.contractType || "",
-        annualSpend: pcn.annualSpend || "",
-        xeroCode: pcn.xeroCode || "",
-        xeroCategory: pcn.xeroCategory || "",
-        contractRenewalDate: pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
-        contractExpiryDate:  pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
-        complianceGroups: (pcn.complianceGroups?.length
-          ? pcn.complianceGroups.map((group) => group?._id || group).filter(Boolean)
-          : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
-        notes: pcn.notes || "",
-      });
-    }, [pcn]);
+    const [form, setForm] = useState(buildForm);
+    useEffect(() => { setForm(buildForm()); }, [pcn._id]); // eslint-disable-line
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
-    const toggleGroup = (groupId) => setForm((current) => {
-      const selected = current.complianceGroups || [];
-      return {
-        ...current,
-        complianceGroups: selected.includes(groupId)
-          ? selected.filter((id) => id !== groupId)
-          : [...selected, groupId],
-      };
+    const toggleGroup = (groupId) => setForm((cur) => {
+      const sel = cur.complianceGroups || [];
+      return { ...cur, complianceGroups: sel.includes(groupId) ? sel.filter(id => id !== groupId) : [...sel, groupId] };
     });
-    const handleSave = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
-    const handleCancel = () => {
-      setForm({
-        contractType: pcn.contractType || "",
-        annualSpend: pcn.annualSpend || "",
-        xeroCode: pcn.xeroCode || "",
-        xeroCategory: pcn.xeroCategory || "",
-        contractRenewalDate: pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
-        contractExpiryDate:  pcn.contractExpiryDate ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0] : "",
-        complianceGroups: (pcn.complianceGroups?.length
-          ? pcn.complianceGroups.map((group) => group?._id || group).filter(Boolean)
-          : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
-        notes: pcn.notes || "",
-      });
-      setEditing(false);
-    };
-    const SYSTEMS = ["emis","systmOne","ice","accurx","docman","softphone","vpn"];
-    const SYS_LABEL = { systmOne:"SystmOne", emis:"EMIS", ice:"ICE", accurx:"AccuRx", docman:"Docman", softphone:"Softphone", vpn:"VPN" };
+    const handleSave   = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
+    const handleCancel = () => { setForm(buildForm()); setEditing(false); };
+    const SYSTEMS    = ["emis","systmOne","ice","accurx","docman","softphone","vpn"];
+    const SYS_LABEL  = { systmOne:"SystmOne", emis:"EMIS", ice:"ICE", accurx:"AccuRx", docman:"Docman", softphone:"Softphone", vpn:"VPN" };
     const selectedGroupNames = (pcn.complianceGroups?.length ? pcn.complianceGroups : (pcn.complianceGroup ? [pcn.complianceGroup] : []))
-      .map((group) => group?.name || "")
-      .filter(Boolean)
-      .join(", ") || "No compliance groups assigned";
+      .map(g => g?.name || "").filter(Boolean).join(", ") || "No compliance groups assigned";
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -389,38 +384,40 @@ export default function PCNDetailPage() {
               <div className="pt-3">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Compliance Groups</span>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-                  {groups.length === 0 ? (
-                    <p className="text-xs text-slate-400">No groups available</p>
-                  ) : (
-                    groups.map((group) => (
+                  {groups.length === 0
+                    ? <p className="text-xs text-slate-400">No groups available</p>
+                    : groups.map(group => (
                       <label key={group._id} className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={(form.complianceGroups || []).includes(group._id)}
-                          onChange={() => toggleGroup(group._id)}
-                          className="w-4 h-4 accent-blue-600"
-                        />
+                        <input type="checkbox" checked={(form.complianceGroups || []).includes(group._id)}
+                          onChange={() => toggleGroup(group._id)} className="w-4 h-4 accent-blue-600" />
                         <span>{group.name}</span>
                       </label>
-                    ))
-                  )}
+                    ))}
                 </div>
               </div>
-              <div className="pt-3"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes</span>
-                <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none transition-all" /></div>
+              <div className="pt-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes</span>
+                <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 resize-none transition-all" />
+              </div>
             </div>
           ) : (
             <div>
-              <DetailRow label="ICB"           value={pcn.icb?.name} />
-              <DetailRow label="Federation"    value={pcn.federation?.name || pcn.federationName} />
+              <DetailRow label="ICB"               value={pcn.icb?.name} />
+              <DetailRow label="Federation"        value={pcn.federation?.name || pcn.federationName} />
               <DetailRow label="Compliance Groups" value={selectedGroupNames} />
-              <DetailRow label="Contract Type" value={pcn.contractType} />
-              <DetailRow label="Annual Spend"  value={pcn.annualSpend ? `£${Number(pcn.annualSpend).toLocaleString()}` : null} />
-              <DetailRow label="Xero Code"     value={pcn.xeroCode} />
-              <DetailRow label="Xero Category" value={pcn.xeroCategory} />
-              <DetailRow label="Renewal Date"  value={pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toLocaleDateString("en-GB") : null} />
-              <DetailRow label="Expiry Date"   value={pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toLocaleDateString("en-GB")  : null} />
-              {pcn.notes && <div className="pt-4 mt-2 border-t border-slate-50"><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p><p className="text-sm text-slate-600 leading-relaxed">{pcn.notes}</p></div>}
+              <DetailRow label="Contract Type"     value={pcn.contractType} />
+              <DetailRow label="Annual Spend"      value={pcn.annualSpend ? `£${Number(pcn.annualSpend).toLocaleString()}` : null} />
+              <DetailRow label="Xero Code"         value={pcn.xeroCode} />
+              <DetailRow label="Xero Category"     value={pcn.xeroCategory} />
+              <DetailRow label="Renewal Date"      value={pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toLocaleDateString("en-GB") : null} />
+              <DetailRow label="Expiry Date"       value={pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toLocaleDateString("en-GB")  : null} />
+              {pcn.notes && (
+                <div className="pt-4 mt-2 border-t border-slate-50">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{pcn.notes}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -434,7 +431,9 @@ export default function PCNDetailPage() {
                 onToggle={() => toggleSystem(sys)} saving={!!fieldSaving[`sys_${sys}`]} />
             ))}
           </div>
-          {pcn.requiredSystems?.other && <p className="text-sm text-slate-500 mt-4 pt-4 border-t border-slate-100">Other: {pcn.requiredSystems.other}</p>}
+          {pcn.requiredSystems?.other && (
+            <p className="text-sm text-slate-500 mt-4 pt-4 border-t border-slate-100">Other: {pcn.requiredSystems.other}</p>
+          )}
         </div>
       </div>
     );
@@ -460,7 +459,10 @@ export default function PCNDetailPage() {
             {contacts.map(c => (
               <div key={c._id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 group hover:border-blue-200 hover:shadow-md transition-all">
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="min-w-0 flex-1"><p className="text-[15px] font-bold text-slate-800 truncate">{c.name}</p><p className="text-xs text-slate-500 mt-0.5">{c.role}</p></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-bold text-slate-800 truncate">{c.name}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{c.role}</p>
+                  </div>
                   {c.type && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border capitalize shrink-0 ${C_TYPE[c.type] || C_TYPE.general}`}>{c.type.replace("_"," ")}</span>}
                 </div>
                 <div className="space-y-1.5 mb-3">
@@ -573,6 +575,7 @@ export default function PCNDetailPage() {
                   {m.notes && <p className="text-sm text-slate-600 mt-2 leading-relaxed">{m.notes}</p>}
                   {m.attendees?.length > 0 && <p className="text-xs text-slate-400 mt-1.5">👥 {m.attendees.join(", ")}</p>}
                 </div>
+                {/* ✅ Edit meeting button — passes full meeting object so _id is available */}
                 <button onClick={() => setMeetingModal(m)} className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0"><Edit2 size={14} /></button>
               </div>
             ))}
@@ -619,39 +622,45 @@ export default function PCNDetailPage() {
 
   const RestrictedPanel = () => {
     const restricted = pcn.restrictedClinicians || [];
-    const [addModal, setAddModal] = useState(false);
-    const [newName,  setNewName]  = useState("");
-    const [newEmail, setNewEmail] = useState("");
-    const [newRole,  setNewRole]  = useState("");
-    const [newReason,setNewReason]= useState("");
-    const [saving,   setSaving]   = useState(false);
+    const [addModal,  setAddModal]  = useState(false);
+    const [newName,   setNewName]   = useState("");
+    const [newEmail,  setNewEmail]  = useState("");
+    const [newRole,   setNewRole]   = useState("");
+    const [newReason, setNewReason] = useState("");
+    const [saving,    setSaving]    = useState(false);
 
+    const resetForm = () => { setNewName(""); setNewEmail(""); setNewRole(""); setNewReason(""); };
+
+    // ✅ FIX: single patch call with full objects (was calling patch twice before)
     const handleAdd = async () => {
       if (!newName.trim()) return;
       setSaving(true);
       try {
-        const current = restricted.map(c => c._id || c);
-        // Add as a plain object — backend stores it in restrictedClinicians array
-        const updated = [...restricted, {
-          _id:    `manual-${Date.now()}`,
-          name:   newName.trim(),
-          email:  newEmail.trim(),
-          role:   newRole.trim() || "clinician",
-          reason: newReason.trim(),
-        }];
-        await patch({ restrictedClinicians: updated.map(c => c._id || c) });
-        // Also save the full objects so they show up without re-fetch needing populate
+        const updated = [
+          ...restricted,
+          {
+            _id:    `manual-${Date.now()}`,
+            name:   newName.trim(),
+            email:  newEmail.trim(),
+            role:   newRole.trim() || "clinician",
+            reason: newReason.trim(),
+          },
+        ];
         await patch({ restrictedClinicians: updated });
         setAddModal(false);
-        setNewName(""); setNewEmail(""); setNewRole(""); setNewReason("");
+        resetForm();
       } catch (e) { alert(e.message); }
       finally { setSaving(false); }
     };
 
+    // ✅ FIX: send full objects after removal, not just IDs
     const handleRemove = async (cid) => {
       if (!confirm("Remove this restriction?")) return;
-      const updated = restricted.filter(c => (c._id || c) !== cid);
-      await patch({ restrictedClinicians: updated.map(c => c._id || c) });
+      const updated = restricted.filter(c => {
+        const id = typeof c === "object" ? (c._id || c.id) : c;
+        return String(id) !== String(cid);
+      });
+      await patch({ restrictedClinicians: updated });
     };
 
     return (
@@ -664,7 +673,7 @@ export default function PCNDetailPage() {
               <p className="text-xs text-red-600 mt-0.5 leading-relaxed">These clinicians are flagged as unsuitable for this Client and will be blocked from bookings.</p>
             </div>
           </div>
-          <Btn variant="danger" size="sm" onClick={() => setAddModal(true)}>
+          <Btn variant="danger" size="sm" onClick={() => { resetForm(); setAddModal(true); }}>
             <Plus size={13} /> Add Restriction
           </Btn>
         </div>
@@ -675,31 +684,35 @@ export default function PCNDetailPage() {
           </div>
         ) : (
           <div className="grid gap-2.5">
-            {restricted.map(c => (
-              <div key={c._id} className="bg-white rounded-2xl border border-red-100 p-4 flex items-center gap-4 group">
-                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0"><UserX size={17} className="text-red-500" /></div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-bold text-slate-800">{c.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {[c.email, c.role && <span className="capitalize">{c.role}</span>].filter(Boolean).join(" · ")}
-                  </p>
-                  {c.reason && <p className="text-xs text-red-500 mt-1">Reason: {c.reason}</p>}
+            {restricted.map(c => {
+              const cId     = typeof c === "object" ? (c._id || c.id) : c;
+              const cName   = typeof c === "object" ? c.name   : "Unknown";
+              const cEmail  = typeof c === "object" ? c.email  : "";
+              const cRole   = typeof c === "object" ? c.role   : "";
+              const cReason = typeof c === "object" ? c.reason : "";
+              return (
+                <div key={String(cId)} className="bg-white rounded-2xl border border-red-100 p-4 flex items-center gap-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0"><UserX size={17} className="text-red-500" /></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-bold text-slate-800">{cName}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{cEmail}{cRole ? ` · ${cRole}` : ""}</p>
+                    {cReason && <p className="text-xs text-red-500 mt-1">Reason: {cReason}</p>}
+                  </div>
+                  <button onClick={() => handleRemove(cId)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-red-200 shrink-0">
+                    <Trash2 size={11} /> Remove
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleRemove(c._id)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-red-200 shrink-0">
-                  <Trash2 size={11} /> Remove
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {addModal && (
-          <ModalShell title="Add Restricted Clinician" onClose={() => setAddModal(false)}
+          <ModalShell title="Add Restricted Clinician" onClose={() => { setAddModal(false); resetForm(); }}
             footer={
               <>
-                <Btn variant="ghost" cls="flex-1" onClick={() => setAddModal(false)}>Cancel</Btn>
+                <Btn variant="ghost" cls="flex-1" onClick={() => { setAddModal(false); resetForm(); }}>Cancel</Btn>
                 <Btn variant="danger" cls="flex-1" onClick={handleAdd} disabled={saving || !newName.trim()}>
                   {saving ? <Spinner /> : <UserX size={14} />} Flag as Restricted
                 </Btn>
@@ -741,7 +754,7 @@ export default function PCNDetailPage() {
     meetings:   <MeetingsPanel />,
     templates:  <TemplatesPanel />,
     history:    <ContactHistoryPanel entityType="PCN" entityId={pcn._id} />,
-    archive:    <ReportingArchivePanel entityType="PCN" entityId={pcn._id} />, // ✅ NEW
+    archive:    <ReportingArchivePanel entityType="PCN" entityId={pcn._id} />,
     restricted: <RestrictedPanel />,
   };
 
@@ -757,7 +770,6 @@ export default function PCNDetailPage() {
         <span className="text-slate-700 font-bold truncate">{pcn.name}</span>
       </nav>
 
-      {/* ✅ Header with priority badge + tags */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
         <div className="flex flex-wrap items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shrink-0"><Network size={22} className="text-white" /></div>
@@ -768,14 +780,11 @@ export default function PCNDetailPage() {
               {(pcn.federation?.name || pcn.federationName) && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {pcn.federation?.name || pcn.federationName}</span>}
               {pcn.contractType && <span className="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-md border border-purple-200">{pcn.contractType}</span>}
               {pcn.annualSpend > 0 && <span className="text-sm text-green-600 font-bold flex items-center gap-1"><DollarSign size={12} />£{Number(pcn.annualSpend).toLocaleString()}</span>}
-              {/* ✅ Priority badge */}
               {pcn.priority && pcn.priority !== "normal" && (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border
-                  ${pcn.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${pcn.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
                   {pcn.priority.toUpperCase()}
                 </span>
               )}
-              {/* ✅ Tags */}
               {(pcn.tags || []).map(tag => (
                 <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{tag}</span>
               ))}

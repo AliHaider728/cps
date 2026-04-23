@@ -93,8 +93,6 @@ const CONTACT_TYPE_STYLE = {
 /* ══════════════════════════════════════════════════════════
    MODALS
 ══════════════════════════════════════════════════════════ */
-
-// FIX: ContactModal — properly pre-populates existing contact data
 const ContactModal = ({ existing, onClose, onSave }) => {
   const isEdit = !!(existing?._id);
   const [form, setForm] = useState({
@@ -112,14 +110,10 @@ const ContactModal = ({ existing, onClose, onSave }) => {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
-      // Carry _id forward when editing
       await onSave(isEdit ? { ...form, _id: existing._id } : form);
       onClose();
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { alert(e.message); }
+    finally { setSaving(false); }
   };
 
   const Field = ({ label, k, type = "text", opts }) => (
@@ -161,7 +155,7 @@ const ContactModal = ({ existing, onClose, onSave }) => {
         ["decision_maker","Decision Maker"],
         ["finance","Finance"],
         ["gp_lead","GP Lead"],
-        ["practice_manager","Practice Manager"]
+        ["practice_manager","Practice Manager"],
       ]} />
       <label className="flex items-center gap-2.5 cursor-pointer">
         <input type="checkbox" checked={!!form.isDecisionMaker}
@@ -178,16 +172,20 @@ const AccessModal = ({ existing, onClose, onSave }) => {
     system: existing?.system || "EMIS",
     code:   existing?.code   || "",
     status: existing?.status || "not_requested",
-    notes:  existing?.notes  || ""
+    notes:  existing?.notes  || "",
   });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
+
   const handle = async () => {
     setSaving(true);
-    try { await onSave({ ...form, _id: existing?._id }); onClose(); }
-    catch (e) { alert(e.message); }
+    try {
+      await onSave({ ...(existing?._id ? { _id: existing._id } : {}), ...form });
+      onClose();
+    } catch (e) { alert(e.message); }
     finally { setSaving(false); }
   };
+
   const Sel = ({ label, k, opts }) => (
     <div>
       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{label}</label>
@@ -197,17 +195,22 @@ const AccessModal = ({ existing, onClose, onSave }) => {
       </select>
     </div>
   );
+
   return (
     <ModalShell title={existing?._id ? "Edit System Access" : "Add System Access"} onClose={onClose}
       footer={<><Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn><Btn cls="flex-1" onClick={handle} disabled={saving}>{saving ? <Spinner /> : <Check size={14} />} Save</Btn></>}>
       <Sel label="System" k="system" opts={["EMIS","SystmOne","ICE","AccuRx","Docman","Softphone","VPN","Other"].map(s => [s,s])} />
       <Sel label="Status" k="status" opts={[["not_requested","Not Requested"],["requested","Requested"],["pending","Pending"],["granted","Granted"],["view_only","View Only"]]} />
-      <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Code / Reference</label>
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Code / Reference</label>
         <input value={form.code} onChange={e => set("code")(e.target.value)} placeholder="EMIS/1485566"
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 transition-all" /></div>
-      <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 transition-all" />
+      </div>
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
         <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 resize-none" /></div>
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 resize-none" />
+      </div>
     </ModalShell>
   );
 };
@@ -241,9 +244,7 @@ export default function PracticeDetailPage() {
 
   const [tab,          setTab]          = useState("overview");
   const [massEmail,    setMassEmail]    = useState(false);
-
-  // FIX: contactModal — null = closed, {} = add new, {contact object} = edit existing
-  const [contactModal, setContactModal] = useState(null);
+  const [contactModal, setContactModal] = useState(null); // null=closed, {}=add, {contact}=edit
   const [accessModal,  setAccessModal]  = useState(null);
 
   const patch = useCallback(async (body) => {
@@ -251,13 +252,12 @@ export default function PracticeDetailPage() {
     catch (e) { alert(e.message); }
   }, [id, updatePracticeMutation]);
 
-  // FIX: saveContact — correctly handles both add and edit
   const saveContact = async (form) => {
     const contacts = [...(practice?.contacts || [])];
     if (form._id) {
       const i = contacts.findIndex(c => c._id === form._id);
       if (i > -1) contacts[i] = { ...contacts[i], ...form };
-      else contacts.push(form); // fallback: shouldn't happen
+      else contacts.push(form);
     } else {
       contacts.push(form);
     }
@@ -300,7 +300,6 @@ export default function PracticeDetailPage() {
     </div>
   );
 
-  // practice.client is the linked PCN/Client object
   const linkedClient = practice.client || {};
 
   /* ════════════ PANELS ════════════════════════════════════ */
@@ -325,19 +324,10 @@ export default function PracticeDetailPage() {
     });
 
     const [form, setForm] = useState(buildForm);
-
-    useEffect(() => {
-      setForm(buildForm());
-    }, [practice.odsCode, practice.address, practice.notes]); // eslint-disable-line
-
+    useEffect(() => { setForm(buildForm()); }, [practice._id]); // eslint-disable-line
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
-    const handleSave = async () => {
-      setSaving(true);
-      try { await patch(form); setEditing(false); }
-      finally { setSaving(false); }
-    };
-
+    const handleSave   = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
     const handleCancel = () => { setForm(buildForm()); setEditing(false); };
 
     return (
@@ -372,7 +362,7 @@ export default function PracticeDetailPage() {
                 <select value={form.complianceGroup || ""} onChange={e => set("complianceGroup")(e.target.value)}
                   className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer">
                   <option value="">None</option>
-                  {groups.map((group) => <option key={group._id} value={group._id}>{group.name}</option>)}
+                  {groups.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
                 </select>
               </div>
               <EditRow label="Address"  value={form.address}  onChange={set("address")} />
@@ -395,7 +385,7 @@ export default function PracticeDetailPage() {
               <DetailRow label="FTE"              value={practice.fte} />
               <DetailRow label="Xero Code"        value={practice.xeroCode} />
               <DetailRow label="Xero Category"    value={practice.xeroCategory} />
-              <DetailRow label="Patient List"     value={practice.patientListSize ? practice.patientListSize.toLocaleString() : null} />
+              <DetailRow label="Patient List"     value={practice.patientListSize ? Number(practice.patientListSize).toLocaleString() : null} />
               {practice.notes && (
                 <div className="pt-4 mt-2 border-t border-slate-50">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p>
@@ -432,7 +422,6 @@ export default function PracticeDetailPage() {
     );
   };
 
-  /* ─── FIX: ContactsPanel — edit button opens modal with existing data ─── */
   const ContactsPanel = () => {
     const contacts = practice.contacts || [];
     return (
@@ -445,7 +434,6 @@ export default function PracticeDetailPage() {
             <Btn variant="outline" size="sm" onClick={() => setMassEmail(true)}>
               <Mail size={13} /> Mass Email
             </Btn>
-            {/* FIX: Add button passes empty object (no _id) → triggers "Add Contact" mode */}
             <Btn size="sm" onClick={() => setContactModal({})}>
               <Plus size={13} /> Add Contact
             </Btn>
@@ -479,14 +467,11 @@ export default function PracticeDetailPage() {
                 <div className="flex items-center pt-2.5 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity">
                   {c.isDecisionMaker && <span className="text-[10px] bg-red-50 text-red-600 font-bold px-2 py-0.5 rounded-md border border-red-200 mr-2">Decision Maker</span>}
                   <div className="ml-auto flex gap-1">
-                    {/* FIX: Edit button passes full contact object (has _id) → triggers "Edit Contact" mode */}
-                    <button
-                      onClick={() => setContactModal(c)}
+                    <button onClick={() => setContactModal(c)}
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50">
                       <Edit2 size={11} /> Edit
                     </button>
-                    <button
-                      onClick={() => deleteContact(c._id)}
+                    <button onClick={() => deleteContact(c._id)}
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50">
                       <Trash2 size={11} /> Del
                     </button>
@@ -551,15 +536,14 @@ export default function PracticeDetailPage() {
     );
   };
 
-  /* ─── FIX: RestrictedPanel — reliable save/remove + proper modal state ─── */
   const RestrictedPanel = () => {
     const restricted = practice.restrictedClinicians || [];
-    const [addModal, setAddModal] = useState(false);
-    const [newName,  setNewName]  = useState("");
-    const [newEmail, setNewEmail] = useState("");
-    const [newRole,  setNewRole]  = useState("");
-    const [newReason,setNewReason]= useState("");
-    const [saving,   setSaving]   = useState(false);
+    const [addModal,  setAddModal]  = useState(false);
+    const [newName,   setNewName]   = useState("");
+    const [newEmail,  setNewEmail]  = useState("");
+    const [newRole,   setNewRole]   = useState("");
+    const [newReason, setNewReason] = useState("");
+    const [saving,    setSaving]    = useState(false);
 
     const resetForm = () => { setNewName(""); setNewEmail(""); setNewRole(""); setNewReason(""); };
 
@@ -575,21 +559,17 @@ export default function PracticeDetailPage() {
             email:  newEmail.trim(),
             role:   newRole.trim() || "clinician",
             reason: newReason.trim(),
-          }
+          },
         ];
         await patch({ restrictedClinicians: updated });
         setAddModal(false);
         resetForm();
-      } catch (e) {
-        alert(e.message);
-      } finally {
-        setSaving(false);
-      }
+      } catch (e) { alert(e.message); }
+      finally { setSaving(false); }
     };
 
     const handleRemove = async (cid) => {
       if (!confirm("Remove this restriction?")) return;
-      // FIX: handle both {_id} objects and plain id strings
       const updated = restricted.filter(c => {
         const id = typeof c === "object" ? (c._id || c.id) : c;
         return String(id) !== String(cid);
@@ -619,11 +599,10 @@ export default function PracticeDetailPage() {
         ) : (
           <div className="grid gap-2.5">
             {restricted.map(c => {
-              // FIX: handle both populated objects and raw ids
-              const cId   = typeof c === "object" ? (c._id || c.id) : c;
-              const cName = typeof c === "object" ? c.name  : "Unknown";
-              const cEmail= typeof c === "object" ? c.email : "";
-              const cRole = typeof c === "object" ? c.role  : "";
+              const cId     = typeof c === "object" ? (c._id || c.id) : c;
+              const cName   = typeof c === "object" ? c.name   : "Unknown";
+              const cEmail  = typeof c === "object" ? c.email  : "";
+              const cRole   = typeof c === "object" ? c.role   : "";
               const cReason = typeof c === "object" ? c.reason : "";
               return (
                 <div key={String(cId)} className="bg-white rounded-2xl border border-red-100 p-5 flex items-center gap-4 group">
@@ -635,8 +614,7 @@ export default function PracticeDetailPage() {
                     <p className="text-xs text-slate-400 mt-0.5">{cEmail}{cRole ? ` · ${cRole}` : ""}</p>
                     {cReason && <p className="text-xs text-red-500 mt-1">Reason: {cReason}</p>}
                   </div>
-                  <button
-                    onClick={() => handleRemove(cId)}
+                  <button onClick={() => handleRemove(cId)}
                     className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-red-200 shrink-0">
                     <Trash2 size={11} /> Remove
                   </button>
@@ -688,25 +666,17 @@ export default function PracticeDetailPage() {
     );
   };
 
-  /* ─── FIX: History panel — pass correct lowercase entityType ─── */
-  // ContactHistoryPanel internally does: apiEntityType = entityType?.toLowerCase() === "practice" ? "Practice" : entityType
-  // But the backend normalizeEntityType expects capitalised form. Pass "Practice" directly.
-  const HistoryPanel = () => (
-    <ContactHistoryPanel entityType="Practice" entityId={practice._id} />
-  );
-
   const PANELS = {
     overview:   <OverviewPanel />,
     contacts:   <ContactsPanel />,
     documents:  <DocumentsPanel />,
     access:     <AccessPanel />,
-    history:    <HistoryPanel />,
+    history:    <ContactHistoryPanel entityType="Practice" entityId={practice._id} />,
     archive:    <ReportingArchivePanel entityType="Practice" entityId={practice._id} />,
     restricted: <RestrictedPanel />,
   };
 
   return (
-    // FIX: min-w-0 on root prevents horizontal overflow on mobile
     <div className="space-y-4 pb-8 min-w-0 overflow-x-hidden">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm flex-wrap">
@@ -717,8 +687,7 @@ export default function PracticeDetailPage() {
         <ChevronRight size={13} className="text-slate-300 shrink-0" />
         {linkedClient.icb?._id && (
           <>
-            <button
-              onClick={() => navigate(`/dashboard/super-admin/clients/icb/${linkedClient.icb._id}`)}
+            <button onClick={() => navigate(`/dashboard/super-admin/clients/icb/${linkedClient.icb._id}`)}
               className="text-slate-400 hover:text-blue-600 font-medium transition-colors truncate max-w-[120px]">
               {linkedClient.icb.name}
             </button>
@@ -727,8 +696,7 @@ export default function PracticeDetailPage() {
         )}
         {linkedClient._id && (
           <>
-            <button
-              onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${linkedClient._id}`)}
+            <button onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${linkedClient._id}`)}
               className="text-slate-400 hover:text-blue-600 font-medium transition-colors truncate max-w-[120px]">
               {linkedClient.name}
             </button>
@@ -747,12 +715,12 @@ export default function PracticeDetailPage() {
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight break-words">{practice.name}</h1>
             <div className="flex flex-wrap items-center gap-2.5 mt-2">
-              {practice.odsCode           && <span className="text-sm text-slate-400 flex items-center gap-1 shrink-0"><Hash size={12} /> {practice.odsCode}</span>}
-              {linkedClient.icb?.name     && <span className="text-sm text-slate-400 flex items-center gap-1 min-w-0 truncate"><Building2 size={12} className="shrink-0" /> {linkedClient.icb.name}</span>}
+              {practice.odsCode              && <span className="text-sm text-slate-400 flex items-center gap-1 shrink-0"><Hash size={12} /> {practice.odsCode}</span>}
+              {linkedClient.icb?.name        && <span className="text-sm text-slate-400 flex items-center gap-1 min-w-0 truncate"><Building2 size={12} className="shrink-0" /> {linkedClient.icb.name}</span>}
               {linkedClient.federation?.name && <span className="text-sm text-slate-400 flex items-center gap-1 min-w-0 truncate"><Layers size={12} className="shrink-0" /> {linkedClient.federation.name}</span>}
-              {linkedClient.name          && <span className="text-sm text-slate-400 flex items-center gap-1 min-w-0 truncate"><Network size={12} className="shrink-0" /> {linkedClient.name}</span>}
-              {practice.contractType      && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200 shrink-0">{practice.contractType}</span>}
-              {practice.fte               && <span className="text-sm text-slate-400 shrink-0">{practice.fte}</span>}
+              {linkedClient.name             && <span className="text-sm text-slate-400 flex items-center gap-1 min-w-0 truncate"><Network size={12} className="shrink-0" /> {linkedClient.name}</span>}
+              {practice.contractType         && <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200 shrink-0">{practice.contractType}</span>}
+              {practice.fte                  && <span className="text-sm text-slate-400 shrink-0">{practice.fte}</span>}
               {practice.priority && practice.priority !== "normal" && (
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-md border shrink-0 ${practice.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
                   {practice.priority.toUpperCase()}
@@ -773,10 +741,9 @@ export default function PracticeDetailPage() {
         </div>
       </div>
 
-      {/* FIX: Tabs — no scrollbar visible on mobile, proper overflow handling */}
+      {/* Tabs */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex gap-1 p-2 overflow-x-auto"
-          style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+        <div className="flex gap-1 p-2 overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
           {TABS.map(t => {
             const Icon = t.icon;
             return (
@@ -789,20 +756,17 @@ export default function PracticeDetailPage() {
         </div>
       </div>
 
-      {/* Panel content */}
+      {/* Panel */}
       <div className="min-w-0">{PANELS[tab]}</div>
 
-      {/* FIX: Contact modal — only render when contactModal is not null */}
+      {/* Modals */}
       {contactModal !== null && (
         <ContactModal
-          // FIX: pass existing only when there's an _id (edit mode)
-          // when contactModal = {} (add mode), existing = null
           existing={contactModal?._id ? contactModal : null}
           onClose={() => setContactModal(null)}
           onSave={saveContact}
         />
       )}
-
       {accessModal !== null && (
         <AccessModal
           existing={accessModal?._id ? accessModal : null}
@@ -810,7 +774,6 @@ export default function PracticeDetailPage() {
           onSave={saveAccess}
         />
       )}
-
       {massEmail && (
         <MassEmailModal
           entityType="Practice"
