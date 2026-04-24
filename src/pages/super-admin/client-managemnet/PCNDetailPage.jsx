@@ -104,70 +104,162 @@ const M_STATUS = {
 };
 
 /* ══════════════════════════════════════════════════════════
-   MODALS
+   CONTACT MODAL
 ══════════════════════════════════════════════════════════ */
-const ContactModal = ({ existing, onClose, onSave }) => {
+const ContactModal = ({ mode, existing, onClose, onSave }) => {
+  const isEdit = mode === "edit";
+
   const [form, setForm] = useState({
-    name: "", role: "", email: "", phone: "", type: "general", isPrimary: false,
-    ...(existing || {}),
+    name:      "",
+    role:      "",
+    email:     "",
+    phone:     "",
+    type:      "general",
+    isPrimary: false,
+    ...(isEdit && existing ? existing : {}),
   });
   const [saving, setSaving] = useState(false);
+
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
+
   const handle = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    try { await onSave(form); onClose(); } catch (e) { alert(e.message); } finally { setSaving(false); }
+    try {
+      await onSave(form);
+      onClose();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
+
   const Field = ({ label, k, type = "text", opts }) => (
     <div>
       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{label}</label>
       {opts
-        ? <select value={form[k] || ""} onChange={e => set(k)(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
+        ? (
+          <select
+            value={form[k] || ""}
+            onChange={e => set(k)(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer"
+          >
             {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-        : <input type={type} value={form[k] || ""} onChange={e => set(k)(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />}
+        )
+        : (
+          <input
+            type={type}
+            value={form[k] || ""}
+            onChange={e => set(k)(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
+          />
+        )
+      }
     </div>
   );
+
   return (
-    <ModalShell title={existing?._id ? "Edit Contact" : "Add Contact"} onClose={onClose}
-      footer={<><Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn><Btn cls="flex-1" onClick={handle} disabled={saving || !form.name.trim()}>{saving ? <Spinner /> : <Check size={14} />} {existing?._id ? "Save Changes" : "Add Contact"}</Btn></>}>
+    <ModalShell
+      title={isEdit ? "Edit Contact" : "Add Contact"}
+      onClose={onClose}
+      footer={
+        <>
+          <Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn>
+          <Btn
+            cls="flex-1"
+            onClick={handle}
+            disabled={saving || !form.name.trim()}
+          >
+            {saving ? <Spinner /> : <Check size={14} />}
+            {isEdit ? "Save Changes" : "Add Contact"}
+          </Btn>
+        </>
+      }
+    >
       <Field label="Name *" k="name" />
       <Field label="Role" k="role" />
-      <div className="grid grid-cols-2 gap-3"><Field label="Email" k="email" type="email" /><Field label="Phone" k="phone" /></div>
-      <Field label="Type" k="type" opts={[["general","General"],["decision_maker","Decision Maker"],["finance","Finance"],["clinical_lead","Clinical Lead"],["operations","Operations"]]} />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Email" k="email" type="email" />
+        <Field label="Phone" k="phone" />
+      </div>
+      <Field
+        label="Type"
+        k="type"
+        opts={[
+          ["general",        "General"],
+          ["decision_maker", "Decision Maker"],
+          ["finance",        "Finance"],
+          ["clinical_lead",  "Clinical Lead"],
+          ["operations",     "Operations"],
+        ]}
+      />
       <label className="flex items-center gap-2.5 cursor-pointer">
-        <input type="checkbox" checked={!!form.isPrimary} onChange={e => set("isPrimary")(e.target.checked)} className="accent-blue-600 w-4 h-4" />
+        <input
+          type="checkbox"
+          checked={!!form.isPrimary}
+          onChange={e => set("isPrimary")(e.target.checked)}
+          className="accent-blue-600 w-4 h-4"
+        />
         <span className="text-sm text-slate-700 font-medium">Primary Contact</span>
       </label>
     </ModalShell>
   );
 };
 
-/* ✅ FIX: MeetingModal — _id now included in onSave payload so edit works correctly */
+/* ══════════════════════════════════════════════════════════
+   MEETING MODAL  ✅ FIX #2: useEffect to sync form when existing changes
+══════════════════════════════════════════════════════════ */
 const MeetingModal = ({ existing, onClose, onSave }) => {
   const [form, setForm] = useState({
-    month:     existing?.month  || "",
-    date:      existing?.date   ? new Date(existing.date).toISOString().split("T")[0] : "",
-    type:      existing?.type   || "monthly_review",
-    status:    existing?.status || "scheduled",
-    notes:     existing?.notes  || "",
-    attendees: existing?.attendees?.join(", ") || "",
+    month:     "",
+    date:      "",
+    type:      "monthly_review",
+    status:    "scheduled",
+    notes:     "",
+    attendees: "",
   });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
+  // ✅ FIX #2: useEffect so form stays in sync if existing prop changes
+  useEffect(() => {
+    if (existing) {
+      setForm({
+        month:     existing.month || "",
+        date:      existing.date ? new Date(existing.date).toISOString().split("T")[0] : "",
+        type:      existing.type || "monthly_review",
+        status:    existing.status || "scheduled",
+        notes:     existing.notes || "",
+        attendees: existing.attendees?.join(", ") || "",
+      });
+    } else {
+      setForm({
+        month:     "",
+        date:      "",
+        type:      "monthly_review",
+        status:    "scheduled",
+        notes:     "",
+        attendees: "",
+      });
+    }
+  }, [existing]);
+
   const handle = async () => {
     setSaving(true);
     try {
-      // ✅ FIX: pass _id so the backend knows this is an update, not a new insert
       await onSave({
         ...(existing?._id ? { _id: existing._id } : {}),
         ...form,
         attendees: form.attendees.split(",").map(a => a.trim()).filter(Boolean),
       });
       onClose();
-    } catch (e) { alert(e.message); }
-    finally { setSaving(false); }
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const Sel = ({ label, k, opts }) => (
@@ -178,25 +270,66 @@ const MeetingModal = ({ existing, onClose, onSave }) => {
       </select>
     </div>
   );
+
   return (
-    <ModalShell title={existing?._id ? "Edit Meeting" : "Add Meeting"} onClose={onClose}
-      footer={<><Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn><Btn cls="flex-1" onClick={handle} disabled={saving}>{saving ? <Spinner /> : <Check size={14} />} Save</Btn></>}>
+    <ModalShell
+      title={existing?._id ? "Edit Meeting" : "Add Meeting"}
+      onClose={onClose}
+      footer={
+        <>
+          <Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn>
+          <Btn cls="flex-1" onClick={handle} disabled={saving}>
+            {saving ? <Spinner /> : <Check size={14} />} Save
+          </Btn>
+        </>
+      }
+    >
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Month</label><input value={form.month} onChange={e => set("month")(e.target.value)} placeholder="Apr-2026" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" /></div>
-        <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Date</label><input type="date" value={form.date} onChange={e => set("date")(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" /></div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Month</label>
+          <input value={form.month} onChange={e => set("month")(e.target.value)} placeholder="Apr-2026" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Date</label>
+          <input type="date" value={form.date} onChange={e => set("date")(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+        </div>
       </div>
       <Sel label="Meeting Type" k="type" opts={[["monthly_review","Monthly Review"],["clinician_meeting","Clinician Meeting"],["governance","Governance"],["other","Other"]]} />
       <Sel label="Status" k="status" opts={[["scheduled","Scheduled"],["completed","Completed"],["cancelled","Cancelled"],["not_booked","Not Booked"]]} />
-      <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Attendees (comma separated)</label><input value={form.attendees} onChange={e => set("attendees")(e.target.value)} placeholder="Dr. Smith, Jane Doe" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" /></div>
-      <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label><textarea rows={4} value={form.notes} onChange={e => set("notes")(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 resize-none" /></div>
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Attendees (comma separated)</label>
+        <input value={form.attendees} onChange={e => set("attendees")(e.target.value)} placeholder="Dr. Smith, Jane Doe" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+      </div>
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
+        <textarea rows={4} value={form.notes} onChange={e => set("notes")(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 resize-none" />
+      </div>
     </ModalShell>
   );
 };
 
+/* ══════════════════════════════════════════════════════════
+   TEMPLATE MODAL  ✅ FIX #3: useEffect to sync form when existing changes
+══════════════════════════════════════════════════════════ */
 const TemplateModal = ({ existing, onClose, onSave }) => {
-  const [form, setForm] = useState({ name: "", subject: "", body: "", ...(existing || {}) });
+  const [form, setForm] = useState({ name: "", subject: "", body: "" });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
+
+  // ✅ FIX #3: useEffect so form stays in sync if existing prop changes
+  useEffect(() => {
+    if (existing) {
+      setForm({
+        name:    existing.name    || "",
+        subject: existing.subject || "",
+        body:    existing.body    || "",
+        _id:     existing._id,
+      });
+    } else {
+      setForm({ name: "", subject: "", body: "" });
+    }
+  }, [existing]);
+
   const handle = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
@@ -250,9 +383,17 @@ export default function PCNDetailPage() {
   const tab = useAppSelector((state) => state.pcn.activeDetailTab);
   const [fieldSaving,   setFieldSaving]   = useState({});
   const [massEmail,     setMassEmail]     = useState(false);
-  const [contactModal,  setContactModal]  = useState(null);
   const [meetingModal,  setMeetingModal]  = useState(null);
   const [templateModal, setTemplateModal] = useState(null);
+
+  // null           → modal closed
+  // { mode:"add" } → Add Contact modal open
+  // { mode:"edit", contact: {...} } → Edit Contact modal open
+  const [contactModal, setContactModal] = useState(null);
+
+  const openAddContact  = () => setContactModal({ mode: "add" });
+  const openEditContact = (c) => setContactModal({ mode: "edit", contact: c });
+  const closeContact    = () => setContactModal(null);
 
   useEffect(() => {
     if (!TABS.some((item) => item.id === tab)) {
@@ -272,14 +413,21 @@ export default function PCNDetailPage() {
     await patch({ requiredSystems: rs }, `sys_${sys}`);
   }, [pcn, patch]);
 
+  // ✅ FIX #4: new contacts get a generated _id
   const saveContact = async (form) => {
     const contacts = [...(pcn?.contacts || [])];
     if (form._id) {
       const i = contacts.findIndex(c => c._id === form._id);
-      if (i > -1) contacts[i] = { ...contacts[i], ...form };
-      else contacts.push(form);
+      if (i > -1) {
+        contacts[i] = { ...contacts[i], ...form };
+      } else {
+        contacts.push(form);
+      }
     } else {
-      contacts.push(form);
+      contacts.push({
+        ...form,
+        _id: crypto?.randomUUID?.() || `c_${Date.now()}`,
+      });
     }
     await patch({ contacts });
   };
@@ -342,7 +490,10 @@ export default function PCNDetailPage() {
       notes: pcn.notes || "",
     });
     const [form, setForm] = useState(buildForm);
-    useEffect(() => { setForm(buildForm()); }, [pcn._id]); // eslint-disable-line
+
+    // ✅ FIX #5: depend on full pcn object, not just pcn._id
+    useEffect(() => { setForm(buildForm()); }, [pcn]); // eslint-disable-line
+
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
     const toggleGroup = (groupId) => setForm((cur) => {
       const sel = cur.complianceGroups || [];
@@ -444,15 +595,23 @@ export default function PCNDetailPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{contacts.length} Contact{contacts.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+            {contacts.length} Contact{contacts.length !== 1 ? "s" : ""}
+          </p>
           <div className="flex gap-2">
-            <Btn variant="outline" size="sm" onClick={() => setMassEmail(true)}><Mail size={13} /> Mass Email</Btn>
-            <Btn size="sm" onClick={() => setContactModal({})}><Plus size={13} /> Add Contact</Btn>
+            <Btn variant="outline" size="sm" onClick={() => setMassEmail(true)}>
+              <Mail size={13} /> Mass Email
+            </Btn>
+            <Btn size="sm" onClick={openAddContact}>
+              <Plus size={13} /> Add Contact
+            </Btn>
           </div>
         </div>
+
         {contacts.length === 0 ? (
           <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
-            <Users size={32} className="opacity-40" /><p className="font-semibold">No contacts yet</p>
+            <Users size={32} className="opacity-40" />
+            <p className="font-semibold">No contacts yet</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -463,17 +622,43 @@ export default function PCNDetailPage() {
                     <p className="text-[15px] font-bold text-slate-800 truncate">{c.name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{c.role}</p>
                   </div>
-                  {c.type && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border capitalize shrink-0 ${C_TYPE[c.type] || C_TYPE.general}`}>{c.type.replace("_"," ")}</span>}
+                  {c.type && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border capitalize shrink-0 ${C_TYPE[c.type] || C_TYPE.general}`}>
+                      {c.type.replace("_"," ")}
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-1.5 mb-3">
-                  {c.email && <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 truncate"><Mail size={12} className="shrink-0" /> {c.email}</a>}
-                  {c.phone && <p className="flex items-center gap-2 text-sm text-slate-500"><Phone size={12} className="shrink-0" /> {c.phone}</p>}
+                  {c.email && (
+                    <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 truncate">
+                      <Mail size={12} className="shrink-0" /> {c.email}
+                    </a>
+                  )}
+                  {c.phone && (
+                    <p className="flex items-center gap-2 text-sm text-slate-500">
+                      <Phone size={12} className="shrink-0" /> {c.phone}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center pt-2.5 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {c.isPrimary && <span className="text-[10px] bg-amber-50 text-amber-600 font-bold px-2 py-0.5 rounded-md border border-amber-200 mr-2">Primary</span>}
+                  {c.isPrimary && (
+                    <span className="text-[10px] bg-amber-50 text-amber-600 font-bold px-2 py-0.5 rounded-md border border-amber-200 mr-2">
+                      Primary
+                    </span>
+                  )}
                   <div className="ml-auto flex gap-1">
-                    <button onClick={() => setContactModal(c)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50"><Edit2 size={11} /> Edit</button>
-                    <button onClick={() => deleteContact(c._id)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50"><Trash2 size={11} /> Del</button>
+                    <button
+                      onClick={() => openEditContact(c)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit2 size={11} /> Edit
+                    </button>
+                    <button
+                      onClick={() => deleteContact(c._id)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50"
+                    >
+                      <Trash2 size={11} /> Del
+                    </button>
                   </div>
                 </div>
               </div>
@@ -575,7 +760,6 @@ export default function PCNDetailPage() {
                   {m.notes && <p className="text-sm text-slate-600 mt-2 leading-relaxed">{m.notes}</p>}
                   {m.attendees?.length > 0 && <p className="text-xs text-slate-400 mt-1.5">👥 {m.attendees.join(", ")}</p>}
                 </div>
-                {/* ✅ Edit meeting button — passes full meeting object so _id is available */}
                 <button onClick={() => setMeetingModal(m)} className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0"><Edit2 size={14} /></button>
               </div>
             ))}
@@ -631,20 +815,13 @@ export default function PCNDetailPage() {
 
     const resetForm = () => { setNewName(""); setNewEmail(""); setNewRole(""); setNewReason(""); };
 
-    // ✅ FIX: single patch call with full objects (was calling patch twice before)
     const handleAdd = async () => {
       if (!newName.trim()) return;
       setSaving(true);
       try {
         const updated = [
           ...restricted,
-          {
-            _id:    `manual-${Date.now()}`,
-            name:   newName.trim(),
-            email:  newEmail.trim(),
-            role:   newRole.trim() || "clinician",
-            reason: newReason.trim(),
-          },
+          { _id: `manual-${Date.now()}`, name: newName.trim(), email: newEmail.trim(), role: newRole.trim() || "clinician", reason: newReason.trim() },
         ];
         await patch({ restrictedClinicians: updated });
         setAddModal(false);
@@ -653,7 +830,6 @@ export default function PCNDetailPage() {
       finally { setSaving(false); }
     };
 
-    // ✅ FIX: send full objects after removal, not just IDs
     const handleRemove = async (cid) => {
       if (!confirm("Remove this restriction?")) return;
       const updated = restricted.filter(c => {
@@ -673,9 +849,7 @@ export default function PCNDetailPage() {
               <p className="text-xs text-red-600 mt-0.5 leading-relaxed">These clinicians are flagged as unsuitable for this Client and will be blocked from bookings.</p>
             </div>
           </div>
-          <Btn variant="danger" size="sm" onClick={() => { resetForm(); setAddModal(true); }}>
-            <Plus size={13} /> Add Restriction
-          </Btn>
+          <Btn variant="danger" size="sm" onClick={() => { resetForm(); setAddModal(true); }}><Plus size={13} /> Add Restriction</Btn>
         </div>
 
         {restricted.length === 0 ? (
@@ -685,10 +859,10 @@ export default function PCNDetailPage() {
         ) : (
           <div className="grid gap-2.5">
             {restricted.map(c => {
-              const cId     = typeof c === "object" ? (c._id || c.id) : c;
-              const cName   = typeof c === "object" ? c.name   : "Unknown";
-              const cEmail  = typeof c === "object" ? c.email  : "";
-              const cRole   = typeof c === "object" ? c.role   : "";
+              const cId = typeof c === "object" ? (c._id || c.id) : c;
+              const cName = typeof c === "object" ? c.name : "Unknown";
+              const cEmail = typeof c === "object" ? c.email : "";
+              const cRole = typeof c === "object" ? c.role : "";
               const cReason = typeof c === "object" ? c.reason : "";
               return (
                 <div key={String(cId)} className="bg-white rounded-2xl border border-red-100 p-4 flex items-center gap-4 group">
@@ -710,14 +884,7 @@ export default function PCNDetailPage() {
 
         {addModal && (
           <ModalShell title="Add Restricted Clinician" onClose={() => { setAddModal(false); resetForm(); }}
-            footer={
-              <>
-                <Btn variant="ghost" cls="flex-1" onClick={() => { setAddModal(false); resetForm(); }}>Cancel</Btn>
-                <Btn variant="danger" cls="flex-1" onClick={handleAdd} disabled={saving || !newName.trim()}>
-                  {saving ? <Spinner /> : <UserX size={14} />} Flag as Restricted
-                </Btn>
-              </>
-            }>
+            footer={<><Btn variant="ghost" cls="flex-1" onClick={() => { setAddModal(false); resetForm(); }}>Cancel</Btn><Btn variant="danger" cls="flex-1" onClick={handleAdd} disabled={saving || !newName.trim()}>{saving ? <Spinner /> : <UserX size={14} />} Flag as Restricted</Btn></>}>
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Clinician Name *</label>
               <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Dr. John Smith"
@@ -726,18 +893,18 @@ export default function PCNDetailPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
-                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" placeholder="email@example.com"
+                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email"
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Role</label>
-                <input value={newRole} onChange={e => setNewRole(e.target.value)} placeholder="Clinician"
+                <input value={newRole} onChange={e => setNewRole(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
               </div>
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Reason for Restriction</label>
-              <textarea rows={3} value={newReason} onChange={e => setNewReason(e.target.value)} placeholder="e.g. Patient complaint, conduct issue..."
+              <textarea rows={3} value={newReason} onChange={e => setNewReason(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 resize-none transition-all" />
             </div>
           </ModalShell>
@@ -810,10 +977,37 @@ export default function PCNDetailPage() {
 
       <div>{PANELS[tab]}</div>
 
-      {contactModal  !== null && <ContactModal  existing={contactModal?._id  ? contactModal  : null} onClose={() => setContactModal(null)}  onSave={saveContact}  />}
-      {meetingModal  !== null && <MeetingModal  existing={meetingModal?._id  ? meetingModal  : null} onClose={() => setMeetingModal(null)}  onSave={saveMeeting}  />}
-      {templateModal !== null && <TemplateModal existing={templateModal?._id ? templateModal : null} onClose={() => setTemplateModal(null)} onSave={saveTemplate} />}
-      {massEmail && <MassEmailModal entityType="PCN" entityId={pcn._id} contacts={pcn.contacts || []} onClose={() => setMassEmail(false)} />}
+      {contactModal !== null && (
+        <ContactModal
+          mode={contactModal.mode}
+          existing={contactModal.mode === "edit" ? contactModal.contact : null}
+          onClose={closeContact}
+          onSave={saveContact}
+        />
+      )}
+
+      {meetingModal !== null && (
+        <MeetingModal
+          existing={meetingModal?._id ? meetingModal : null}
+          onClose={() => setMeetingModal(null)}
+          onSave={saveMeeting}
+        />
+      )}
+      {templateModal !== null && (
+        <TemplateModal
+          existing={templateModal?._id ? templateModal : null}
+          onClose={() => setTemplateModal(null)}
+          onSave={saveTemplate}
+        />
+      )}
+      {massEmail && (
+        <MassEmailModal
+          entityType="PCN"
+          entityId={pcn._id}
+          contacts={pcn.contacts || []}
+          onClose={() => setMassEmail(false)}
+        />
+      )}
     </div>
   );
 }

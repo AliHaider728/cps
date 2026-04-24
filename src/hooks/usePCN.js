@@ -13,7 +13,7 @@ export const usePCN = (id) =>
     queryKey: QK.PCN(id),
     queryFn: () => pcnService.getById(id).then((response) => response.data),
     enabled: !!id,
-  });
+  }); 
 
 export const usePCNRollup = (id) =>
   useQuery({

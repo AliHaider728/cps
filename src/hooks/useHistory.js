@@ -1,55 +1,74 @@
 // src/hooks/useHistory.js
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { historyAPI } from "../api/api";
-import { QK } from "../lib/queryKeys";
+import { historyService } from "../services/api/clientManagement.service";
 
-// ── GET: contact history for any entity
+/* ══════════════════════════════════════════════════════════════════
+   QUERY KEYS
+   Inline here so we don't depend on queryKeys.js import order.
+   Format: ["history", entityType, entityId]
+══════════════════════════════════════════════════════════════════ */
+const historyKey = (entityType, entityId) => ["history", entityType, entityId];
+
+/* ══════════════════════════════════════════════════════════════════
+   GET — contact history list
+══════════════════════════════════════════════════════════════════ */
 export const useHistory = (entityType, entityId, params = {}) =>
   useQuery({
-    queryKey: [...QK.HISTORY(entityType, entityId), params],
+    queryKey: [...historyKey(entityType, entityId), params],
     queryFn:  () =>
-      historyAPI.get(entityType, entityId, params).then((r) => r.data),
-    enabled: !!entityType && !!entityId,
+      historyService.get(entityType, entityId, params).then((r) => r.data),
+    enabled:  !!entityType && !!entityId,
+    staleTime: 30_000,
   });
 
-// ── MUTATION: add history log
+/* ══════════════════════════════════════════════════════════════════
+   ADD — new log entry
+══════════════════════════════════════════════════════════════════ */
 export const useAddHistory = (entityType, entityId) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
-      historyAPI.add(entityType, entityId, data).then((r) => r.data),
+      historyService.add(entityType, entityId, data).then((r) => r.data),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: QK.HISTORY(entityType, entityId) }),
+      qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
   });
 };
 
-// ── MUTATION: update history log
+/* ══════════════════════════════════════════════════════════════════
+   UPDATE — edit existing log entry
+══════════════════════════════════════════════════════════════════ */
 export const useUpdateHistory = (entityType, entityId) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ logId, data }) =>
-      historyAPI.update(logId, data).then((r) => r.data),
+      historyService.update(logId, data).then((r) => r.data),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: QK.HISTORY(entityType, entityId) }),
+      qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
   });
 };
 
-// ── MUTATION: toggle starred log
+/* ══════════════════════════════════════════════════════════════════
+   TOGGLE STAR
+══════════════════════════════════════════════════════════════════ */
 export const useToggleStar = (entityType, entityId) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (logId) => historyAPI.toggleStar(logId).then((r) => r.data),
+    mutationFn: (logId) =>
+      historyService.toggleStar(logId).then((r) => r.data),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: QK.HISTORY(entityType, entityId) }),
+      qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
   });
 };
 
-// ── MUTATION: delete history log
+/* ══════════════════════════════════════════════════════════════════
+   DELETE
+══════════════════════════════════════════════════════════════════ */
 export const useDeleteHistory = (entityType, entityId) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (logId) => historyAPI.delete(logId).then((r) => r.data),
+    mutationFn: (logId) =>
+      historyService.delete(logId).then((r) => r.data),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: QK.HISTORY(entityType, entityId) }),
+      qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
   });
 };

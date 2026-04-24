@@ -31,10 +31,14 @@ export const sidebarConfig = {
       section: "CLIENT MANAGEMENT",
       items: [
         // ── Dropdown: Hierarchy
+       { icon: "GitBranch",      label: "Hierarchy View",        path: "/dashboard/super-admin/clients"                },
+
         {
           icon: "Building2",
+          
           label: "Client Hierarchy",
           children: [
+            
             { icon: "Building2",   label: "ICBs",                  path: "/dashboard/super-admin/clients/icb"        },
             { icon: "Layers",      label: "Federations / INT",      path: "/dashboard/super-admin/clients/federation" },
             { icon: "Network",     label: "Clients",                path: "/dashboard/super-admin/clients/pcn"        },
@@ -42,7 +46,6 @@ export const sidebarConfig = {
           ],
         },
         // ── Direct items
-        { icon: "GitBranch",      label: "Hierarchy View",        path: "/dashboard/super-admin/clients"                },
         { icon: "FileText",       label: "Compliance Documents",  path: "/dashboard/super-admin/compliance/documents"   },
         { icon: "Layers",         label: "Compliance Groups",     path: "/dashboard/super-admin/compliance/groups"      },
       ],
