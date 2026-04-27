@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Network, Plus, Eye, Edit2, Trash2, X, Check,
   ChevronRight, Search, Filter, Building2, Layers,
-  DollarSign, Tag, AlertCircle, RefreshCw,
+  DollarSign, Tag, AlertCircle, RefreshCw, ShieldCheck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePCNs, useCreatePCN, useUpdatePCN, useDeletePCN } from "../../../hooks/usePCN";
@@ -13,7 +13,7 @@ import DataTable from "../../../components/ui/DataTable";
 import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
 import { resetPcnFilters, setPcnFilters } from "../../../slices/pcnSlice";
 
-/* ─── ICB accent colours ─────────────────────────────────────────────────── */
+/* ─── ICB accent colours ──────────────────────────────────────────────── */
 const ACCENTS = [
   { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    icon: "text-blue-500"    },
   { bg: "bg-purple-50",  border: "border-purple-200",  text: "text-purple-700",  icon: "text-purple-500"  },
@@ -25,24 +25,26 @@ const ACCENTS = [
 
 const buildAccentMap = (icbs) => {
   const map = {};
-  icbs.forEach((icb, idx) => { map[String(icb._id)] = idx % ACCENTS.length; });
+  icbs.forEach((icb, idx) => { map[String(icb.id || icb._id)] = idx % ACCENTS.length; });
   return map;
 };
 
-/* ─── Federation name resolver ─────────────────────────────────────────────── */
+/* ─── Federation name resolver ────────────────────────────────────────── */
 const resolveFederationName = (pcn, fedMap) => {
   if (!pcn) return null;
   if (pcn.federationName) return pcn.federationName;
   const f = pcn.federation;
   if (!f) return null;
   if (typeof f === "object" && f.name) return f.name;
-  if (typeof f === "string" && fedMap[f]) return fedMap[f].name;
-  const fid = f._id || f.id;
+  const fid = f?.id || f?._id || f;
   if (fid && fedMap[String(fid)]) return fedMap[String(fid)].name;
   return null;
 };
 
-/* ─── Helpers ───────────────────────────────────────────────────────────── */
+/* ─── Helper: get id (Supabase uses `id`, not `_id`) ─────────────────── */
+const getId = (g) => g?.id ?? g?._id ?? g;
+
+/* ─── Helpers ─────────────────────────────────────────────────────────── */
 const F = ({ label, children }) => (
   <div>
     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">{label}</label>
@@ -59,27 +61,27 @@ const FilterChip = ({ label, children }) => (
 );
 
 const buildPCNForm = (existing) => ({
-  name: existing?.name || "",
-  icb: existing?.icb?._id || existing?.icb || "",
-  federation: existing?.federation?._id || existing?.federation?.id || existing?.federation || "",
-  complianceGroups: existing?.complianceGroups?.length
-    ? existing.complianceGroups.map((g) => g?._id || g).filter(Boolean)
-    : existing?.complianceGroup
-    ? [existing?.complianceGroup?._id || existing?.complianceGroup]
-    : [],
-  contractType: existing?.contractType || "",
-  annualSpend: existing?.annualSpend || "",
-  xeroCode: existing?.xeroCode || "",
-  xeroCategory: existing?.xeroCategory || "",
+  name:               existing?.name               || "",
+  icb:                getId(existing?.icb)         || "",
+  federation:         getId(existing?.federation)  || "",
+  contractType:       existing?.contractType       || "",
+  annualSpend:        existing?.annualSpend        || "",
+  xeroCode:           existing?.xeroCode           || "",
+  xeroCategory:       existing?.xeroCategory       || "",
   contractRenewalDate: existing?.contractRenewalDate
-    ? new Date(existing.contractRenewalDate).toISOString().split("T")[0]
-    : "",
+    ? new Date(existing.contractRenewalDate).toISOString().split("T")[0] : "",
   contractExpiryDate: existing?.contractExpiryDate
-    ? new Date(existing.contractExpiryDate).toISOString().split("T")[0]
-    : "",
+    ? new Date(existing.contractExpiryDate).toISOString().split("T")[0]  : "",
   priority: existing?.priority || "normal",
-  tags: existing?.tags?.join(", ") || "",
-  notes: existing?.notes || "",
+  tags:     existing?.tags?.join(", ") || "",
+  notes:    existing?.notes || "",
+
+  /* ── compliance groups: normalize to array of IDs ── */
+  complianceGroups: existing?.complianceGroups?.length
+    ? existing.complianceGroups.map(getId).filter(Boolean)
+    : existing?.complianceGroup
+    ? [getId(existing.complianceGroup)].filter(Boolean)
+    : [],
 });
 
 const formatDate = (value) =>
@@ -91,26 +93,62 @@ const PRIORITY_STYLE = {
   normal: "",
 };
 
-/* ─── PCN Modal ─────────────────────────────────────────────────────────── */
+/* ─── PCN Modal ───────────────────────────────────────────────────────── */
 const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
-  const [form, setForm] = useState(() => buildPCNForm(existing));
+  const [form,   setForm]  = useState(() => buildPCNForm(existing));
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const filteredFeds = federations.filter(
-    (f) => !form.icb || String(f.icb?._id || f.icb) === form.icb
-  );
+  const [error,  setError]  = useState("");
 
   useEffect(() => { setForm(buildPCNForm(existing)); }, [existing]);
 
-  const toggleGroup = (groupId) =>
+  /* ── Federations filtered by selected ICB ── */
+  const filteredFeds = federations.filter(
+    (f) => !form.icb || String(getId(f.icb) || "") === String(form.icb)
+  );
+
+  /* ── ✅ KEY FIX: Filter groups by selected contract type ──────────────
+     Rules:
+      - If group.applicableContractTypes is empty → show for ALL contract types
+      - If contractType is not yet selected → show ALL groups
+      - Otherwise → only show groups that include the selected contractType
+  ─────────────────────────────────────────────────────────────────────── */
+  const filteredGroups = useMemo(() => {
+    if (!form.contractType) return groups; // no contract type selected → show all
+    return groups.filter((g) => {
+      const types = g.applicableContractTypes || g.applicable_contract_types || [];
+      return types.length === 0 || types.includes(form.contractType);
+    });
+  }, [groups, form.contractType]);
+
+  /* When contract type changes, remove any selected groups that are no longer valid */
+  const handleContractTypeChange = (newType) => {
     setForm((cur) => {
-      const sel = cur.complianceGroups || [];
+      const validGroupIds = new Set(
+        groups
+          .filter((g) => {
+            const types = g.applicableContractTypes || g.applicable_contract_types || [];
+            return types.length === 0 || types.includes(newType);
+          })
+          .map((g) => String(getId(g)))
+      );
       return {
         ...cur,
-        complianceGroups: sel.includes(groupId)
-          ? sel.filter((id) => id !== groupId)
-          : [...sel, groupId],
+        contractType:     newType,
+        // auto-deselect groups that don't apply to the new contract type
+        complianceGroups: cur.complianceGroups.filter((id) => validGroupIds.has(String(id))),
+      };
+    });
+  };
+
+  const toggleGroup = (groupId) =>
+    setForm((cur) => {
+      const sel   = (cur.complianceGroups || []).map(String);
+      const strId = String(groupId);
+      return {
+        ...cur,
+        complianceGroups: sel.includes(strId)
+          ? sel.filter((id) => id !== strId)
+          : [...sel, strId],
       };
     });
 
@@ -121,24 +159,28 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
     try {
       const payload = {
         ...form,
-        tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+        tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       };
       await onSave(payload);
       onClose();
     } catch (e) { setError(e.message); }
-    finally { setSaving(false); }
+    finally     { setSaving(false); }
   };
 
   const inp = (key, placeholder, type = "text") => (
-    <input type={type} value={form[key]} placeholder={placeholder} autoComplete="off"
+    <input
+      type={type} value={form[key]} placeholder={placeholder} autoComplete="off"
       onChange={(e) => setForm((cur) => ({ ...cur, [key]: e.target.value }))}
-      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm transition-all focus:border-blue-400 focus:bg-white focus:outline-none" />
+      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm transition-all focus:border-blue-400 focus:bg-white focus:outline-none"
+    />
   );
 
-  const sel = (key, options, placeholder = "None") => (
-    <select value={form[key]} autoComplete="off"
-      onChange={(e) => setForm((cur) => ({ ...cur, [key]: e.target.value }))}
-      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+  const sel = (key, options, placeholder = "None", onChange) => (
+    <select
+      value={form[key]} autoComplete="off"
+      onChange={(e) => onChange ? onChange(e.target.value) : setForm((cur) => ({ ...cur, [key]: e.target.value }))}
+      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+    >
       <option value="">{placeholder}</option>
       {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
     </select>
@@ -147,53 +189,128 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 p-0 sm:p-4 backdrop-blur-sm">
       <div className="flex w-full sm:max-w-lg max-h-[95dvh] sm:max-h-[90vh] flex-col rounded-t-2xl sm:rounded-2xl border border-slate-200 bg-white shadow-2xl">
+
+        {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h3 className="text-base font-bold text-slate-800">{existing ? "Edit Client" : "Add Client"}</h3>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+          <h3 className="text-base font-bold text-slate-800">
+            {existing ? "Edit Client" : "Add Client"}
+          </h3>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100">
+            <X size={16} />
+          </button>
         </div>
 
+        {/* Body */}
         <div className="flex-1 space-y-4 overflow-y-auto p-5 [scrollbar-width:thin]">
-          {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>
+          )}
 
           <F label="Client Name *">{inp("name", "e.g. Salford Central Client")}</F>
 
           <div className="grid grid-cols-2 gap-3">
             <F label="ICB *">
-              <select value={form.icb} autoComplete="off"
+              <select
+                value={form.icb} autoComplete="off"
                 onChange={(e) => setForm((cur) => ({ ...cur, icb: e.target.value, federation: "" }))}
-                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+              >
                 <option value="">Select ICB…</option>
-                {icbs.map((icb) => <option key={icb._id} value={icb._id}>{icb.name}</option>)}
+                {icbs.map((icb) => (
+                  <option key={getId(icb)} value={getId(icb)}>{icb.name}</option>
+                ))}
               </select>
             </F>
             <F label="Federation / INT">
-              <select value={form.federation} autoComplete="off"
+              <select
+                value={form.federation} autoComplete="off"
                 onChange={(e) => setForm((cur) => ({ ...cur, federation: e.target.value }))}
-                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+              >
                 <option value="">None</option>
-                {filteredFeds.map((fed) => <option key={fed._id} value={fed._id}>{fed.name}</option>)}
+                {filteredFeds.map((fed) => (
+                  <option key={getId(fed)} value={getId(fed)}>{fed.name}</option>
+                ))}
               </select>
             </F>
           </div>
 
-          <F label="Compliance Groups">
-            <div className="max-h-40 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-              {groups.length === 0
-                ? <p className="text-xs text-slate-400">No groups available</p>
-                : groups.map((g) => (
-                  <label key={g._id} className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-700">
-                    <input type="checkbox" checked={(form.complianceGroups || []).includes(g._id)}
-                      onChange={() => toggleGroup(g._id)} className="h-4 w-4 accent-purple-600" />
-                    <span>{g.name}</span>
-                  </label>
-                ))}
-            </div>
-          </F>
-
+          {/* Contract Type — uses custom onChange to also filter groups */}
           <div className="grid grid-cols-2 gap-3">
-            <F label="Contract Type">{sel("contractType", [["ARRS","ARRS"],["EA","EA"],["Direct","Direct"],["Mixed","Mixed"]])}</F>
+            <F label="Contract Type">
+              {sel(
+                "contractType",
+                [["ARRS","ARRS"],["EA","EA"],["Direct","Direct"],["Mixed","Mixed"]],
+                "Select type…",
+                handleContractTypeChange   // ✅ triggers group filter
+              )}
+            </F>
             <F label="Annual Spend (£)">{inp("annualSpend", "0", "number")}</F>
           </div>
+
+          {/* ── Compliance Groups (filtered by contract type) ─────────── */}
+          <F label="Compliance Groups">
+            {!form.contractType ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
+                Select a contract type first to see applicable groups
+              </div>
+            ) : filteredGroups.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-600">
+                No compliance groups available for <strong>{form.contractType}</strong>
+              </div>
+            ) : (
+              <div className="space-y-1.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 max-h-44 [scrollbar-width:thin]">
+                {filteredGroups.map((g) => {
+                  const gId      = String(getId(g));
+                  const checked  = (form.complianceGroups || []).map(String).includes(gId);
+                  const types    = g.applicableContractTypes || g.applicable_contract_types || [];
+
+                  return (
+                    <label key={gId} className="flex cursor-pointer items-start gap-2.5 rounded-lg p-2 hover:bg-slate-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleGroup(gId)}
+                        className="h-4 w-4 accent-purple-600 mt-0.5 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* colour dot */}
+                          {g.colour && (
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.colour }} />
+                          )}
+                          <span className="text-sm font-medium text-slate-700">{g.name}</span>
+                        </div>
+                        {/* show applicable contract type badges */}
+                        {types.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {types.map((t) => (
+                              <span key={t} className={`text-[10px] font-bold px-1.5 py-0.5 rounded border
+                                ${t === form.contractType
+                                  ? "bg-purple-100 text-purple-700 border-purple-300"
+                                  : "bg-slate-100 text-slate-500 border-slate-200"}`}>
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {types.length === 0 && (
+                          <span className="text-[10px] text-slate-400">All contract types</span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* selected count */}
+            {(form.complianceGroups || []).length > 0 && (
+              <p className="mt-1.5 text-xs font-semibold text-purple-700">
+                {form.complianceGroups.length} group{form.complianceGroups.length !== 1 ? "s" : ""} selected
+              </p>
+            )}
+          </F>
 
           <div className="grid grid-cols-2 gap-3">
             <F label="Xero Code">{inp("xeroCode", "SAL1")}</F>
@@ -202,7 +319,7 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
 
           <div className="grid grid-cols-2 gap-3">
             <F label="Contract Renewal">{inp("contractRenewalDate", "", "date")}</F>
-            <F label="Contract Expiry">{inp("contractExpiryDate", "", "date")}</F>
+            <F label="Contract Expiry">{inp("contractExpiryDate",   "", "date")}</F>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -211,17 +328,24 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
           </div>
 
           <F label="Notes">
-            <textarea value={form.notes} autoComplete="off" rows={3}
+            <textarea
+              value={form.notes} autoComplete="off" rows={3}
               onChange={(e) => setForm((cur) => ({ ...cur, notes: e.target.value }))}
-              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none" />
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none"
+            />
           </F>
         </div>
 
+        {/* Footer */}
         <div className="flex shrink-0 gap-3 border-t border-slate-100 px-5 pb-6 pt-3 sm:pb-4">
-          <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
           <button onClick={handle} disabled={saving}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-50">
-            {saving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Check size={15} />}
+            {saving
+              ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              : <Check size={15} />}
             {existing ? "Save Changes" : "Create Client"}
           </button>
         </div>
@@ -230,11 +354,11 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
   );
 };
 
-/* ─── Page ───────────────────────────────────────────────────────────────── */
+/* ─── Page ────────────────────────────────────────────────────────────── */
 export default function PCNListPage() {
-  const navigate  = useNavigate();
-  const dispatch  = useAppDispatch();
-  const filters   = useAppSelector((state) => state.pcn.filters);
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const filters  = useAppSelector((state) => state.pcn.filters);
   const [modal, setModal] = useState(null);
 
   const { data: pcnData, isLoading, refetch } = usePCNs();
@@ -242,16 +366,16 @@ export default function PCNListPage() {
   const { data: fedData }   = useFederations();
   const { data: groupData } = useDocumentGroups({ active: true });
 
-  const pcns   = pcnData?.pcns         || [];
-  const icbs   = icbData?.icbs         || [];
-  const feds   = fedData?.federations  || [];
-  const groups = groupData?.groups     || [];
+  const pcns   = pcnData?.pcns        || [];
+  const icbs   = icbData?.icbs        || [];
+  const feds   = fedData?.federations || [];
+  const groups = groupData?.groups    || [];
 
   const fedMap = useMemo(() => {
     const map = {};
-    feds.forEach(f => {
-      map[String(f._id)] = f;
-      if (f.id) map[String(f.id)] = f;
+    feds.forEach((f) => {
+      const id = getId(f);
+      if (id) map[String(id)] = f;
     });
     return map;
   }, [feds]);
@@ -265,12 +389,12 @@ export default function PCNListPage() {
   const filteredPCNs = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     return pcns.filter((pcn) => {
-      const fedName = resolveFederationName(pcn, fedMap) || "";
+      const fedName   = resolveFederationName(pcn, fedMap) || "";
       const matchSearch = !q ||
         [pcn.name, pcn.icb?.name, fedName, pcn.xeroCode, pcn.contractType, pcn.notes]
           .filter(Boolean).join(" ").toLowerCase().includes(q);
-      const matchIcb      = !filters.icb          || String(pcn.icb?._id || pcn.icb) === filters.icb;
-      const matchContract = !filters.contractType  || pcn.contractType === filters.contractType;
+      const matchIcb      = !filters.icb         || String(getId(pcn.icb) || "") === filters.icb;
+      const matchContract = !filters.contractType || pcn.contractType === filters.contractType;
       return matchSearch && matchIcb && matchContract;
     });
   }, [filters, pcns, fedMap]);
@@ -279,27 +403,27 @@ export default function PCNListPage() {
     filteredPCNs.reduce((s, p) => s + (Number(p.annualSpend) || 0), 0), [filteredPCNs]);
 
   const handleSave = async (form) => {
-    if (modal?._id) await updatePCN.mutateAsync({ id: modal._id, data: form });
-    else            await createPCN.mutateAsync(form);
+    const id = getId(modal);
+    if (id && modal !== "add") await updatePCN.mutateAsync({ id, data: form });
+    else                       await createPCN.mutateAsync(form);
     setModal(null);
   };
 
   const handleDelete = async (pcn) => {
     if (!confirm(`Delete "${pcn.name}"? This cannot be undone.`)) return;
-    try { await deletePCN.mutateAsync(pcn._id); }
+    try { await deletePCN.mutateAsync(getId(pcn)); }
     catch (e) { alert(e.message); }
   };
 
-  /* ─── Table columns ──────────────────────────────────────────────── */
+  /* ─── Table columns ─────────────────────────────────────────── */
   const columns = [
     {
-      /* ✅ UPDATED: ICB + Federation stacked inside PCN/Client column */
       header: "PCN / Client",
       id: "pcn",
       cellClassName: "px-4 py-3 align-top",
       render: (pcn) => {
         const priorityStyle = PRIORITY_STYLE[pcn.priority];
-        const icbId     = String(pcn.icb?._id || pcn.icb || "");
+        const icbId     = String(getId(pcn.icb) || "");
         const icbName   = pcn.icb?.name;
         const accentIdx = icbAccentMap[icbId] ?? 0;
         const accent    = ACCENTS[accentIdx];
@@ -307,7 +431,6 @@ export default function PCNListPage() {
 
         return (
           <div className="space-y-1.5 min-w-[180px]">
-            {/* Name + priority + tags */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-slate-800 text-sm leading-tight">{pcn.name}</span>
               {pcn.priority && pcn.priority !== "normal" && (
@@ -315,36 +438,25 @@ export default function PCNListPage() {
                   {pcn.priority.toUpperCase()}
                 </span>
               )}
-              {(pcn.tags || []).map(tag => (
-                <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
-                  {tag}
-                </span>
+              {(pcn.tags || []).map((tag) => (
+                <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{tag}</span>
               ))}
             </div>
-
-            {/* ICB badge — stacked below name */}
             {icbName && (
               <div>
                 <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${accent.bg} ${accent.border} ${accent.text}`}>
-                  <Building2 size={10} className={accent.icon} />
-                  {icbName}
+                  <Building2 size={10} className={accent.icon} />{icbName}
                 </span>
               </div>
             )}
-
-            {/* Federation — stacked below ICB */}
             {fedName && (
               <div className="flex items-center gap-1">
                 <Layers size={11} className="text-slate-400 shrink-0" />
                 <span className="text-[11px] text-slate-500 leading-tight">{fedName}</span>
               </div>
             )}
-
-            {/* Notes */}
             {pcn.notes && (
-              <div className="max-w-[260px] line-clamp-1 text-xs text-slate-400">
-                {pcn.notes}
-              </div>
+              <div className="max-w-[260px] line-clamp-1 text-xs text-slate-400">{pcn.notes}</div>
             )}
           </div>
         );
@@ -404,7 +516,8 @@ export default function PCNListPage() {
       id: "actions",
       render: (pcn) => (
         <div className="flex items-center gap-1">
-          <button onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${pcn._id}`)}
+          <button
+            onClick={() => navigate(`/dashboard/super-admin/clients/pcn/${getId(pcn)}`)}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-purple-50 hover:text-purple-600 transition-colors" title="View">
             <Eye size={15} />
           </button>
@@ -423,7 +536,7 @@ export default function PCNListPage() {
 
   return (
     <div className="space-y-5 px-2 sm:px-0">
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="mb-1 flex items-center gap-2 text-sm text-slate-400">
@@ -454,14 +567,16 @@ export default function PCNListPage() {
         </div>
       </div>
 
-      {/* ── Filters ── */}
+      {/* Filters */}
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={filters.search}
+          <input
+            value={filters.search}
             onChange={(e) => dispatch(setPcnFilters({ search: e.target.value }))}
             placeholder="Search PCN, ICB, federation, Xero code…"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm focus:border-blue-400 focus:bg-white focus:outline-none" />
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm focus:border-blue-400 focus:bg-white focus:outline-none"
+          />
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="ICB">
@@ -469,7 +584,7 @@ export default function PCNListPage() {
               onChange={(e) => dispatch(setPcnFilters({ icb: e.target.value }))}
               className="cursor-pointer bg-transparent text-sm outline-none">
               <option value="">All</option>
-              {icbs.map((icb) => <option key={icb._id} value={icb._id}>{icb.name}</option>)}
+              {icbs.map((icb) => <option key={getId(icb)} value={getId(icb)}>{icb.name}</option>)}
             </select>
           </FilterChip>
           <FilterChip label="Contract">
@@ -489,11 +604,11 @@ export default function PCNListPage() {
         </div>
       </div>
 
-      {/* ── Table ── */}
+      {/* Table */}
       <DataTable
         columns={columns}
         data={filteredPCNs}
-        rowKey="_id"
+        rowKey={(row) => String(getId(row))}
         loading={isLoading}
         loadingText="Loading Clients…"
         emptyState={
@@ -506,10 +621,10 @@ export default function PCNListPage() {
         pageSizeOptions={[10, 20, 50]}
       />
 
-      {/* ── Modal ── */}
+      {/* Modal */}
       {modal && (
         <PCNModal
-          key={modal === "add" ? "pcn-add" : `pcn-${modal._id}`}
+          key={modal === "add" ? "pcn-add" : `pcn-${getId(modal)}`}
           existing={modal === "add" ? null : modal}
           icbs={icbs}
           federations={feds}

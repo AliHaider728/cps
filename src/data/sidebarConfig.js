@@ -1,17 +1,14 @@
 /**
  * sidebarConfig.js
  * 
- * CHANGES FROM PREVIOUS VERSION:
- *   Added "Federations / INT" item to CLIENT MANAGEMENT section (super_admin, ops_manager)
- *   CLIENT MANAGEMENT items grouped as dropdown children under "Client Management" parent
- *   Consistent dropdown grouping across all roles that have client access
- *   All paths remain UNCHANGED — AppRouter handles them
- *   Future module items kept exactly as-is (ComingSoon pages will render for them)
+ * UPDATED (Apr 2026):
+ *   Dashboard at top
+ *   All original sections (CLIENT MANAGEMENT, OPERATIONS, FINANCE, TRAINING, HR & COMPLIANCE, REPORTS)
+ *   System Settings dropdown at the bottom with only: Roles & Permissions, Audit Trail
  *
  * BUG FIX:
  *   "Contact History" sidebar link removed from super_admin and ops_manager —
  *   ContactHistoryPanel is a tab inside PCN/Practice detail pages, not a standalone page.
- *   The standalone route caused undefined/undefined/history API calls.
  */
 
 export const sidebarConfig = {
@@ -21,31 +18,23 @@ export const sidebarConfig = {
     {
       section: "MAIN",
       items: [
-        { icon: "LayoutDashboard", label: "Dashboard",       path: "/dashboard/super-admin" },
-        { icon: "Shield",          label: "Roles & Perms",   path: "/dashboard/super-admin/users" },
-        { icon: "ScrollText",      label: "Audit Trail",     path: "/dashboard/super-admin/audit" },
-        { icon: "Settings",        label: "System Settings", path: "/dashboard/super-admin/settings" },
+        { icon: "LayoutDashboard", label: "Dashboard", path: "/dashboard/super-admin" },
       ],
     },
     {
       section: "CLIENT MANAGEMENT",
       items: [
-        // ── Dropdown: Hierarchy
-       { icon: "GitBranch",      label: "Hierarchy View",        path: "/dashboard/super-admin/clients"                },
-
+        { icon: "GitBranch", label: "Hierarchy View", path: "/dashboard/super-admin/clients" },
         {
           icon: "Building2",
-          
           label: "Client Hierarchy",
           children: [
-            
             { icon: "Building2",   label: "ICBs",                  path: "/dashboard/super-admin/clients/icb"        },
             { icon: "Layers",      label: "Federations / INT",      path: "/dashboard/super-admin/clients/federation" },
             { icon: "Network",     label: "Clients",                path: "/dashboard/super-admin/clients/pcn"        },
             { icon: "Stethoscope", label: "Practices / Surgeries",  path: "/dashboard/super-admin/clients/practice"   },
           ],
         },
-        // ── Direct items
         { icon: "FileText",       label: "Compliance Documents",  path: "/dashboard/super-admin/compliance/documents"   },
         { icon: "Layers",         label: "Compliance Groups",     path: "/dashboard/super-admin/compliance/groups"      },
       ],
@@ -95,6 +84,19 @@ export const sidebarConfig = {
         { icon: "Bell",     label: "Notifications", path: "/dashboard/notifications" },
       ],
     },
+    {
+      section: "SYSTEM SETTINGS",
+      items: [
+        {
+          icon: "Settings",
+          label: "System Settings",
+          children: [
+            { icon: "Shield",      label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
+            { icon: "ScrollText",  label: "Audit Trail",         path: "/dashboard/super-admin/audit" },
+          ],
+        },
+      ],
+    },
   ],
 
   // ════════════════════════════════════════════════════════════════
@@ -102,7 +104,7 @@ export const sidebarConfig = {
     {
       section: "MAIN",
       items: [
-        { icon: "LayoutDashboard", label: "Executive Dashboard", path: "/dashboard/director" },
+        { icon: "LayoutDashboard", label: "Dashboard", path: "/dashboard/director" },
       ],
     },
     {
@@ -130,6 +132,19 @@ export const sidebarConfig = {
         { icon: "Bell",          label: "Notifications",     path: "/dashboard/notifications" },
       ],
     },
+    {
+      section: "SYSTEM SETTINGS",
+      items: [
+        {
+          icon: "Settings",
+          label: "System Settings",
+          children: [
+            { icon: "Shield",      label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
+            { icon: "ScrollText",  label: "Audit Trail",         path: "/dashboard/super-admin/audit" },
+          ],
+        },
+      ],
+    },
   ],
 
   // ════════════════════════════════════════════════════════════════
@@ -137,7 +152,7 @@ export const sidebarConfig = {
     {
       section: "MAIN",
       items: [
-        { icon: "LayoutDashboard", label: "Ops Dashboard", path: "/dashboard/ops-manager" },
+        { icon: "LayoutDashboard", label: "Dashboard", path: "/dashboard/ops-manager" },
       ],
     },
     {
@@ -154,7 +169,6 @@ export const sidebarConfig = {
           ],
         },
         { icon: "GitBranch",      label: "Hierarchy View",     path: "/dashboard/super-admin/clients"              },
-        // ❌ "Contact History" link removed — history is a tab inside PCN/Practice detail pages
         { icon: "Layers",         label: "Compliance Groups",  path: "/dashboard/super-admin/compliance/groups"    },
         { icon: "UserX",          label: "Restricted Clinicians", path: "/dashboard/super-admin/clients/restricted" },
       ],
@@ -193,6 +207,19 @@ export const sidebarConfig = {
         { icon: "Bell",           label: "Notifications",     path: "/dashboard/notifications" },
       ],
     },
+    {
+      section: "SYSTEM SETTINGS",
+      items: [
+        {
+          icon: "Settings",
+          label: "System Settings",
+          children: [
+            { icon: "Shield",      label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
+            { icon: "ScrollText",  label: "Audit Trail",         path: "/dashboard/super-admin/audit" },
+          ],
+        },
+      ],
+    },
   ],
 
   // ════════════════════════════════════════════════════════════════
@@ -200,7 +227,7 @@ export const sidebarConfig = {
     {
       section: "MAIN",
       items: [
-        { icon: "LayoutDashboard", label: "Finance Dashboard", path: "/dashboard/finance" },
+        { icon: "LayoutDashboard", label: "Dashboard", path: "/dashboard/finance" },
       ],
     },
     {
@@ -229,6 +256,19 @@ export const sidebarConfig = {
         { icon: "Bell",        label: "Notifications",      path: "/dashboard/notifications" },
       ],
     },
+    {
+      section: "SYSTEM SETTINGS",
+      items: [
+        {
+          icon: "Settings",
+          label: "System Settings",
+          children: [
+            { icon: "Shield",      label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
+            { icon: "ScrollText",  label: "Audit Trail",         path: "/dashboard/super-admin/audit" },
+          ],
+        },
+      ],
+    },
   ],
 
   // ════════════════════════════════════════════════════════════════
@@ -236,7 +276,7 @@ export const sidebarConfig = {
     {
       section: "MAIN",
       items: [
-        { icon: "LayoutDashboard", label: "Training Dashboard", path: "/dashboard/training" },
+        { icon: "LayoutDashboard", label: "Dashboard", path: "/dashboard/training" },
       ],
     },
     {
@@ -287,6 +327,19 @@ export const sidebarConfig = {
         { icon: "Bell",          label: "Notifications",       path: "/dashboard/notifications"      },
       ],
     },
+    {
+      section: "SYSTEM SETTINGS",
+      items: [
+        {
+          icon: "Settings",
+          label: "System Settings",
+          children: [
+            { icon: "Shield",      label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
+            { icon: "ScrollText",  label: "Audit Trail",         path: "/dashboard/super-admin/audit" },
+          ],
+        },
+      ],
+    },
   ],
 
   // ════════════════════════════════════════════════════════════════
@@ -294,7 +347,7 @@ export const sidebarConfig = {
     {
       section: "MAIN",
       items: [
-        { icon: "LayoutDashboard", label: "Workforce Dashboard", path: "/dashboard/workforce" },
+        { icon: "LayoutDashboard", label: "Dashboard", path: "/dashboard/workforce" },
       ],
     },
     {
@@ -323,15 +376,27 @@ export const sidebarConfig = {
         { icon: "Bell",           label: "Notifications",        path: "/dashboard/notifications" },
       ],
     },
+    {
+      section: "SYSTEM SETTINGS",
+      items: [
+        {
+          icon: "Settings",
+          label: "System Settings",
+          children: [
+            { icon: "Shield",      label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
+            { icon: "ScrollText",  label: "Audit Trail",         path: "/dashboard/super-admin/audit" },
+          ],
+        },
+      ],
+    },
   ],
 
   // ════════════════════════════════════════════════════════════════
   clinician: [
     {
-      section: "MY PORTAL",
+      section: "MAIN",
       items: [
-        { icon: "Home", label: "My Dashboard", path: "/portal/clinician"         },
-        { icon: "User", label: "My Profile",   path: "/portal/clinician/profile" },
+        { icon: "Home", label: "Dashboard", path: "/portal/clinician" },
       ],
     },
     {
@@ -357,6 +422,20 @@ export const sidebarConfig = {
         { icon: "Upload",         label: "Upload Certificates", path: "/portal/clinician/certificates"   },
         { icon: "FolderOpen",     label: "Resources",           path: "/portal/clinician/resources"      },
         { icon: "Bell",           label: "My Notifications",    path: "/portal/clinician/notifications"  },
+      ],
+    },
+    {
+      section: "SYSTEM SETTINGS",
+      items: [
+        {
+          icon: "Settings",
+          label: "System Settings",
+          children: [
+            { icon: "User",        label: "My Profile",         path: "/portal/clinician/profile"       },
+            { icon: "Shield",      label: "Roles & Permissions", path: "/dashboard/super-admin/users"   },
+            { icon: "ScrollText",  label: "Audit Trail",         path: "/dashboard/super-admin/audit"   },
+          ],
+        },
       ],
     },
   ],
