@@ -1,15 +1,4 @@
-/**
- * AuditTrail.jsx — CPS Admin
- *
- * UPDATED (Apr 2026):
- *  - All client-management action types added (CREATE_CLIENT, UPDATE_CLIENT,
- *    DELETE_CLIENT, REPORTING_ARCHIVE_*, UPDATE_DECISION_MAKERS, etc.)
- *  - Eye (detail) modal: shows full log with before/after JSON diff
- *  - dateFrom / dateTo filter params passed to hook
- *  - Resource filter chip added
- */
-
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ScrollText, Search, RefreshCw, Filter,
   Eye, X, ChevronDown, ChevronUp, Calendar,
@@ -19,34 +8,23 @@ import DataTable from "../../components/ui/DataTable";
 
 /* ── Action colour map ────────────────────────────────────────────── */
 const ACTION_COLORS = {
-  /* Auth */
   LOGIN:           "bg-emerald-100 text-emerald-700",
   LOGOUT:          "bg-slate-100   text-slate-600",
   LOGIN_FAILED:    "bg-red-100     text-red-700",
   LOGIN_BLOCKED:   "bg-red-100     text-red-700",
-
-  /* Users */
   CREATE_USER:     "bg-blue-100    text-blue-700",
   UPDATE_USER:     "bg-amber-100   text-amber-700",
   DELETE_USER:     "bg-red-100     text-red-700",
   GDPR_ANONYMISE:  "bg-purple-100  text-purple-700",
   CHANGE_PASSWORD: "bg-teal-100    text-teal-700",
-
-  /* Client (PCN / Practice) */
   CREATE_CLIENT:   "bg-blue-100    text-blue-700",
   UPDATE_CLIENT:   "bg-amber-100   text-amber-700",
   DELETE_CLIENT:   "bg-red-100     text-red-700",
-
-  /* Reporting Archive */
   REPORTING_ARCHIVE_ADD:    "bg-indigo-100  text-indigo-700",
   REPORTING_ARCHIVE_DELETE: "bg-red-100     text-red-700",
-
-  /* Decision Makers / Finance */
-  UPDATE_DECISION_MAKERS: "bg-cyan-100  text-cyan-700",
-  UPDATE_FINANCE_CONTACTS:"bg-cyan-100  text-cyan-700",
-
-  /* Client-Facing */
-  UPDATE_CLIENT_FACING:   "bg-violet-100 text-violet-700",
+  UPDATE_DECISION_MAKERS:   "bg-cyan-100  text-cyan-700",
+  UPDATE_FINANCE_CONTACTS:  "bg-cyan-100  text-cyan-700",
+  UPDATE_CLIENT_FACING:     "bg-violet-100 text-violet-700",
 };
 
 const ACTION_LABEL = {
@@ -146,7 +124,6 @@ function DetailModal({ log, onClose }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="relative mx-4 w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-white ${avatarColor(log.userName)}`}>
@@ -157,18 +134,12 @@ function DetailModal({ log, onClose }) {
               <p className="text-xs text-slate-400">{log.userRole} · {fmt(log.createdAt)}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-          >
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
             <X size={16} />
           </button>
         </div>
 
-        {/* Body */}
         <div className="max-h-[70vh] overflow-y-auto px-6 py-4 space-y-4">
-
-          {/* Badges row */}
           <div className="flex flex-wrap gap-2">
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${ACTION_COLORS[log.action] || "bg-slate-100 text-slate-600"}`}>
               {ACTION_LABEL[log.action] || log.action}
@@ -183,13 +154,12 @@ function DetailModal({ log, onClose }) {
             </span>
           </div>
 
-          {/* Fields grid */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              ["Resource ID",  log.resourceId],
-              ["IP Address",   log.ip],
-              ["User Agent",   log.userAgent],
-              ["User ID",      log.userId],
+              ["Resource ID", log.resourceId],
+              ["IP Address",  log.ip],
+              ["User Agent",  log.userAgent],
+              ["User ID",     log.userId],
             ].map(([label, val]) =>
               val ? (
                 <div key={label} className="rounded-xl bg-slate-50 px-4 py-3">
@@ -200,7 +170,6 @@ function DetailModal({ log, onClose }) {
             )}
           </div>
 
-          {/* Detail */}
           {log.detail && (
             <div className="rounded-xl bg-slate-50 px-4 py-3">
               <p className="mb-1 text-xs text-slate-400">Detail</p>
@@ -208,13 +177,10 @@ function DetailModal({ log, onClose }) {
             </div>
           )}
 
-          {/* Before diff */}
           {hasBefore && (
             <div className="overflow-hidden rounded-xl border border-slate-200">
-              <button
-                onClick={() => setShowBefore((v) => !v)}
-                className="flex w-full items-center justify-between bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-100"
-              >
+              <button onClick={() => setShowBefore((v) => !v)}
+                className="flex w-full items-center justify-between bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-100">
                 <span>Before</span>
                 {showBefore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
@@ -226,13 +192,10 @@ function DetailModal({ log, onClose }) {
             </div>
           )}
 
-          {/* After diff */}
           {hasAfter && (
             <div className="overflow-hidden rounded-xl border border-slate-200">
-              <button
-                onClick={() => setShowAfter((v) => !v)}
-                className="flex w-full items-center justify-between bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-100"
-              >
+              <button onClick={() => setShowAfter((v) => !v)}
+                className="flex w-full items-center justify-between bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-100">
                 <span>After</span>
                 {showAfter ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
@@ -253,17 +216,18 @@ function DetailModal({ log, onClose }) {
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════════════ */
 export default function AuditTrail() {
-  const [page,      setPage]      = useState(1);
-  const [pageSize,  setPageSize]  = useState(20);
-  const [search,    setSearch]    = useState("");
-  const [action,    setAction]    = useState("");
-  const [resource,  setResource]  = useState("");
-  const [status,    setStatus]    = useState("");
-  const [dateFrom,  setDateFrom]  = useState("");
-  const [dateTo,    setDateTo]    = useState("");
-  const [selected,  setSelected]  = useState(null);   // log open in modal
+  const [page,     setPage]     = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [search,   setSearch]   = useState("");
+  const [action,   setAction]   = useState("");
+  const [resource, setResource] = useState("");
+  const [status,   setStatus]   = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo,   setDateTo]   = useState("");
+  const [selected, setSelected] = useState(null);
 
-  const params = {
+  // ✅ FIX: useMemo se params stabilize karo — har render pe naya object nahi banega
+  const params = useMemo(() => ({
     page,
     limit: pageSize,
     ...(action   && { action }),
@@ -271,23 +235,25 @@ export default function AuditTrail() {
     ...(status   && { status }),
     ...(dateFrom && { dateFrom }),
     ...(dateTo   && { dateTo }),
-  };
+  }), [page, pageSize, action, resource, status, dateFrom, dateTo]);
 
   const { data, isLoading, refetch } = useAuditLogs(params);
 
-  const logs  = data?.logs                || [];
-  const total = data?.pagination?.total   || 0;
+  const logs  = data?.logs              || [];
+  const total = data?.pagination?.total || 0;
 
-  /* Client-side search across already-fetched page */
-  const filtered = search
-    ? logs.filter((log) =>
-        [log.userName, log.action, log.detail, log.ip, log.resource]
-          .some((f) => f?.toLowerCase().includes(search.toLowerCase()))
-      )
-    : logs;
+  // ✅ Client-side search — sirf current page ke andar
+  const filtered = useMemo(() =>
+    search
+      ? logs.filter((log) =>
+          [log.userName, log.action, log.detail, log.ip, log.resource]
+            .some((f) => f?.toLowerCase().includes(search.toLowerCase()))
+        )
+      : logs,
+  [logs, search]);
 
-  /* ── Columns ── */
-  const columns = [
+  // ✅ FIX: columns useMemo mein — har render pe naya array nahi banega
+  const columns = useMemo(() => [
     {
       header: "Timestamp",
       id:     "timestamp",
@@ -368,18 +334,13 @@ export default function AuditTrail() {
       ),
       cellClassName: "px-2 py-3 align-top",
     },
-  ];
+  ], []);
 
-  /* ── Render ── */
   return (
     <>
-      {/* Detail modal */}
-      {selected && (
-        <DetailModal log={selected} onClose={() => setSelected(null)} />
-      )}
+      {selected && <DetailModal log={selected} onClose={() => setSelected(null)} />}
 
       <div>
-        {/* Page header */}
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <div className="mb-1 flex items-center gap-2">
@@ -393,10 +354,8 @@ export default function AuditTrail() {
               </span>
             </p>
           </div>
-          <button
-            onClick={() => refetch()}
-            className="flex w-fit items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-          >
+          <button onClick={() => refetch()}
+            className="flex w-fit items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">
             <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
             Refresh
           </button>
@@ -404,8 +363,6 @@ export default function AuditTrail() {
 
         {/* Filter bar */}
         <div className="mb-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-
-          {/* Search */}
           <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
             <Search size={14} className="shrink-0 text-slate-400" />
             <input
@@ -416,70 +373,48 @@ export default function AuditTrail() {
             />
           </div>
 
-          {/* Action */}
           <FilterChip>
-            <select
-              value={action}
+            <select value={action}
               onChange={(e) => { setAction(e.target.value); setPage(1); }}
-              className="bg-transparent text-sm text-slate-700 outline-none"
-            >
+              className="bg-transparent text-sm text-slate-700 outline-none">
               {ALL_ACTIONS.map((a) => (
-                <option key={a} value={a}>
-                  {a ? (ACTION_LABEL[a] || a) : "All Actions"}
-                </option>
+                <option key={a} value={a}>{a ? (ACTION_LABEL[a] || a) : "All Actions"}</option>
               ))}
             </select>
           </FilterChip>
 
-          {/* Resource */}
           <FilterChip>
-            <select
-              value={resource}
+            <select value={resource}
               onChange={(e) => { setResource(e.target.value); setPage(1); }}
-              className="bg-transparent text-sm text-slate-700 outline-none"
-            >
+              className="bg-transparent text-sm text-slate-700 outline-none">
               {ALL_RESOURCES.map((r) => (
                 <option key={r} value={r}>{r || "All Resources"}</option>
               ))}
             </select>
           </FilterChip>
 
-          {/* Status */}
           <FilterChip>
-            <select
-              value={status}
+            <select value={status}
               onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-              className="bg-transparent text-sm text-slate-700 outline-none"
-            >
+              className="bg-transparent text-sm text-slate-700 outline-none">
               <option value="">All Status</option>
               <option value="success">Success</option>
               <option value="fail">Failed</option>
             </select>
           </FilterChip>
 
-          {/* Date range */}
-          <DateChip
-            icon={Calendar}
-            value={dateFrom}
-            onChange={(v) => { setDateFrom(v); setPage(1); }}
-            placeholder="From"
-          />
-          <DateChip
-            icon={Calendar}
-            value={dateTo}
-            onChange={(v) => { setDateTo(v); setPage(1); }}
-            placeholder="To"
-          />
+          <DateChip icon={Calendar} value={dateFrom}
+            onChange={(v) => { setDateFrom(v); setPage(1); }} placeholder="From" />
+          <DateChip icon={Calendar} value={dateTo}
+            onChange={(v) => { setDateTo(v); setPage(1); }} placeholder="To" />
 
-          {/* Clear filters */}
           {(action || resource || status || dateFrom || dateTo || search) && (
             <button
               onClick={() => {
                 setAction(""); setResource(""); setStatus("");
                 setDateFrom(""); setDateTo(""); setSearch(""); setPage(1);
               }}
-              className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100"
-            >
+              className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100">
               <X size={13} /> Clear
             </button>
           )}

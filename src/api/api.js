@@ -2,6 +2,9 @@ import { authService, clientManagementService, pcnService, apiClient } from "../
 
 const api = apiClient;
 
+// ─────────────────────────────────────────────────────────────
+// Auth & Audit
+// ─────────────────────────────────────────────────────────────
 export const authAPI = {
   login:           authService.login,
   logout:          authService.logout,
@@ -19,6 +22,9 @@ export const auditAPI = {
   getLogs: (params) => api.get("/audit", { params }),
 };
 
+// ─────────────────────────────────────────────────────────────
+// Hierarchy, ICB, Federation, PCN, Practice
+// ─────────────────────────────────────────────────────────────
 export const hierarchyAPI = {
   getHierarchy: clientManagementService.getHierarchy,
   search:       clientManagementService.search,
@@ -61,6 +67,9 @@ export const practiceAPI = {
   requestSystemAccess: (entityType, entityId, data)  => api.post(`/clients/${entityType}/${entityId}/system-access-request`, data),
 };
 
+// ─────────────────────────────────────────────────────────────
+// History, Email, Compliance
+// ─────────────────────────────────────────────────────────────
 export const historyAPI = {
   get:        (entityType, entityId, params) => api.get(`/clients/${entityType}/${entityId}/history`, { params }),
   add:        (entityType, entityId, data)   => api.post(`/clients/${entityType}/${entityId}/history`, data),
@@ -127,15 +136,10 @@ export const entityDocumentsAPI = {
     api.delete(`/clients/${entityType}/${entityId}/documents/${groupId}/${documentId}/uploads/${uploadId}`),
 };
 
-//  FIXED — Reporting Archive API
-// Backend now expects plain JSON (no FormData / no multer)
-// Frontend uploads file to Supabase first, then sends metadata as JSON
 export const reportingArchiveAPI = {
   getAll: (entityType, entityId) =>
     api.get(`/clients/${entityType}/${entityId}/reporting-archive`),
 
-  //  FIXED: removed multipart/form-data header — now sends plain JSON
-  // axios automatically sets Content-Type: application/json
   add: (entityType, entityId, jsonPayload) =>
     api.post(`/clients/${entityType}/${entityId}/reporting-archive`, jsonPayload),
 
@@ -143,4 +147,53 @@ export const reportingArchiveAPI = {
     api.delete(`/clients/${entityType}/${entityId}/reporting-archive/${reportId}`),
 };
 
-export default api;
+// ─────────────────────────────────────────────────────────────
+// Clinician Management + Restricted Clinicians
+// ─────────────────────────────────────────────────────────────
+export const clinicianAPI = {
+  /* List + CRUD */
+  getAll: (params) => api.get("/clinicians", { params }),           // assuming clinicianService use karta hai to adjust kar sakte ho
+  getById: (id) => api.get(`/clinicians/${id}`),
+  create: (data) => api.post("/clinicians", data),
+  update: (id, data) => api.put(`/clinicians/${id}`, data),
+  delete: (id) => api.delete(`/clinicians/${id}`),
+
+  /* Tab 9 — Scope of practice */
+  getScope: (id) => api.get(`/clinicians/${id}/scope`),
+  updateScope: (id, data) => api.put(`/clinicians/${id}/scope`, data),
+
+  /* Tab 9 — Per-client restrictions */
+  getRestrictedClients: (id) => api.get(`/clinicians/${id}/restricted-clients`),
+  addRestrictedClient: (id, data) => api.post(`/clinicians/${id}/restricted-clients`, data),
+  removeRestrictedClient: (id, recordId) => api.delete(`/clinicians/${id}/restricted-clients/${recordId}`),
+};
+
+/* ── Restricted Clinicians (System-wide & Rota lookup) ── */
+export const restrictedClinicianAPI = {
+  // Global list with filters (?entityType=practice&entityId=xxx)
+  getAll: (params) => api.get("/restricted-clinicians", { params }),
+
+  // Rota/Booking lookup: "Which clinicians are restricted at this client?"
+  getAtClient: (entityType, entityId) =>
+    api.get(`/restricted-clinicians/${entityType}/${entityId}`),
+};
+
+// Default Export
+export default {
+  ...authAPI,
+  ...auditAPI,
+  ...hierarchyAPI,
+  ...icbAPI,
+  ...federationAPI,
+  ...pcnAPI,
+  ...practiceAPI,
+  ...historyAPI,
+  ...emailAPI,
+  ...complianceAPI,
+  ...complianceDocsAPI,
+  ...documentGroupsAPI,
+  ...entityDocumentsAPI,
+  ...reportingArchiveAPI,
+  ...clinicianAPI,               // ← Added
+  ...restrictedClinicianAPI,     // ← Added
+};

@@ -1,8 +1,6 @@
 /**
  * queryKeys.js
  * Central registry for all TanStack Query cache keys.
- *
- 
  */
 
 export const QK = {
@@ -52,9 +50,24 @@ export const QK = {
   ENTITY_DOCUMENTS: (entityType, entityId) => ["entity-documents", entityType, entityId],
 
   // ── Reporting Archive ───────────────────────────────────
-  // NEW: PCN/Practice monthly reporting archive
   REPORTING_ARCHIVE: (entityType, entityId) => ["reporting-archive", entityType, entityId],
 
   // ── Audit ───────────────────────────────────────────────
   AUDIT: (params) => ["audit", params],
+
+  // ── Clinicians (Module 3) ───────────────────────────────
+  CLINICIANS:                   ["clinicians"],
+  CLINICIAN:                    (id) => ["clinicians", id],
+  CLINICIAN_COMPLIANCE:         (id) => ["clinicians", id, "compliance"],
+  CLINICIAN_LEAVE:              (id) => ["clinicians", id, "leave"],
+  CLINICIAN_SUPERVISION:        (id) => ["clinicians", id, "supervision"],
+  CLINICIAN_CPPE:               (id) => ["clinicians", id, "cppe"],
+  CLINICIAN_CLIENT_HISTORY:     (id) => ["clinicians", id, "client-history"],
+  CLINICIAN_ONBOARDING:         (id) => ["clinicians", id, "onboarding"],
+  CLINICIAN_SCOPE:              (id) => ["clinicians", id, "scope"],
+  CLINICIAN_RESTRICTED_CLIENTS: (id) => ["clinicians", id, "restricted-clients"],
+
+  // ── Restricted Clinicians ───────────────────────────────
+  RESTRICTED_CLINICIANS:        ["restricted-clinicians"],
+  RESTRICTED_AT_CLIENT:         (clientId) => ["restricted-at-client", clientId],
 };

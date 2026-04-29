@@ -1,53 +1,103 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Database } from "lucide-react";
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50];
 
 function resolveValue(column, row, index, mode = "desktop") {
-  if (mode === "mobile" && column.mobileRender) {
-    return column.mobileRender(row, index);
-  }
-  if (column.render) {
-    return column.render(row, index);
-  }
-  if (typeof column.accessor === "function") {
-    return column.accessor(row, index);
-  }
-  if (column.key) {
-    return row?.[column.key];
-  }
+  if (mode === "mobile" && column.mobileRender) return column.mobileRender(row, index);
+  if (column.render)                             return column.render(row, index);
+  if (typeof column.accessor === "function")     return column.accessor(row, index);
+  if (column.key)                                return row?.[column.key];
   return "";
 }
 
+/* ── Mobile Card — auto shows ALL non-hidden columns ── */
 function MobileCard({ row, index, columns, renderMobileRow, getRowClassName }) {
-  if (renderMobileRow) {
-    return renderMobileRow(row, index);
-  }
+  if (renderMobileRow) return renderMobileRow(row, index);
+
+  // First column = "hero" — shown prominently at top
+  const [heroCol, ...restCols] = columns.filter((c) => !c.hideOnMobile);
 
   return (
-    <div
-      className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
-        getRowClassName?.(row, index) || ""
-      }`}
-    >
-      <div className="space-y-3">
-        {columns
-          .filter((column) => !column.hideOnMobile)
-          .map((column) => (
-            <div key={column.id || column.key || column.header} className="space-y-0.5">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {column.mobileLabel || column.header}
+    <div className={`
+      relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white
+      shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]
+      transition-all duration-200 active:scale-[0.99]
+      ${getRowClassName?.(row, index) || ""}
+    `}>
+      {/* Accent bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-blue-500 to-indigo-600 rounded-l-2xl" />
+
+      {/* Hero row */}
+      {heroCol && (
+        <div className="px-4 pt-4 pb-3 pl-5 border-b border-slate-100">
+          {resolveValue(heroCol, row, index, "mobile")}
+        </div>
+      )}
+
+      {/* Rest of fields — 2 column grid */}
+      <div className="px-4 pt-3 pb-4 pl-5 grid grid-cols-2 gap-x-4 gap-y-3">
+        {restCols.map((col) => {
+          const val = resolveValue(col, row, index, "mobile");
+          if (val === "" || val === null || val === undefined) return null;
+          return (
+            <div key={col.id || col.key || col.header}>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                {col.mobileLabel || col.header}
               </p>
-              <div className={column.mobileCellClassName || "text-sm text-slate-700"}>
-                {resolveValue(column, row, index, "mobile") ?? "—"}
+              <div className={col.mobileCellClassName || "text-xs font-medium text-slate-700"}>
+                {val}
               </div>
             </div>
-          ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
+/* ── Skeleton ── */
+function SkeletonRow({ cols }) {
+  return (
+    <tr className="animate-pulse border-b border-slate-100 last:border-0">
+      {cols.map((col, i) => (
+        <td key={col.id || i} className="px-5 py-4">
+          <div className={`h-3.5 rounded-full bg-slate-100 ${
+            i === 0 ? "w-4/5" : i % 3 === 1 ? "w-1/2" : "w-2/3"
+          }`} />
+          {i === 0 && <div className="h-2.5 rounded-full bg-slate-100/70 w-2/5 mt-2" />}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function MobileSkeletonCard() {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm animate-pulse">
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-slate-200 rounded-l-2xl" />
+      <div className="px-4 pt-4 pb-3 pl-5 border-b border-slate-100 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-slate-100 shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3.5 bg-slate-100 rounded-full w-3/5" />
+          <div className="h-2.5 bg-slate-100/70 rounded-full w-2/5" />
+        </div>
+      </div>
+      <div className="px-4 pt-3 pb-4 pl-5 grid grid-cols-2 gap-3">
+        {[1,2,3,4].map((i) => (
+          <div key={i} className="space-y-1.5">
+            <div className="h-2 bg-slate-100 rounded-full w-1/2" />
+            <div className="h-3 bg-slate-100/80 rounded-full w-3/4" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
+   MAIN EXPORT
+══════════════════════════════════════════════════════════ */
 export default function DataTable({
   columns,
   data = [],
@@ -70,10 +120,10 @@ export default function DataTable({
   onPageSizeChange,
   totalItems,
 }) {
-  const [page, setPage] = useState(1);
+  const [page,     setPage]     = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
-  const isControlledPage     = typeof controlledPage === "number";
+  const isControlledPage     = typeof controlledPage     === "number";
   const isControlledPageSize = typeof controlledPageSize === "number";
 
   const activePage     = isControlledPage     ? controlledPage     : page;
@@ -90,8 +140,8 @@ export default function DataTable({
   }, [activePage, isControlledPage, onPageChange, pageCount, pagination]);
 
   useEffect(() => {
-    if (!pagination) return;
-    if (!isControlledPage) setPage(1);
+    if (!pagination || isControlledPage) return;
+    setPage(1);
   }, [data.length, isControlledPage, pagination]);
 
   const visibleRows = useMemo(() => {
@@ -103,15 +153,15 @@ export default function DataTable({
   const startItem = totalCount === 0 ? 0 : (activePage - 1) * activePageSize + 1;
   const endItem   = Math.min(totalCount, activePage * activePageSize);
 
-  const updatePage = (nextPage) => {
-    if (isControlledPage) onPageChange?.(nextPage);
-    else setPage(nextPage);
+  const updatePage = (next) => {
+    if (isControlledPage) onPageChange?.(next);
+    else setPage(next);
   };
 
-  const updatePageSize = (nextPageSize) => {
-    const numericSize = Number(nextPageSize);
-    if (isControlledPageSize) onPageSizeChange?.(numericSize);
-    else setPageSize(numericSize);
+  const updatePageSize = (next) => {
+    const n = Number(next);
+    if (isControlledPageSize) onPageSizeChange?.(n);
+    else setPageSize(n);
     if (isControlledPage) onPageChange?.(1);
     else setPage(1);
   };
@@ -124,82 +174,72 @@ export default function DataTable({
       let i = Math.max(2, activePage - delta);
       i <= Math.min(pageCount - 1, activePage + delta);
       i++
-    ) {
-      range.push(i);
-    }
-    if (activePage - delta > 2)         range.unshift("...");
+    ) range.push(i);
+    if (activePage - delta > 2)             range.unshift("...");
     if (activePage + delta < pageCount - 1) range.push("...");
     range.unshift(1);
     range.push(pageCount);
     return range;
   }, [activePage, pageCount]);
 
-  return (
-    <div className={`w-full min-w-0 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
+  const skeletonCount = Math.min(activePageSize, 8);
 
-      {/* ── Desktop Table ── */}
-      <div
-        className="hidden md:block w-full overflow-x-auto"
-        style={{
-          /* Custom scrollbar — always visible at bottom of table area */
-          scrollbarWidth: "thin",
-          scrollbarColor: "#cbd5e1 #f1f5f9",
-        }}
-      >
-        {/* webkit scrollbar styles injected via a <style> tag inside the component */}
+  /* ════════════════════════════════════════════════════════
+     RENDER
+  ════════════════════════════════════════════════════════ */
+  return (
+    <div className={`w-full flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${className}`}>
+
+      {/* ══ DESKTOP TABLE ════════════════════════════════════ */}
+      <div className="hidden md:block w-full overflow-x-auto [scrollbar-width:thin] [scrollbar-color:#e2e8f0_transparent]">
         <style>{`
-          .dt-scroll::-webkit-scrollbar {
-            height: 6px;
-          }
-          .dt-scroll::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 0 0 16px 16px;
-          }
-          .dt-scroll::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 99px;
-          }
-          .dt-scroll::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-          }
+          .dt-wrap::-webkit-scrollbar { height: 4px; }
+          .dt-wrap::-webkit-scrollbar-track { background: transparent; }
+          .dt-wrap::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
+          .dt-wrap::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
         `}</style>
 
-        <div className="dt-scroll w-full overflow-x-auto">
+        <div className="dt-wrap w-full overflow-x-auto">
           <table className={`w-full border-collapse ${tableClassName}`}>
-            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
-              <tr>
-                {columns.map((column) => (
+
+            {/* ── Header ── */}
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/80">
+                {columns.map((col, i) => (
                   <th
-                    key={column.id || column.key || column.header}
-                    className={
-                      column.headerClassName ||
-                      "px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap"
-                    }
+                    key={col.id || col.key || col.header || i}
+                    className={col.headerClassName || `
+                      px-5 py-3.5 text-left text-[10.5px] font-bold uppercase
+                      tracking-[0.08em] text-slate-400 whitespace-nowrap
+                      ${i === 0 ? "pl-5" : ""}
+                    `}
                   >
-                    {column.header}
+                    {col.header}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+
+            {/* ── Body ── */}
+            <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-4 py-16 text-center text-sm text-slate-400">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-                      {loadingText}
-                    </div>
-                  </td>
-                </tr>
+                Array.from({ length: skeletonCount }).map((_, i) => (
+                  <SkeletonRow key={i} cols={columns} />
+                ))
               ) : visibleRows.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-16">
+                  <td colSpan={columns.length} className="px-5 py-20 text-center">
                     {emptyState || (
-                      <div className="text-center">
-                        <p className="font-semibold text-slate-500">{emptyTitle}</p>
-                        {emptyDescription && (
-                          <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>
-                        )}
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
+                          <Database size={22} className="text-slate-300" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-500">{emptyTitle}</p>
+                          {emptyDescription && (
+                            <p className="mt-1 text-xs text-slate-400">{emptyDescription}</p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </td>
@@ -207,15 +247,21 @@ export default function DataTable({
               ) : (
                 visibleRows.map((row, index) => (
                   <tr
-                    key={typeof rowKey === "function" ? rowKey(row) : row[rowKey] || index}
-                    className={getRowClassName?.(row, index) || "hover:bg-slate-50 transition-colors"}
+                    key={typeof rowKey === "function" ? rowKey(row) : row?.[rowKey] ?? index}
+                    className={
+                      getRowClassName?.(row, index) ||
+                      "border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition-colors duration-150"
+                    }
                   >
-                    {columns.map((column) => (
+                    {columns.map((col, ci) => (
                       <td
-                        key={column.id || column.key || column.header}
-                        className={column.cellClassName || "px-4 py-3 text-sm text-slate-600 align-top"}
+                        key={col.id || col.key || col.header || ci}
+                        className={col.cellClassName || `
+                          px-5 py-4 text-sm text-slate-700 align-middle
+                          ${ci === 0 ? "pl-5" : ""}
+                        `}
                       >
-                        {resolveValue(column, row, index) ?? "—"}
+                        {resolveValue(col, row, index) ?? "—"}
                       </td>
                     ))}
                   </tr>
@@ -226,100 +272,115 @@ export default function DataTable({
         </div>
       </div>
 
-      {/* ── Mobile View ── */}
-      <div className="md:hidden p-3 bg-slate-50/70 w-full overflow-hidden">
+      {/* ══ MOBILE CARDS ═════════════════════════════════════ */}
+      <div className="md:hidden w-full bg-slate-50/60 p-3 space-y-2.5">
         {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-400">
-            <div className="mb-2 flex justify-center">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-            </div>
-            {loadingText}
-          </div>
+          Array.from({ length: 4 }).map((_, i) => <MobileSkeletonCard key={i} />)
         ) : visibleRows.length === 0 ? (
           emptyState || (
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center">
-              <p className="font-semibold text-slate-500">{emptyTitle}</p>
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-14 text-center">
+              <Database size={28} className="text-slate-200 mx-auto mb-3" />
+              <p className="text-sm font-bold text-slate-500">{emptyTitle}</p>
               {emptyDescription && (
-                <p className="mt-1 text-sm text-slate-400">{emptyDescription}</p>
+                <p className="mt-1 text-xs text-slate-400">{emptyDescription}</p>
               )}
             </div>
           )
         ) : (
-          <div className="space-y-3">
-            {visibleRows.map((row, index) => (
-              <MobileCard
-                key={typeof rowKey === "function" ? rowKey(row) : row[rowKey] || index}
-                row={row}
-                index={index}
-                columns={columns}
-                renderMobileRow={renderMobileRow}
-                getRowClassName={getRowClassName}
-              />
-            ))}
-          </div>
+          visibleRows.map((row, index) => (
+            <MobileCard
+              key={typeof rowKey === "function" ? rowKey(row) : row?.[rowKey] ?? index}
+              row={row}
+              index={index}
+              columns={columns}
+              renderMobileRow={renderMobileRow}
+              getRowClassName={getRowClassName}
+            />
+          ))
         )}
       </div>
 
-      {/* ── Pagination Footer ── */}
+      {/* ══ PAGINATION ═══════════════════════════════════════ */}
       {pagination && totalCount > 0 && (
-        <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 shrink-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <p className="text-xs text-slate-500">
-              Showing{" "}
-              <span className="font-bold text-slate-700">{startItem}</span>–
-              <span className="font-bold text-slate-700">{endItem}</span> of{" "}
-              <span className="font-bold text-slate-700">{totalCount}</span> results
-            </p>
-            <label className="flex items-center gap-2 text-xs text-slate-500">
-              Rows per page
-              <select
-                value={activePageSize}
-                onChange={(e) => updatePageSize(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 cursor-pointer"
-              >
-                {pageSizeOptions.map((size) => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-            </label>
-          </div>
+        <div className="border-t border-slate-100 bg-white px-5 py-3 shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
 
-          <div className="flex items-center justify-center gap-1 flex-wrap">
-            <button type="button" onClick={() => updatePage(1)} disabled={activePage <= 1}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
-              <ChevronsLeft size={14} />
-            </button>
-            <button type="button" onClick={() => updatePage(Math.max(1, activePage - 1))} disabled={activePage <= 1}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
-              <ChevronLeft size={14} />
-            </button>
+            {/* Left — count + rows per page */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <p className="text-xs text-slate-400">
+                Showing{" "}
+                <span className="font-bold text-slate-600">{startItem}–{endItem}</span>
+                {" "}of{" "}
+                <span className="font-bold text-slate-600">{totalCount.toLocaleString()}</span>
+              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-400">Rows</span>
+                <select
+                  value={activePageSize}
+                  onChange={(e) => updatePageSize(e.target.value)}
+                  className="h-7 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-semibold text-slate-600 outline-none focus:border-blue-400 focus:bg-white cursor-pointer transition-all"
+                >
+                  {pageSizeOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
 
-            {pageNumbers.map((num, i) =>
-              num === "..." ? (
-                <span key={`ellipsis-${i}`} className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-400">…</span>
-              ) : (
-                <button key={num} type="button" onClick={() => updatePage(num)}
-                  className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-all ${
-                    num === activePage
-                      ? "border-blue-500 bg-blue-500 text-white shadow-sm"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                  }`}>
-                  {num}
-                </button>
-              )
-            )}
+            {/* Right — navigation */}
+            <div className="flex items-center gap-1">
+              <NavBtn onClick={() => updatePage(1)} disabled={activePage <= 1} title="First page">
+                <ChevronsLeft size={13} />
+              </NavBtn>
+              <NavBtn onClick={() => updatePage(activePage - 1)} disabled={activePage <= 1} title="Previous">
+                <ChevronLeft size={13} />
+              </NavBtn>
 
-            <button type="button" onClick={() => updatePage(Math.min(pageCount, activePage + 1))} disabled={activePage >= pageCount}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
-              <ChevronRight size={14} />
-            </button>
-            <button type="button" onClick={() => updatePage(pageCount)} disabled={activePage >= pageCount}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
-              <ChevronsRight size={14} />
-            </button>
+              <div className="flex items-center gap-0.5 mx-1">
+                {pageNumbers.map((num, i) =>
+                  num === "..." ? (
+                    <span key={`e-${i}`} className="w-7 text-center text-xs text-slate-400">…</span>
+                  ) : (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => updatePage(num)}
+                      className={`h-8 min-w-[2rem] px-2.5 rounded-lg text-xs font-bold transition-all duration-150 ${
+                        num === activePage
+                          ? "bg-blue-600 text-white shadow-sm shadow-blue-200/60"
+                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  )
+                )}
+              </div>
+
+              <NavBtn onClick={() => updatePage(activePage + 1)} disabled={activePage >= pageCount} title="Next">
+                <ChevronRight size={13} />
+              </NavBtn>
+              <NavBtn onClick={() => updatePage(pageCount)} disabled={activePage >= pageCount} title="Last page">
+                <ChevronsRight size={13} />
+              </NavBtn>
+            </div>
+
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+/* ── Nav Button atom ── */
+function NavBtn({ onClick, disabled, children, title }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-150"
+    >
+      {children}
+    </button>
   );
 }
