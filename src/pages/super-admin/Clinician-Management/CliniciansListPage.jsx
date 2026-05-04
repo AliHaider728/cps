@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Stethoscope, Plus, Eye, Edit2, Trash2, X, Check,
-  Search, Filter, ShieldAlert, RefreshCw, AlertCircle,
+  Search, SlidersHorizontal, ShieldAlert, RefreshCw,
+  AlertCircle, ChevronDown, ShieldCheck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useClinicians, useCreateClinician, useDeleteClinician } from "../../../hooks/useClinicians";
@@ -14,19 +15,34 @@ import { resetListFilters, setListFilter } from "../../../slices/clinicianSlice"
 const TYPE_OPTS     = ["Pharmacist", "Technician", "IP"];
 const CONTRACT_OPTS = ["ARRS", "EA", "Direct", "Mixed"];
 
+/* ── Small reusable label wrapper ── */
 const F = ({ label, children }) => (
-  <div>
-    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">{label}</label>
+  <div className="flex flex-col gap-1.5">
+    <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
     {children}
   </div>
 );
 
-const FilterChip = ({ label, children }) => (
-  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-    <Filter size={13} className="shrink-0 text-slate-400" />
-    <span className="text-xs font-semibold text-slate-500">{label}</span>
-    {children}
+/* ── Select with chevron ── */
+const Select = ({ value, onChange, children, className = "" }) => (
+  <div className="relative">
+    <select
+      value={value}
+      onChange={onChange}
+      className={`w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 pr-8 text-sm text-slate-700 font-medium focus:outline-none focus:border-blue-400 focus:bg-white cursor-pointer transition-all ${className}`}
+    >
+      {children}
+    </select>
+    <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
   </div>
+);
+
+/* ── Input field ── */
+const Input = ({ className = "", ...props }) => (
+  <input
+    {...props}
+    className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-all ${className}`}
+  />
 );
 
 const buildForm = (existing) => ({
@@ -42,6 +58,7 @@ const buildForm = (existing) => ({
   supervisor:    existing?.supervisor?._id || existing?.supervisor || "",
 });
 
+/* ══════════════ MODAL ══════════════ */
 const ClinicianModal = ({ existing, users, onClose, onSave }) => {
   const [form, setForm]     = useState(() => buildForm(existing));
   const [saving, setSaving] = useState(false);
@@ -49,100 +66,98 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
 
   useEffect(() => { setForm(buildForm(existing)); }, [existing]);
 
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setNum = (key) => (e) => setForm((f) => ({ ...f, [key]: Number(e.target.value) || 0 }));
+
   const handle = async () => {
     if (!form.fullName.trim()) { setError("Full name is required"); return; }
     setSaving(true); setError("");
-    try {
-      await onSave(form);
-      onClose();
-    } catch (e) {
-      setError(e?.response?.data?.message || e.message || "Save failed");
-    } finally {
-      setSaving(false);
-    }
+    try { await onSave(form); onClose(); }
+    catch (e) { setError(e?.response?.data?.message || e.message || "Save failed"); }
+    finally { setSaving(false); }
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[92vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h3 className="text-[15px] font-bold text-slate-800">
-            {existing ? "Edit clinician" : "Add new clinician"}
-          </h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100">
-            <X size={16} />
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-slate-200 max-h-[95vh] flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">
+              {existing ? "Edit Clinician" : "Add New Clinician"}
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">Module 3 · Clinician Management</p>
+          </div>
+          <button onClick={onClose}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
+            <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
           {error && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
-              <AlertCircle size={14} /> {error}
+              <AlertCircle size={14} className="shrink-0" /> {error}
             </div>
           )}
-          <div className="grid md:grid-cols-2 gap-4">
-            <F label="Full name">
-              <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <F label="Full Name">
+              <Input value={form.fullName} onChange={set("fullName")} placeholder="Dr. John Smith" />
             </F>
             <F label="Type">
-              <select value={form.clinicianType} onChange={(e) => setForm({ ...form, clinicianType: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
+              <Select value={form.clinicianType} onChange={set("clinicianType")}>
                 {TYPE_OPTS.map((t) => <option key={t}>{t}</option>)}
-              </select>
+              </Select>
             </F>
             <F label="Email">
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+              <Input type="email" value={form.email} onChange={set("email")} placeholder="john@example.com" />
             </F>
             <F label="Phone">
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+              <Input value={form.phone} onChange={set("phone")} placeholder="+44 7700 000000" />
             </F>
-            <F label="GPhC number">
-              <input value={form.gphcNumber} onChange={(e) => setForm({ ...form, gphcNumber: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+            <F label="GPhC Number">
+              <Input value={form.gphcNumber} onChange={set("gphcNumber")} placeholder="1234567" />
             </F>
-            <F label="Contract type">
-              <select value={form.contractType} onChange={(e) => setForm({ ...form, contractType: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
+            <F label="Contract Type">
+              <Select value={form.contractType} onChange={set("contractType")}>
                 {CONTRACT_OPTS.map((t) => <option key={t}>{t}</option>)}
-              </select>
+              </Select>
             </F>
-            <F label="Working hours / week">
-              <input type="number" value={form.workingHours} onChange={(e) => setForm({ ...form, workingHours: Number(e.target.value) || 0 })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+            <F label="Working Hours / Week">
+              <Input type="number" value={form.workingHours} onChange={setNum("workingHours")} placeholder="37.5" />
             </F>
-            <F label="Start date">
-              <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400" />
+            <F label="Start Date">
+              <Input type="date" value={form.startDate} onChange={set("startDate")} />
             </F>
-            <F label="Ops lead">
-              <select value={form.opsLead} onChange={(e) => setForm({ ...form, opsLead: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
-                <option value="">—</option>
+            <F label="Ops Lead">
+              <Select value={form.opsLead} onChange={set("opsLead")}>
+                <option value="">— None —</option>
                 {users.map((u) => <option key={u._id} value={u._id}>{u.fullName || u.email}</option>)}
-              </select>
+              </Select>
             </F>
             <F label="Supervisor">
-              <select value={form.supervisor} onChange={(e) => setForm({ ...form, supervisor: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
-                <option value="">—</option>
+              <Select value={form.supervisor} onChange={set("supervisor")}>
+                <option value="">— None —</option>
                 {users.map((u) => <option key={u._id} value={u._id}>{u.fullName || u.email}</option>)}
-              </select>
+              </Select>
             </F>
           </div>
         </div>
 
-        <div className="flex gap-3 px-6 pb-5 pt-3 border-t border-slate-100">
+        {/* Footer */}
+        <div className="flex gap-3 px-5 sm:px-6 py-4 border-t border-slate-100">
           <button onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">
+            className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
             Cancel
           </button>
           <button onClick={handle} disabled={saving}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 inline-flex items-center justify-center gap-2">
-            {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Check size={14} />}
-            Save
+            className="flex-1 px-4 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-all">
+            {saving
+              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <Check size={15} />}
+            {saving ? "Saving…" : "Save Clinician"}
           </button>
         </div>
       </div>
@@ -150,12 +165,12 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
   );
 };
 
+/* ══════════════ MAIN PAGE ══════════════ */
 export default function CliniciansListPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-
-  // ✅ FIX: slice mein listFilters hai, filters nahi
-  const filters = useAppSelector((s) => s.clinician?.listFilters || {});
+  const filters  = useAppSelector((s) => s.clinician?.listFilters || {});
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { data, isLoading, refetch, isFetching } = useClinicians(filters);
   const usersQ = useAllUsers();
@@ -165,10 +180,14 @@ export default function CliniciansListPage() {
 
   const [modal, setModal] = useState(null);
 
-  const items = data?.clinicians || [];
+  const items = (data?.clinicians || []).map((c) => ({
+    ...(c.data || c),
+    _id: c._id || c.id,
+    restricted: c.data?.isRestricted ?? c.data?.restricted ?? c.isRestricted ?? c.restricted ?? false,
+  }));
+
   const users = usersQ.data?.users || usersQ.data || [];
 
-  // ✅ FIX: setListFilter slice action use karo
   const setFilter = (patch) => {
     const key   = Object.keys(patch)[0];
     const value = Object.values(patch)[0];
@@ -176,75 +195,101 @@ export default function CliniciansListPage() {
   };
 
   const handleSave = async (form) => {
-    if (modal?.clinician) {
-      await updateM.mutateAsync({ id: modal.clinician._id, data: form });
-    } else {
-      await createM.mutateAsync(form);
-    }
+    if (modal?.clinician) await updateM.mutateAsync({ id: modal.clinician._id, data: form });
+    else await createM.mutateAsync(form);
   };
 
-  const handleDelete = async (clinician) => {
-    if (!window.confirm(`Delete ${clinician.fullName}? This cannot be undone.`)) return;
-    await deleteM.mutateAsync(clinician._id);
+  const handleDelete = async (c) => {
+    if (!window.confirm(`Delete ${c.fullName}? This cannot be undone.`)) return;
+    await deleteM.mutateAsync(c._id);
   };
+
+  const hasActiveFilters = filters.search || filters.type || filters.contract || filters.restricted;
 
   const columns = useMemo(() => ([
     {
       header: "Name",
-      cell: (c) => (
+      render: (c) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 flex items-center justify-center shrink-0">
             <Stethoscope size={15} className="text-blue-600" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-800 truncate">{c.fullName || "—"}</p>
-            <p className="text-[11px] text-slate-500 truncate">{c.email || "—"}</p>
+            <p className="text-sm font-semibold text-slate-800 truncate leading-tight">{c.fullName || "—"}</p>
+            <p className="text-xs text-slate-400 truncate mt-0.5">{c.email || "—"}</p>
           </div>
         </div>
       ),
     },
     {
       header: "Type",
-      cell: (c) => (
-        <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border bg-slate-50 text-slate-600 border-slate-200">
-          {c.clinicianType || "—"}
+      render: (c) => {
+        const colors = {
+          Pharmacist: "bg-purple-50 text-purple-700 border-purple-200",
+          Technician: "bg-amber-50 text-amber-700 border-amber-200",
+          IP:         "bg-teal-50 text-teal-700 border-teal-200",
+        };
+        return (
+          <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border whitespace-nowrap ${colors[c.clinicianType] || "bg-slate-50 text-slate-600 border-slate-200"}`}>
+            {c.clinicianType || "—"}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Contract",
+      render: (c) => {
+        const colors = {
+          ARRS:   "bg-blue-50 text-blue-700",
+          EA:     "bg-green-50 text-green-700",
+          Direct: "bg-orange-50 text-orange-700",
+          Mixed:  "bg-pink-50 text-pink-700",
+        };
+        return (
+          <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${colors[c.contractType] || "text-slate-600"}`}>
+            {c.contractType || "—"}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Hours / wk",
+      render: (c) => (
+        <span className="text-sm font-semibold text-slate-700 tabular-nums">
+          {c.workingHours || 0}
+          <span className="text-xs font-normal text-slate-400 ml-0.5">h</span>
         </span>
       ),
     },
-    { header: "Contract", cell: (c) => <span className="text-sm text-slate-700">{c.contractType || "—"}</span> },
-    {
-      header: "Hours",
-      cell: (c) => <span className="text-sm text-slate-700 font-mono">{c.workingHours || 0}</span>,
-    },
     {
       header: "Status",
-      cell: (c) => (
+      render: (c) => (
         c.restricted ? (
-          <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border bg-red-50 text-red-700 border-red-200 inline-flex items-center gap-1">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-red-50 text-red-700 border-red-200 whitespace-nowrap">
             <ShieldAlert size={11} /> Restricted
           </span>
         ) : (
-          <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border bg-green-50 text-green-700 border-green-200">
-            Active
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200 whitespace-nowrap">
+            <ShieldCheck size={11} /> Active
           </span>
         )
       ),
     },
     {
-      header: "Actions",
-      cell: (c) => (
-        <div className="flex gap-1.5">
+      header: "",
+      render: (c) => (
+        <div className="flex items-center gap-1.5 justify-end">
           <button onClick={() => navigate(`/dashboard/clinicians/${c._id}`)}
-            className="px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 inline-flex items-center gap-1">
+            className="h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap">
             <Eye size={12} /> View
           </button>
           <button onClick={() => setModal({ mode: "edit", clinician: c })}
-            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 inline-flex items-center gap-1">
-            <Edit2 size={12} />
+            className="h-8 w-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 inline-flex items-center justify-center transition-all">
+            <Edit2 size={13} />
           </button>
           <button onClick={() => handleDelete(c)}
-            className="px-2.5 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 inline-flex items-center gap-1">
-            <Trash2 size={12} />
+            className="h-8 w-8 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 hover:text-red-700 inline-flex items-center justify-center transition-all">
+            <Trash2 size={13} />
           </button>
         </div>
       ),
@@ -253,84 +298,126 @@ export default function CliniciansListPage() {
   ]), []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center">
-              <Stethoscope size={20} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-xl font-extrabold text-slate-800">Clinicians</h1>
-              <p className="text-xs text-slate-500">Module 3 · Clinician Management</p>
-            </div>
+    <div className="space-y-5">
+
+      {/* ── Page Header ── */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
+            <Stethoscope size={20} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg sm:text-2xl font-extrabold text-slate-800 leading-tight">Clinicians</h1>
+            <p className="text-xs text-slate-400">Module 3 · Clinician Management</p>
           </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex items-center gap-2">
+          {/* Mobile filter toggle */}
+          <button onClick={() => setFiltersOpen(!filtersOpen)}
+            className={`lg:hidden h-9 w-9 rounded-xl border flex items-center justify-center transition-all relative ${filtersOpen ? "bg-blue-600 border-blue-600 text-white" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+            <SlidersHorizontal size={15} />
+            {hasActiveFilters && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white" />
+            )}
+          </button>
+
           <button onClick={() => refetch()}
-            className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 inline-flex items-center gap-1.5">
-            <RefreshCw size={13} className={isFetching ? "animate-spin" : ""} /> Refresh
+            className="h-9 px-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 inline-flex items-center gap-1.5 transition-all">
+            <RefreshCw size={13} className={isFetching ? "animate-spin" : ""} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
+
           <button onClick={() => setModal({ mode: "create" })}
-            className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 inline-flex items-center gap-1.5">
-            <Plus size={14} /> Add clinician
+            className="h-9 px-3 sm:px-4 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 inline-flex items-center gap-1.5 shadow-sm shadow-blue-200 transition-all">
+            <Plus size={15} />
+            <span className="hidden sm:inline">Add clinician</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        <FilterChip label="Search">
-          <div className="flex items-center gap-1 flex-1">
-            <Search size={12} className="text-slate-400" />
-            <input
-              value={filters.search || ""}
-              onChange={(e) => setFilter({ search: e.target.value })}
-              placeholder="Name, email, GPhC…"
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
-            />
+      {/* ── Filters — Desktop always visible, Mobile toggle ── */}
+      <div className={`${filtersOpen ? "block" : "hidden"} lg:block`}>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+
+            {/* Search */}
+            <div className="relative sm:col-span-2 lg:col-span-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={filters.search || ""}
+                onChange={(e) => setFilter({ search: e.target.value })}
+                placeholder="Search name, email, GPhC…"
+                className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
+              />
+            </div>
+
+            {/* Type */}
+            <div className="relative">
+              <Select value={filters.type || ""} onChange={(e) => setFilter({ type: e.target.value })}>
+                <option value="">All types</option>
+                {TYPE_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </Select>
+            </div>
+
+            {/* Contract */}
+            <div className="relative">
+              <Select value={filters.contract || ""} onChange={(e) => setFilter({ contract: e.target.value })}>
+                <option value="">All contracts</option>
+                {CONTRACT_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </Select>
+            </div>
+
+            {/* Restricted */}
+            <div className="relative">
+              <Select value={filters.restricted || ""} onChange={(e) => setFilter({ restricted: e.target.value })}>
+                <option value="">Any status</option>
+                <option value="false">Active only</option>
+                <option value="true">Restricted only</option>
+              </Select>
+            </div>
           </div>
-        </FilterChip>
-        <FilterChip label="Type">
-          <select value={filters.type || ""} onChange={(e) => setFilter({ type: e.target.value })}
-            className="flex-1 bg-transparent text-sm outline-none cursor-pointer">
-            <option value="">All</option>
-            {TYPE_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </FilterChip>
-        <FilterChip label="Contract">
-          <select value={filters.contract || ""} onChange={(e) => setFilter({ contract: e.target.value })}
-            className="flex-1 bg-transparent text-sm outline-none cursor-pointer">
-            <option value="">All</option>
-            {CONTRACT_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </FilterChip>
-        <FilterChip label="Restricted">
-          <select value={filters.restricted || ""} onChange={(e) => setFilter({ restricted: e.target.value })}
-            className="flex-1 bg-transparent text-sm outline-none cursor-pointer">
-            <option value="">Any</option>
-            <option value="false">Active only</option>
-            <option value="true">Restricted only</option>
-          </select>
-        </FilterChip>
+
+          {hasActiveFilters && (
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <p className="text-xs text-slate-400">Filters applied</p>
+              <button onClick={() => dispatch(resetListFilters())}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
+                <X size={11} /> Clear all
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex justify-end">
-        {/* ✅ FIX: resetListFilters use karo */}
-        <button onClick={() => dispatch(resetListFilters())}
-          className="text-xs font-bold text-slate-500 hover:text-slate-700 inline-flex items-center gap-1">
-          <X size={11} /> Reset filters
-        </button>
-      </div>
+      {/* ── Stats bar ── */}
+      {!isLoading && items.length > 0 && (
+        <div className="flex items-center gap-4 text-sm text-slate-500">
+          <span><span className="font-bold text-slate-800">{items.length}</span> clinicians</span>
+          <span className="text-slate-200">|</span>
+          <span><span className="font-bold text-emerald-600">{items.filter(c => !c.restricted).length}</span> active</span>
+          {items.filter(c => c.restricted).length > 0 && (
+            <>
+              <span className="text-slate-200">|</span>
+              <span><span className="font-bold text-red-500">{items.filter(c => c.restricted).length}</span> restricted</span>
+            </>
+          )}
+        </div>
+      )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      {/* ── Table ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <DataTable
           columns={columns}
           data={items}
           loading={isLoading}
-          emptyMessage="No clinicians match the current filters."
+          emptyTitle="No clinicians found"
+          emptyDescription="Try adjusting your filters or add a new clinician."
         />
       </div>
 
+      {/* ── Modal ── */}
       {modal && (
         <ClinicianModal
           existing={modal.clinician}

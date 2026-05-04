@@ -1,10 +1,11 @@
 /**
  * sidebarConfig.js
  *
- * UPDATED (Apr 2026):
- *   ✅ Clinician Management added as dropdown in: super_admin, ops_manager, workforce, director
- *   ✅ 9 tabs + List View + Restricted flag included under Clinician Management
- *   ✅ All existing paths and sections unchanged
+ * UPDATED (May 2026):
+ *   ✅ Clinician Management simplified to single direct link
+ *   ✅ All tabs removed from dropdown
+ *   ✅ Applied across: super_admin, ops_manager, workforce, director
+ *   ✅ All other paths and sections unchanged
  *   ✅ System Settings dropdown kept at bottom for all roles
  */
 
@@ -39,24 +40,7 @@ export const sidebarConfig = {
     {
       section: "OPERATIONS",
       items: [
-        // ── Clinician Management Dropdown (Module 3)
-        {
-          icon: "UserCheck",
-          label: "Clinician Management",
-          children: [
-            { icon: "Users",          label: "Clinician List",        path: "/dashboard/clinicians"                    },
-            { icon: "Info",           label: "Basic Info",            path: "/dashboard/clinicians/basic-info"         },
-            { icon: "Star",           label: "Skills & Experience",   path: "/dashboard/clinicians/skills"             },
-            { icon: "ShieldCheck",    label: "Compliance",            path: "/dashboard/clinicians/compliance"         },
-            { icon: "Briefcase",      label: "Client History",        path: "/dashboard/clinicians/client-history"     },
-            { icon: "CalendarDays",   label: "Calendar & Leave",      path: "/dashboard/clinicians/calendar"           },
-            { icon: "ClipboardList",  label: "Supervision Log",       path: "/dashboard/clinicians/supervision-log"    },
-            { icon: "GraduationCap",  label: "CPPE Status",           path: "/dashboard/clinicians/cppe-status"        },
-            { icon: "Package",        label: "Onboarding & IT",       path: "/dashboard/clinicians/onboarding"         },
-            { icon: "Compass",        label: "Scope of Practice",     path: "/dashboard/clinicians/scope"              },
-            { icon: "UserX",          label: "Restricted / Unsuitable", path: "/dashboard/clinicians/restricted"       },
-          ],
-        },
+        { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
         { icon: "Calendar",      label: "Rota Management", path: "/dashboard/rota"      },
         { icon: "FileSignature", label: "Contracts",        path: "/dashboard/contracts" },
       ],
@@ -141,20 +125,9 @@ export const sidebarConfig = {
         { icon: "BarChart3",     label: "Finance Dashboard", path: "/dashboard/finance"       },
         { icon: "FileSignature", label: "Contracts",         path: "/dashboard/contracts"     },
         { icon: "AlertTriangle", label: "Complaints",        path: "/dashboard/complaints"    },
-        // ── Clinician Management (view only for director)
-        {
-          icon: "UserCheck",
-          label: "Clinician Management",
-          children: [
-            { icon: "Users",         label: "Clinician List",      path: "/dashboard/clinicians"                 },
-            { icon: "ShieldCheck",   label: "Compliance",          path: "/dashboard/clinicians/compliance"      },
-            { icon: "CalendarDays",  label: "Calendar & Leave",    path: "/dashboard/clinicians/calendar"        },
-            { icon: "Compass",       label: "Scope of Practice",   path: "/dashboard/clinicians/scope"           },
-            { icon: "UserX",         label: "Restricted / Unsuitable", path: "/dashboard/clinicians/restricted"  },
-          ],
-        },
-        { icon: "PieChart", label: "Monthly Reports",   path: "/dashboard/reports"       },
-        { icon: "Bell",     label: "Notifications",     path: "/dashboard/notifications" },
+        { icon: "UserCheck",     label: "Clinician Management", path: "/dashboard/clinicians" },
+        { icon: "PieChart",      label: "Monthly Reports",   path: "/dashboard/reports"       },
+        { icon: "Bell",          label: "Notifications",     path: "/dashboard/notifications" },
       ],
     },
     {
@@ -200,24 +173,7 @@ export const sidebarConfig = {
     {
       section: "WORKFORCE",
       items: [
-        // ── Clinician Management Dropdown (Module 3)
-        {
-          icon: "UserCheck",
-          label: "Clinician Management",
-          children: [
-            { icon: "Users",          label: "Clinician List",          path: "/dashboard/clinicians"                  },
-            { icon: "Info",           label: "Basic Info",              path: "/dashboard/clinicians/basic-info"       },
-            { icon: "Star",           label: "Skills & Experience",     path: "/dashboard/clinicians/skills"           },
-            { icon: "ShieldCheck",    label: "Compliance",              path: "/dashboard/clinicians/compliance"       },
-            { icon: "Briefcase",      label: "Client History",          path: "/dashboard/clinicians/client-history"   },
-            { icon: "CalendarDays",   label: "Calendar & Leave",        path: "/dashboard/clinicians/calendar"         },
-            { icon: "ClipboardList",  label: "Supervision Log",         path: "/dashboard/clinicians/supervision-log"  },
-            { icon: "GraduationCap",  label: "CPPE Status",             path: "/dashboard/clinicians/cppe-status"      },
-            { icon: "Package",        label: "Onboarding & IT",         path: "/dashboard/clinicians/onboarding"       },
-            { icon: "Compass",        label: "Scope of Practice",       path: "/dashboard/clinicians/scope"            },
-            { icon: "UserX",          label: "Restricted / Unsuitable", path: "/dashboard/clinicians/restricted"       },
-          ],
-        },
+        { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
         { icon: "Calendar",  label: "Rota Management", path: "/dashboard/rota"  },
         { icon: "RefreshCw", label: "Cover & Gaps",    path: "/dashboard/cover" },
       ],
@@ -394,26 +350,9 @@ export const sidebarConfig = {
     {
       section: "CLINICIANS",
       items: [
-        // ── Clinician Management Dropdown (Module 3)
-        {
-          icon: "UserCheck",
-          label: "Clinician Management",
-          children: [
-            { icon: "Users",          label: "Clinician List",          path: "/dashboard/clinicians"                  },
-            { icon: "Info",           label: "Basic Info",              path: "/dashboard/clinicians/basic-info"       },
-            { icon: "Star",           label: "Skills & Experience",     path: "/dashboard/clinicians/skills"           },
-            { icon: "ShieldCheck",    label: "Compliance",              path: "/dashboard/clinicians/compliance"       },
-            { icon: "Briefcase",      label: "Client History",          path: "/dashboard/clinicians/client-history"   },
-            { icon: "CalendarDays",   label: "Calendar & Leave",        path: "/dashboard/clinicians/calendar"         },
-            { icon: "ClipboardList",  label: "Supervision Log",         path: "/dashboard/clinicians/supervision-log"  },
-            { icon: "GraduationCap",  label: "CPPE Status",             path: "/dashboard/clinicians/cppe-status"      },
-            { icon: "Package",        label: "Onboarding & IT",         path: "/dashboard/clinicians/onboarding"       },
-            { icon: "Compass",        label: "Scope of Practice",       path: "/dashboard/clinicians/scope"            },
-            { icon: "UserX",          label: "Restricted / Unsuitable", path: "/dashboard/clinicians/restricted"       },
-          ],
-        },
-        { icon: "Compass", label: "Scope of Practice", path: "/dashboard/scope"    },
-        { icon: "Phone",   label: "Staff Contacts",    path: "/dashboard/contacts" },
+        { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
+        { icon: "Compass",   label: "Scope of Practice",   path: "/dashboard/scope"    },
+        { icon: "Phone",     label: "Staff Contacts",      path: "/dashboard/contacts" },
       ],
     },
     {
