@@ -45,6 +45,10 @@ const TrainingDashboard  = lazy(() => import("../pages/training/TrainingDashboar
 const WorkforceDashboard = lazy(() => import("../pages/workforce/WorkforceDashboard.jsx"));
 const ClinicianDashboard = lazy(() => import("../pages/clinician/ClinicianDashboard.jsx"));
 
+// ── Module 5 — Rota Management
+const RotaPage = lazy(() => import("../pages/super-admin/RotaManagement/RotaPage.jsx"));
+const RotaGapsPage = lazy(() => import("../pages/super-admin/RotaManagement/RotaGapsPage.jsx"));
+
 // ── Loader
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -155,6 +159,13 @@ const AppRouter = () => (
       element={<Navigate to="/dashboard/clinicians?tab=onboarding" replace />} />
     <Route path="/dashboard/clinicians/scope"
       element={<Navigate to="/dashboard/clinicians?tab=scope" replace />} />
+
+    {/* ─────────────────── Module 5 — Rota Management ───────────────────── */}
+    <Route path="/dashboard/rota"
+      element={<P roles={["super_admin", "ops_manager", "workforce", "finance", "training", "director"]}><RotaPage /></P>} />
+
+    <Route path="/dashboard/rota-gaps"
+      element={<P roles={["super_admin", "ops_manager", "workforce", "finance", "training", "director"]}><RotaGapsPage /></P>} />
 
     {/* ──────────────────────── Role Dashboards ───────────────────────────── */}
     <Route path="/dashboard/director"

@@ -41,7 +41,7 @@ export const sidebarConfig = {
       section: "OPERATIONS",
       items: [
         { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "Calendar",      label: "Rota Management", path: "/dashboard/rota"      },
+        { icon: "Calendar",      label: "Rota Management", path: "/dashboard/rota", roles: ["super_admin", "ops_manager", "workforce", "director", "training", "finance"] },
         { icon: "FileSignature", label: "Contracts",        path: "/dashboard/contracts" },
       ],
     },
@@ -174,7 +174,7 @@ export const sidebarConfig = {
       section: "WORKFORCE",
       items: [
         { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "Calendar",  label: "Rota Management", path: "/dashboard/rota"  },
+        { icon: "Calendar",  label: "Rota Management", path: "/dashboard/rota", roles: ["super_admin", "ops_manager", "workforce", "director", "training", "finance"] },
         { icon: "RefreshCw", label: "Cover & Gaps",    path: "/dashboard/cover" },
       ],
     },
@@ -358,7 +358,7 @@ export const sidebarConfig = {
     {
       section: "ROTA & COVER",
       items: [
-        { icon: "Calendar",    label: "Monthly Rota",   path: "/dashboard/rota"      },
+        { icon: "Calendar",    label: "Monthly Rota",   path: "/dashboard/rota", roles: ["super_admin", "ops_manager", "workforce", "director", "training", "finance"] },
         { icon: "RefreshCw",   label: "Cover Requests", path: "/dashboard/cover"     },
         { icon: "AlertCircle", label: "Rota Gaps",      path: "/dashboard/rota-gaps" },
       ],

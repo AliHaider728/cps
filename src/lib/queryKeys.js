@@ -70,4 +70,10 @@ export const QK = {
   // ── Restricted Clinicians ───────────────────────────────
   RESTRICTED_CLINICIANS:        ["restricted-clinicians"],
   RESTRICTED_AT_CLIENT:         (clientId) => ["restricted-at-client", clientId],
+
+  // ── Rota (Module 5) ─────────────────────────────────────
+  ROTA_LIST: (params) => ["rota", "list", params],
+  ROTA:      (id) => ["rota", "shift", id],
+  ROTA_GAPS: (params) => ["rota", "gaps", params],
+  ROTA_COVER_REQUESTS: (params) => ["rota", "cover-requests", params],
 };
