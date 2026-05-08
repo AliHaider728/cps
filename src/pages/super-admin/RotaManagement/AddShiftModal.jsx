@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useCreateRota, useRotaList } from "../../../hooks/useRota";
 import {
   Building2, Clock, User, FileText, ChevronDown, Loader2,
   Briefcase, Umbrella, Thermometer, BookOpen, AlertTriangle,
-  UserPlus, XCircle, X, Plus, PoundSterling,
+  UserPlus, XCircle, X, Plus, PoundSterling, ShieldAlert,
 } from "lucide-react";
 
 /* ── Status options ─────────────────────────────────────────────────────── */
@@ -20,7 +20,6 @@ const STATUS_OPTIONS = [
 const CLINICAL_SYSTEMS = ["EMIS", "SystmOne", "Vision", "AccuRx", "ICE", "Other"];
 const SERVICE_CODES    = ["GPX", "EAX", "PCN", "EA"];
 
-/* ── Practice list derived from seed / DB (hardcoded known ones + custom) ── */
 const KNOWN_PRACTICES = [
   { id: "P84001", name: "Pendleton Medical Centre",    system: "EMIS"      },
   { id: "P84002", name: "Weaste & Seedley Surgery",    system: "EMIS"      },
@@ -29,7 +28,6 @@ const KNOWN_PRACTICES = [
   { id: "P83001", name: "Speke Medical Centre",        system: "SystmOne"  },
 ];
 
-/* ── Hours calculator ───────────────────────────────────────────────────── */
 const calcHours = (start, end) => {
   if (!start || !end) return null;
   const [sh, sm] = start.split(":").map(Number);
@@ -39,13 +37,40 @@ const calcHours = (start, end) => {
   return Math.round((diff / 60) * 100) / 100;
 };
 
+/* ── Parse a friendly error from axios error ────────────────────────────── */
+const parseError = (err) => {
+  const status  = err?.response?.status;
+  const data    = err?.response?.data;
+  const message = data?.message || err?.message || "Unknown error";
+  const missing = data?.data?.missing || data?.missing;
+
+  if (status === 403)
+    return { title: "Clinician Restricted", body: message, icon: "restricted" };
+
+  if (status === 409 && missing?.length)
+    return {
+      title: "Compliance Incomplete",
+      body: `Missing: ${missing.join(", ")}. An ops manager or super admin can override.`,
+      icon: "compliance",
+    };
+
+  return { title: "Failed to create shift", body: message, icon: "error" };
+};
+
 /* ── Main Modal ─────────────────────────────────────────────────────────── */
 export default function AddShiftModal({ open, onClose, clinicianId, date }) {
-  const now    = useMemo(() => new Date(), []);
-  const month  = now.getMonth() + 1;
-  const year   = now.getFullYear();
 
-  // Fetch all clinicians from rota grid for the dropdown
+  // ✅ FIX: derive month/year from the date PROP (not always current date)
+  // So that clinician dropdown fetches the right month's rota
+  const { month, year } = useMemo(() => {
+    if (date) {
+      const d = new Date(date + "T00:00:00");
+      return { month: d.getMonth() + 1, year: d.getFullYear() };
+    }
+    const now = new Date();
+    return { month: now.getMonth() + 1, year: now.getFullYear() };
+  }, [date]);
+
   const { data: rotaData, isLoading: rotaLoading } = useRotaList({ month, year });
   const allClinicians = useMemo(() => {
     const rows = rotaData?.data?.clinicians ?? rotaData?.clinicians ?? [];
@@ -71,10 +96,29 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
   const [notes,               setNotes]               = useState("");
   const [isCover,             setIsCover]             = useState(false);
   const [coverReason,         setCoverReason]         = useState("");
-  // ── NEW: hourly rate (required by spec — shifts collection has hourly_rate + total_value) ──
   const [hourlyRate,          setHourlyRate]          = useState("");
 
-  // Derived
+  // ✅ FIX: sync clinicianId prop → state when prop changes (e.g. different cell clicked)
+  useEffect(() => {
+    setSelectedClinicianId(clinicianId || "");
+    setClinicianSearch("");
+  }, [clinicianId]);
+
+  // ✅ FIX: reset form when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setStatus("working");
+      setIsCover(false);
+      setCoverReason("");
+      setNotes("");
+      setHourlyRate("");
+      setSelectedPractice(null);
+      setPracticeSearch("");
+      setCustomPracticeId("");
+      setShowCustomPractice(false);
+    }
+  }, [open]);
+
   const calculatedHours = calcHours(startTime, endTime);
   const totalValue = hourlyRate && calculatedHours
     ? Math.round(parseFloat(hourlyRate) * calculatedHours * 100) / 100
@@ -108,19 +152,39 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
     ? customPracticeId.trim()
     : (selectedPractice?.id || "");
 
+  /* ── Status change handler ──────────────────────────────────────────── */
+  const handleStatusChange = (val) => {
+    setStatus(val);
+
+    if (val === "cover") {
+      setIsCover(true);
+    } else {
+      setIsCover(false);
+    }
+
+    // ✅ FIX: gap shifts cannot have a clinician — auto-clear on selection
+    if (val === "gap") {
+      setSelectedClinicianId("");
+      setClinicianSearch("");
+    }
+  };
+
+  /* ── Submit ─────────────────────────────────────────────────────────── */
   const handleCreate = () => {
     if (!practiceId) return;
 
     create.mutate({
-      clinician_id:      selectedClinicianId || null,
+      clinician_id:      status === "gap" ? null : (selectedClinicianId || null),
       practice_id:       practiceId,
       date,
-      day_of_week:       date ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(date + "T00:00:00").getDay()] : null,
+      day_of_week:       date
+        ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(date + "T00:00:00").getDay()]
+        : null,
       start_time:        startTime,
       end_time:          endTime,
       hours:             calculatedHours,
-      hourly_rate:       hourlyRate ? parseFloat(hourlyRate) : null,   // ← NEW
-      total_value:       totalValue,                                    // ← NEW (auto-calc)
+      hourly_rate:       hourlyRate ? parseFloat(hourlyRate) : null,
+      total_value:       totalValue,
       clinical_system:   clinicalSystem || selectedPractice?.system || null,
       status,
       service_code:      serviceCode,
@@ -130,13 +194,14 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
       workstreams_notes: notes,
       source:            "manual",
     }, {
-      onSuccess: () => {
-        onClose?.();
-      },
+      onSuccess: () => onClose?.(),
     });
   };
 
   if (!open || !date) return null;
+
+  const errorInfo = create.isError ? parseError(create.error) : null;
+  const isGap     = status === "gap";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -170,11 +235,20 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
               <User size={11} className="inline mr-1" /> Clinician
-              <span className="ml-1 text-slate-400 font-normal normal-case">(optional — leave blank for gap)</span>
+              {/* ✅ Show hint when gap is selected */}
+              {isGap
+                ? <span className="ml-1 text-orange-500 font-normal normal-case">(not applicable for gap shifts)</span>
+                : <span className="ml-1 text-slate-400 font-normal normal-case">(optional — leave blank for gap)</span>
+              }
             </label>
 
-            {clinicianId ? (
-              /* Pre-selected (from weekly view cell click) */
+            {/* ✅ Disable clinician field when gap is selected */}
+            {isGap ? (
+              <div className="flex items-center gap-3 h-10 px-3 rounded-xl border border-orange-200 bg-orange-50">
+                <AlertTriangle size={14} className="text-orange-400 shrink-0" />
+                <span className="text-sm text-orange-600 italic">Gap shift — no clinician assigned</span>
+              </div>
+            ) : clinicianId ? (
               <div className="flex items-center gap-3 h-10 px-3 rounded-xl border border-blue-200 bg-blue-50">
                 <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                   {(selectedClinician?.fullName ?? "?").charAt(0)}
@@ -184,7 +258,6 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
                 </span>
               </div>
             ) : (
-              /* Search dropdown */
               <div className="relative">
                 <input
                   type="text"
@@ -199,15 +272,10 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
 
                 {clinicianDdOpen && filteredClinicians.length > 0 && (
-                  /*
-                   * ✅ FIX: onMouseDown preventDefault stops the input's onBlur from firing
-                   *    before the item's onClick — this is what was causing selection to fail.
-                   */
                   <div
                     className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl max-h-48 overflow-y-auto"
                     onMouseDown={(e) => e.preventDefault()}
                   >
-                    {/* No clinician option */}
                     <button type="button"
                       onClick={() => { setSelectedClinicianId(""); setClinicianSearch(""); setClinicianDdOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 border-b border-slate-100">
@@ -237,7 +305,6 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
                             <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
                             {c.email && <p className="text-xs text-slate-400 truncate">{c.email}</p>}
                           </div>
-                          {/* ✅ Visual tick when selected */}
                           {selectedClinicianId === id && (
                             <span className="text-blue-600 text-xs font-bold shrink-0">✓</span>
                           )}
@@ -286,10 +353,6 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
                 <Building2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
 
                 {practiceDdOpen && (
-                  /*
-                   * ✅ FIX: onMouseDown preventDefault stops the input's onBlur from firing
-                   *    before the item's onClick — this is what was causing selection to fail.
-                   */
                   <div
                     className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl max-h-48 overflow-y-auto"
                     onMouseDown={(e) => e.preventDefault()}
@@ -317,7 +380,6 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
                           <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
                           <p className="text-xs text-slate-400">{p.id} · {p.system}</p>
                         </div>
-                        {/* ✅ Visual tick when selected */}
                         {selectedPractice?.id === p.id && (
                           <span className="text-blue-600 text-xs font-bold shrink-0">✓</span>
                         )}
@@ -328,7 +390,6 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
               </div>
             )}
 
-            {/* Selected practice chip */}
             {selectedPractice && !showCustomPractice && (
               <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
                 <Building2 size={13} className="text-emerald-600 shrink-0" />
@@ -371,7 +432,7 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
             </div>
           </div>
 
-          {/* ── 4. Hourly Rate (NEW — spec: shifts.hourly_rate + total_value) ── */}
+          {/* ── 4. Hourly Rate ── */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
               <PoundSterling size={11} className="inline mr-1" /> Hourly Rate
@@ -381,9 +442,7 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold">£</span>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.50"
+                  type="number" min="0" step="0.50"
                   value={hourlyRate}
                   onChange={(e) => setHourlyRate(e.target.value)}
                   placeholder="0.00"
@@ -391,7 +450,6 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
                     focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
                 />
               </div>
-              {/* Auto-calculated total */}
               <div className={`h-10 flex items-center justify-between px-3 rounded-xl border text-sm font-bold ${
                 totalValue
                   ? "bg-emerald-50 border-emerald-200 text-emerald-700"
@@ -407,11 +465,8 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Status</label>
             <div className="grid grid-cols-4 gap-2">
               {STATUS_OPTIONS.map(({ value, label, color, Icon }) => (
-                <button key={value} type="button" onClick={() => {
-                    setStatus(value);
-                    if (value === "cover") setIsCover(true);
-                    else setIsCover(false);
-                  }}
+                <button key={value} type="button"
+                  onClick={() => handleStatusChange(value)}
                   className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 text-[11px] font-semibold transition-all hover:shadow-sm ${
                     status === value
                       ? "border-slate-900 bg-slate-900 text-white shadow-sm"
@@ -456,7 +511,7 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
             </div>
           </div>
 
-          {/* ── 7. Cover details (conditional) ── */}
+          {/* ── 7. Cover details ── */}
           {(isCover || status === "cover") && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
               <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Cover Details</p>
@@ -479,19 +534,29 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
           {/* ── 8. Notes ── */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optional notes…"
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+              placeholder="Optional notes…"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900
                 placeholder-slate-400 transition-all focus:border-blue-400 focus:bg-white focus:outline-none
                 focus:ring-2 focus:ring-blue-100 resize-none" />
           </div>
 
-          {/* ── Error ── */}
-          {create.isError && (
-            <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700">
-              <X size={14} className="shrink-0 mt-0.5" />
+          {/* ── Error — specific messages for 403 / 409 / general ── */}
+          {errorInfo && (
+            <div className={`flex items-start gap-2 rounded-xl border px-4 py-3 text-xs ${
+              errorInfo.icon === "restricted"
+                ? "bg-red-50 border-red-200 text-red-700"
+                : errorInfo.icon === "compliance"
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : "bg-red-50 border-red-200 text-red-700"
+            }`}>
+              {errorInfo.icon === "compliance"
+                ? <ShieldAlert size={14} className="shrink-0 mt-0.5 text-amber-500" />
+                : <X size={14} className="shrink-0 mt-0.5" />
+              }
               <div>
-                <p className="font-semibold">Failed to create shift</p>
-                <p className="mt-0.5 opacity-80">{String(create.error?.response?.data?.message || create.error?.message || "Unknown error")}</p>
+                <p className="font-semibold">{errorInfo.title}</p>
+                <p className="mt-0.5 opacity-80">{errorInfo.body}</p>
               </div>
             </div>
           )}
@@ -499,7 +564,6 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
 
         {/* ── Footer ── */}
         <div className="sticky bottom-0 px-5 pb-5 pt-4 flex items-center justify-between gap-3 border-t border-slate-100 bg-white rounded-b-2xl">
-          {/* Summary */}
           <div className="text-xs text-slate-400 space-y-0.5">
             {practiceId && <span className="font-semibold text-slate-600">{practiceId}</span>}
             {calculatedHours && <span> · <strong className="text-slate-700">{calculatedHours}h</strong></span>}
