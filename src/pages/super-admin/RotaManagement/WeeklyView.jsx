@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRotaList } from "../../../hooks/useRota";
 import ShiftDetailModal from "./ShiftDetailModal";
 import AddShiftModal from "./AddShiftModal";
@@ -85,6 +85,10 @@ export default function WeeklyView({
   const days       = useMemo(() => Array.from({ length: 7 }, (_, i) => new Date(weekStart.getTime() + i * 86_400_000)), [weekStart]);
   const clinicians = data?.data?.clinicians ?? data?.clinicians ?? [];
   const todayISO   = new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())).toISOString().slice(0, 10);
+
+  useEffect(() => {
+    setAnchor(new Date(Date.UTC(year, month - 1, 1)));
+  }, [month, year]);
 
   /* ── Week stats ── */
   const stats = useMemo(() => {

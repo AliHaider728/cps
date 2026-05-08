@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRotaList } from "../../../hooks/useRota";
 import ShiftDetailModal from "./ShiftDetailModal";
 import AddShiftModal from "./AddShiftModal";
@@ -279,6 +279,14 @@ export default function MonthlyCalendarView({
   const [month, setMonth] = useState(initMonth);
   const [year,  setYear]  = useState(initYear);
 
+  useEffect(() => {
+    setMonth(initMonth);
+  }, [initMonth]);
+
+  useEffect(() => {
+    setYear(initYear);
+  }, [initYear]);
+
   const { data, isLoading, isError, error } = useRotaList({ month, year });
 
   const [detailOpen,     setDetailOpen]     = useState(false);
@@ -349,7 +357,7 @@ export default function MonthlyCalendarView({
             <h2 className="text-lg font-bold text-slate-800">{monthName(month)} {year}</h2>
           </div>
 
-          {/* View switcher + New Event */}
+          {/* View switcher + Add Shift */}
           <div className="flex items-center gap-2">
             {["Day", "Week", "Month"].map((v) => (
               <button
@@ -368,7 +376,7 @@ export default function MonthlyCalendarView({
               className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors"
             >
               <Plus size={15} />
-              New Event
+              Add Shift
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useClinicianRota, useRotaList } from "../../../hooks/useRota";
+import { usePractices } from "../../../hooks/usePractice";
 import {
   Building2,
   Users,
@@ -94,6 +95,23 @@ export default function ClinicianDiaryView() {
     month,
     year
   );
+
+  const { data: practicesRes } = usePractices();
+  const practicesPayload = practicesRes?.data ?? practicesRes;
+  const practices = Array.isArray(practicesPayload)
+    ? practicesPayload
+    : Array.isArray(practicesPayload?.data)
+      ? practicesPayload.data
+      : [];
+  const practiceNameById = useMemo(() => {
+    const map = new Map();
+    practices.forEach((p) => {
+      const id = String(p?._id ?? p?.id ?? "");
+      if (!id) return;
+      map.set(id, p?.name ?? id);
+    });
+    return map;
+  }, [practices]);
 
   const clinician = data?.clinician;
   const shifts    = data?.shifts ?? [];
@@ -466,7 +484,9 @@ export default function ClinicianDiaryView() {
                                 {shift.practice_id && (
                                   <span className="flex items-center gap-1 text-xs text-slate-500">
                                     <Building2 size={11} className="text-slate-400" />
-                                    <span className="font-medium">{shift.practice_id}</span>
+                                    <span className="font-medium">
+                                      {practiceNameById.get(String(shift.practice_id)) ?? String(shift.practice_id)}
+                                    </span>
                                   </span>
                                 )}
                                 {shift.client_id && (
