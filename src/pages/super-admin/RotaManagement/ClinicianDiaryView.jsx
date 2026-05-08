@@ -90,11 +90,18 @@ export default function ClinicianDiaryView() {
   }, []);
 
   /* ── Diary data — only fetches when clinician selected ── */
-  const { data, isLoading: diaryLoading } = useClinicianRota(
+  const { data: rawDiaryData, isLoading: diaryLoading } = useClinicianRota(
     selectedClinician || null,
     month,
     year
   );
+
+  // ✅ FIX: Backend returns { success, data: { clinician, shifts, month, year } }
+  // Hook does r.data so rawDiaryData = { success, data: { clinician, shifts } }
+  // Must go one level deeper: rawDiaryData?.data
+  const diaryPayload = rawDiaryData?.data ?? rawDiaryData ?? null;
+  const clinician    = diaryPayload?.clinician ?? null;
+  const shifts       = Array.isArray(diaryPayload?.shifts) ? diaryPayload.shifts : [];
 
   const { data: practicesRes } = usePractices();
   const practicesPayload = practicesRes?.data ?? practicesRes;
@@ -112,9 +119,6 @@ export default function ClinicianDiaryView() {
     });
     return map;
   }, [practices]);
-
-  const clinician = data?.clinician;
-  const shifts    = data?.shifts ?? [];
 
   /* ── Month input ── */
   const monthInputValue = `${year}-${String(month).padStart(2, "0")}`;
@@ -217,7 +221,6 @@ export default function ClinicianDiaryView() {
                 Clinician <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                {/* Search input */}
                 <div className="relative">
                   {isLoading || rotaLoading
                     ? <Loader2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin pointer-events-none" />
@@ -229,7 +232,6 @@ export default function ClinicianDiaryView() {
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
                       setDropdownOpen(true);
-                      // If user clears the search, clear selection too
                       if (!e.target.value) setSelectedClinician("");
                     }}
                     onFocus={() => setDropdownOpen(true)}
@@ -237,7 +239,6 @@ export default function ClinicianDiaryView() {
                     className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-200 bg-white text-sm text-slate-800
                       focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
                   />
-                  {/* Right icons */}
                   {searchQuery && (
                     <button
                       type="button"
@@ -271,12 +272,11 @@ export default function ClinicianDiaryView() {
                         </div>
                       ) : (
                         filteredClinicians.map((c) => {
-                          const id      = c._id ?? c.id ?? "";
-                          const name    = c.fullName ?? c.name ?? "Unknown";
-                          const email   = c.email ?? "";
+                          const id       = c._id ?? c.id ?? "";
+                          const name     = c.fullName ?? c.name ?? "Unknown";
+                          const email    = c.email ?? "";
                           const isActive = selectedClinician === id;
 
-                          /* Count shifts for this clinician */
                           const rows     = rotaData?.data?.clinicians ?? rotaData?.clinicians ?? [];
                           const row      = rows.find((r) => (r?.clinician?._id ?? r?.clinician?.id) === id);
                           const shiftCnt = row?.shifts ? Object.keys(row.shifts).length : 0;
@@ -292,7 +292,6 @@ export default function ClinicianDiaryView() {
                                 isActive ? "bg-blue-50" : "",
                               ].join(" ")}
                             >
-                              {/* Avatar */}
                               <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-white text-xs font-bold shadow-sm ${isActive ? "bg-blue-600" : "bg-slate-400"}`}>
                                 {name.charAt(0).toUpperCase()}
                               </div>
@@ -416,7 +415,6 @@ export default function ClinicianDiaryView() {
 
         {/* ── Shift list ── */}
         <div className="px-5 py-5">
-          {/* Loading state — inline, no page refresh */}
           {isLoading ? (
             <div className="flex items-center justify-center py-16 gap-3">
               <Loader2 size={22} className="animate-spin text-blue-500" />
