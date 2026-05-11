@@ -14,7 +14,14 @@ export const useCreateClinician = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) => clinicianService.create(data).then((r) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.CLINICIANS }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: QK.CLINICIANS });
+      // Agar user bhi bana toh users list bhi refresh karo
+      // taake Manage Users page mein foran show ho
+      if (result?.userCreated) {
+        qc.invalidateQueries({ queryKey: QK.USERS });
+      }
+    },
   });
 };
 

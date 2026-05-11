@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useClinicianRota, useRotaList } from "../../../hooks/useRota";
 import { usePractices } from "../../../hooks/usePractice";
+import { useTimeEntries, useActiveTimeEntry } from "../../../hooks/useTimeEntry";
 import {
   Building2,
   Users,
@@ -19,6 +20,8 @@ import {
   Search,
   ChevronDown,
   X,
+  Timer,
+  Activity,
 } from "lucide-react";
 
 const STATUS_CONFIG = {
@@ -36,6 +39,16 @@ const getStatus = (s) =>
 
 const ALL_STATUSES = ["all", ...Object.keys(STATUS_CONFIG)];
 
+/* ── Live timer formatter ── */
+const formatLiveDuration = (startIso) => {
+  if (!startIso) return "00:00:00";
+  const diffMs = Date.now() - new Date(startIso).getTime();
+  const h = Math.floor(diffMs / 3_600_000);
+  const m = Math.floor((diffMs % 3_600_000) / 60_000);
+  const s = Math.floor((diffMs % 60_000) / 1_000);
+  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+};
+
 const StatCard = ({ icon: Icon, iconBg, label, value, sub }) => (
   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
@@ -49,6 +62,141 @@ const StatCard = ({ icon: Icon, iconBg, label, value, sub }) => (
   </div>
 );
 
+/* ══════════════════════════════════════════════
+   ACTIVE SHIFT BANNER
+   Sirf tab show hota hai jab koi clinician
+   select ho aur uski active entry ho
+══════════════════════════════════════════════ */
+function ActiveShiftBanner({ selectedClinician }) {
+  const { data: activeEntry } = useActiveTimeEntry();
+  const { data: timeEntriesData } = useTimeEntries({ limit: 100 });
+  const [liveDisplay, setLiveDisplay] = useState("00:00:00");
+  const intervalRef = useRef(null);
+
+  const entries = Array.isArray(timeEntriesData) ? timeEntriesData : [];
+
+  /* Monthly clocked hours from completed entries */
+  const now = new Date();
+  const monthlyHours = useMemo(() => {
+    return entries
+      .filter((e) => {
+        if (e.status !== "completed") return false;
+        const d = new Date(e.clock_in);
+        return (
+          d.getFullYear() === now.getFullYear() &&
+          d.getMonth() === now.getMonth()
+        );
+      })
+      .reduce((sum, e) => sum + Number(e.actual_hours || 0), 0)
+      .toFixed(1);
+  }, [entries, now]);
+
+  /* Active sessions this month */
+  const sessionsThisMonth = entries.filter((e) => {
+    if (e.status !== "completed") return false;
+    const d = new Date(e.clock_in);
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth()
+    );
+  }).length;
+
+  /* Live timer */
+  useEffect(() => {
+    if (activeEntry?.clock_in) {
+      setLiveDisplay(formatLiveDuration(activeEntry.clock_in));
+      intervalRef.current = setInterval(() => {
+        setLiveDisplay(formatLiveDuration(activeEntry.clock_in));
+      }, 1000);
+    } else {
+      clearInterval(intervalRef.current);
+      setLiveDisplay("00:00:00");
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [activeEntry?.clock_in]);
+
+  /* Koi clinician select nahi — kuch mat dikhao */
+  if (!selectedClinician) return null;
+
+  /* Na active shift, na koi history — card mat dikhao */
+  if (!activeEntry && monthlyHours === "0.0" && sessionsThisMonth === 0) return null;
+
+  return (
+    <div className={`rounded-2xl border overflow-hidden ${activeEntry ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${activeEntry ? "border-emerald-200 bg-emerald-100/60" : "border-slate-100 bg-slate-50"}`}>
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${activeEntry ? "bg-emerald-600" : "bg-slate-400"}`}>
+            <Timer size={15} className="text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800">
+              {activeEntry ? "Shift Currently In Progress" : "Shift Activity"}
+            </p>
+            <p className="text-xs text-slate-400">Live clock-in status</p>
+          </div>
+        </div>
+
+        {activeEntry && (
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            Live
+          </span>
+        )}
+      </div>
+
+      <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+        {/* Live Timer */}
+        <div className={`rounded-xl border p-3 text-center ${activeEntry ? "border-emerald-200 bg-white" : "border-slate-200 bg-slate-50"}`}>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+            {activeEntry ? "Current Session" : "No Active Session"}
+          </p>
+          <p className={`font-mono text-2xl font-black tracking-tight tabular-nums ${activeEntry ? "text-slate-900" : "text-slate-300"}`}>
+            {liveDisplay}
+          </p>
+          {activeEntry?.clock_in && (
+            <p className="text-[11px] text-slate-400 mt-1">
+              Started{" "}
+              <span className="font-bold text-slate-600">
+                {new Date(activeEntry.clock_in).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </p>
+          )}
+        </div>
+
+        {/* Monthly Hours */}
+        <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Activity size={11} className="text-blue-500" />
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">This Month</p>
+          </div>
+          <p className="text-2xl font-black text-slate-800">
+            {monthlyHours}
+            <span className="text-xs font-normal text-slate-400 ml-1">hrs</span>
+          </p>
+          <p className="text-[11px] text-slate-400 mt-0.5">{sessionsThisMonth} sessions</p>
+        </div>
+
+        {/* Status */}
+        <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Status</p>
+          <p className={`text-sm font-black mt-1 ${activeEntry ? "text-emerald-600" : "text-slate-400"}`}>
+            {activeEntry ? "Clocked In" : "Not Clocked In"}
+          </p>
+          {activeEntry?.planned_hours && (
+            <p className="text-[11px] text-slate-400 mt-1">
+              Planned: <span className="font-bold text-slate-600">{activeEntry.planned_hours}h</span>
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   MAIN PAGE
+══════════════════════════════════════════════ */
 export default function ClinicianDiaryView() {
   const [selectedClinician, setSelectedClinician] = useState("");
   const [searchQuery,       setSearchQuery]        = useState("");
@@ -61,11 +209,8 @@ export default function ClinicianDiaryView() {
 
   const { data: rotaData, isLoading: rotaLoading } = useRotaList({ month, year });
 
-  // ✅ FIX: filter out "gap" rows — only real clinicians in dropdown
   const allClinicians = useMemo(() => {
     const rows = rotaData?.data?.clinicians ?? rotaData?.clinicians ?? [];
-    // 🔍 TEMP DEBUG — browser console mein dekho phir hata dena
-    console.log("RAW ROWS:", JSON.stringify(rows.slice(0, 5), null, 2));
     return rows
       .filter((r) => {
         if (r?.status === "gap") return false;
@@ -113,6 +258,7 @@ export default function ClinicianDiaryView() {
     : Array.isArray(practicesPayload?.data)
       ? practicesPayload.data
       : [];
+
   const practiceNameById = useMemo(() => {
     const map = new Map();
     practices.forEach((p) => {
@@ -181,6 +327,8 @@ export default function ClinicianDiaryView() {
 
   return (
     <div className="space-y-4">
+
+      {/* ── Top stat cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users}         iconBg="bg-blue-600"    label="Shifts"       value={stats.total}      sub="this month" />
         <StatCard icon={Clock}         iconBg="bg-emerald-600" label="Total Hours"  value={stats.totalHours} sub="hrs worked" />
@@ -188,6 +336,10 @@ export default function ClinicianDiaryView() {
         <StatCard icon={AlertTriangle} iconBg="bg-orange-500"  label="Gaps / Sick"  value={(stats.breakdown.find(b => b.status === "gap")?.count ?? 0) + (stats.breakdown.find(b => b.status === "sick")?.count ?? 0)} sub="gaps + sick" />
       </div>
 
+      {/* ── Active Shift Banner — sirf tab show ho jab clinician select ho ── */}
+      <ActiveShiftBanner selectedClinician={selectedClinician} />
+
+      {/* ── Main diary card ── */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
@@ -206,9 +358,11 @@ export default function ClinicianDiaryView() {
           )}
         </div>
 
+        {/* ── Filters ── */}
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 space-y-3">
           <div className="flex flex-col sm:flex-row gap-3">
 
+            {/* Clinician search dropdown */}
             <div className="flex-1 min-w-[220px]" ref={dropdownRef}>
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                 Clinician <span className="text-red-500">*</span>
@@ -233,19 +387,13 @@ export default function ClinicianDiaryView() {
                       focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
                   />
                   {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={clearClinician}
-                      className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                    >
+                    <button type="button" onClick={clearClinician}
+                      className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
                       <X size={13} />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setDropdownOpen((p) => !p)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                  >
+                  <button type="button" onClick={() => setDropdownOpen((p) => !p)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
                     <ChevronDown size={14} className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
                   </button>
                 </div>
@@ -268,7 +416,6 @@ export default function ClinicianDiaryView() {
                           const name     = c.fullName ?? c.name ?? "Unknown";
                           const email    = c.email ?? "";
                           const isActive = selectedClinician === id;
-
                           const rows     = rotaData?.data?.clinicians ?? rotaData?.clinicians ?? [];
                           const row      = rows.find((r) => (r?.clinician?._id ?? r?.clinician?.id) === id);
                           const shiftCnt = row?.shifts ? Object.keys(row.shifts).length : 0;
@@ -306,6 +453,7 @@ export default function ClinicianDiaryView() {
               </div>
             </div>
 
+            {/* Practice filter */}
             <div className="flex-1 min-w-[160px]">
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Practice</label>
               <div className="relative">
@@ -321,6 +469,7 @@ export default function ClinicianDiaryView() {
               </div>
             </div>
 
+            {/* Month picker */}
             <div>
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Month / Year</label>
               <input
@@ -333,6 +482,7 @@ export default function ClinicianDiaryView() {
             </div>
           </div>
 
+          {/* Status filter pills */}
           <div>
             <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Status</label>
             <div className="flex items-center gap-1 overflow-x-auto pb-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm scrollbar-hide">
@@ -346,9 +496,7 @@ export default function ClinicianDiaryView() {
                     onClick={() => setStatusFilter(s)}
                     className={[
                       "flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-all shrink-0 active:scale-95",
-                      active
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
+                      active ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
                     ].join(" ")}
                   >
                     {cfg && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />}
@@ -360,6 +508,7 @@ export default function ClinicianDiaryView() {
           </div>
         </div>
 
+        {/* ── Selected clinician info bar ── */}
         {clinician && (
           <div className="px-5 py-3.5 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shrink-0">
@@ -377,6 +526,7 @@ export default function ClinicianDiaryView() {
           </div>
         )}
 
+        {/* ── Status breakdown chips ── */}
         {stats.breakdown.length > 0 && (
           <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap gap-2">
             {stats.breakdown.map(({ status, count, cfg, pct }) => {
@@ -400,6 +550,7 @@ export default function ClinicianDiaryView() {
           </div>
         )}
 
+        {/* ── Diary content ── */}
         <div className="px-5 py-5">
           {isLoading ? (
             <div className="flex items-center justify-center py-16 gap-3">

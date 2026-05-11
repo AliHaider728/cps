@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Stethoscope, Plus, Eye, Edit2, Trash2, X, Check,
   Search, SlidersHorizontal, ShieldAlert, RefreshCw,
-  AlertCircle, ChevronDown, ShieldCheck,
+  AlertCircle, ChevronDown, ShieldCheck, UserPlus, KeyRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useClinicians, useCreateClinician, useDeleteClinician } from "../../../hooks/useClinicians";
 import { useUpdateClinician } from "../../../hooks/useClinician";
-import { useAllUsers } from "../../../hooks/useAuth";
+import { useAllUsers, useCreateUser } from "../../../hooks/useAuth";
 import DataTable from "../../../components/ui/DataTable";
 import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
 import { resetListFilters, setListFilter } from "../../../slices/clinicianSlice";
@@ -60,21 +60,38 @@ const buildForm = (existing) => ({
 
 /* ══════════════ MODAL ══════════════ */
 const ClinicianModal = ({ existing, users, onClose, onSave }) => {
-  const [form, setForm]     = useState(() => buildForm(existing));
-  const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState("");
+  const [form, setForm]         = useState(() => buildForm(existing));
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState("");
+
+  /* Login account fields — only shown when creating a new clinician */
+  const [createLogin, setCreateLogin] = useState(true);
+  const [loginPassword, setLoginPassword] = useState("");
 
   useEffect(() => { setForm(buildForm(existing)); }, [existing]);
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const set    = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const setNum = (key) => (e) => setForm((f) => ({ ...f, [key]: Number(e.target.value) || 0 }));
 
   const handle = async () => {
     if (!form.fullName.trim()) { setError("Full name is required"); return; }
+    if (!existing && createLogin && !loginPassword.trim()) {
+      setError("Password is required to create a login account");
+      return;
+    }
+    if (!existing && createLogin && loginPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
     setSaving(true); setError("");
-    try { await onSave(form); onClose(); }
-    catch (e) { setError(e?.response?.data?.message || e.message || "Save failed"); }
-    finally { setSaving(false); }
+    try {
+      await onSave(form, existing ? null : (createLogin ? { email: form.email, password: loginPassword } : null));
+      onClose();
+    } catch (e) {
+      setError(e?.response?.data?.message || e.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -102,6 +119,7 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
               <AlertCircle size={14} className="shrink-0" /> {error}
             </div>
           )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <F label="Full Name">
               <Input value={form.fullName} onChange={set("fullName")} placeholder="Dr. John Smith" />
@@ -134,16 +152,60 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
             <F label="Ops Lead">
               <Select value={form.opsLead} onChange={set("opsLead")}>
                 <option value="">— None —</option>
-                {users.map((u) => <option key={u._id} value={u._id}>{u.fullName || u.email}</option>)}
+                {users.map((u) => <option key={u._id} value={u._id}>{u.fullName || u.name || u.email}</option>)}
               </Select>
             </F>
             <F label="Supervisor">
               <Select value={form.supervisor} onChange={set("supervisor")}>
                 <option value="">— None —</option>
-                {users.map((u) => <option key={u._id} value={u._id}>{u.fullName || u.email}</option>)}
+                {users.map((u) => <option key={u._id} value={u._id}>{u.fullName || u.name || u.email}</option>)}
               </Select>
             </F>
           </div>
+
+          {/* ── Login Account Section (only when creating) ── */}
+          {!existing && (
+            <div className="rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <UserPlus size={15} className="text-blue-600" />
+                  <span className="text-sm font-bold text-slate-700">Create Login Account</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreateLogin((v) => !v)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${createLogin ? "bg-blue-600" : "bg-slate-300"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${createLogin ? "translate-x-5" : ""}`} />
+                </button>
+              </div>
+
+              {createLogin && (
+                <div className="p-4 space-y-3">
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <KeyRound size={13} className="text-blue-600 mt-0.5 shrink-0" />
+                    <p className="text-xs text-blue-700">
+                      A system login will be created using the email above. The clinician can log in at <strong>/portal/clinician</strong>.
+                    </p>
+                  </div>
+                  <F label="Password">
+                    <Input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Min 6 characters"
+                    />
+                  </F>
+                </div>
+              )}
+
+              {!createLogin && (
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-400">No login account will be created. You can add one later from Manage Users.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -173,12 +235,14 @@ export default function CliniciansListPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { data, isLoading, refetch, isFetching } = useClinicians(filters);
-  const usersQ = useAllUsers();
-  const createM = useCreateClinician();
-  const updateM = useUpdateClinician();
-  const deleteM = useDeleteClinician();
+  const usersQ   = useAllUsers();
+  const createM  = useCreateClinician();
+  const createUserM = useCreateUser();
+  const updateM  = useUpdateClinician();
+  const deleteM  = useDeleteClinician();
 
-  const [modal, setModal] = useState(null);
+  const [modal, setModal]     = useState(null);
+  const [userError, setUserError] = useState(null);
 
   const items = (data?.clinicians || []).map((c) => ({
     ...(c.data || c),
@@ -194,9 +258,33 @@ export default function CliniciansListPage() {
     dispatch(setListFilter({ key, value }));
   };
 
-  const handleSave = async (form) => {
-    if (modal?.clinician) await updateM.mutateAsync({ id: modal.clinician._id, data: form });
-    else await createM.mutateAsync(form);
+  const handleSave = async (form, loginInfo) => {
+    setUserError(null);
+    if (modal?.clinician) {
+      // Edit existing clinician
+      await updateM.mutateAsync({ id: modal.clinician._id, data: form });
+    } else {
+      // Create clinician
+      const created = await createM.mutateAsync(form);
+
+      // Optionally create login account
+      if (loginInfo?.email && loginInfo?.password) {
+        try {
+          await createUserM.mutateAsync({
+            name:     form.fullName,
+            email:    loginInfo.email,
+            password: loginInfo.password,
+            role:     "clinician",
+          });
+        } catch (userErr) {
+          // Clinician created but user creation failed — warn but don't fail the whole flow
+          setUserError(
+            userErr?.response?.data?.message ||
+            "Clinician saved, but login account creation failed. Create it manually in Manage Users."
+          );
+        }
+      }
+    }
   };
 
   const handleDelete = async (c) => {
@@ -313,7 +401,6 @@ export default function CliniciansListPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Mobile filter toggle */}
           <button onClick={() => setFiltersOpen(!filtersOpen)}
             className={`lg:hidden h-9 w-9 rounded-xl border flex items-center justify-center transition-all relative ${filtersOpen ? "bg-blue-600 border-blue-600 text-white" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
             <SlidersHorizontal size={15} />
@@ -337,12 +424,23 @@ export default function CliniciansListPage() {
         </div>
       </div>
 
+      {/* ── User creation error banner ── */}
+      {userError && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2 text-sm text-amber-700">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={14} className="shrink-0" />
+            {userError}
+          </div>
+          <button onClick={() => setUserError(null)} className="shrink-0 text-amber-500 hover:text-amber-700">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* ── Filters — Desktop always visible, Mobile toggle ── */}
       <div className={`${filtersOpen ? "block" : "hidden"} lg:block`}>
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-
-            {/* Search */}
             <div className="relative sm:col-span-2 lg:col-span-1">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -352,24 +450,18 @@ export default function CliniciansListPage() {
                 className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
               />
             </div>
-
-            {/* Type */}
             <div className="relative">
               <Select value={filters.type || ""} onChange={(e) => setFilter({ type: e.target.value })}>
                 <option value="">All types</option>
                 {TYPE_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
               </Select>
             </div>
-
-            {/* Contract */}
             <div className="relative">
               <Select value={filters.contract || ""} onChange={(e) => setFilter({ contract: e.target.value })}>
                 <option value="">All contracts</option>
                 {CONTRACT_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
               </Select>
             </div>
-
-            {/* Restricted */}
             <div className="relative">
               <Select value={filters.restricted || ""} onChange={(e) => setFilter({ restricted: e.target.value })}>
                 <option value="">Any status</option>

@@ -1,24 +1,17 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useClinicianLeave } from "../../../../hooks/useClinicianLeave";
 import { useClinicianRota } from "../../../../hooks/useRota";
 import { usePractices } from "../../../../hooks/usePractice";
+import { useTimeEntries, useActiveTimeEntry } from "../../../../hooks/useTimeEntry";
 import ShiftDetailModal from "../../../super-admin/RotaManagement/ShiftDetailModal";
 import {
   ChevronLeft, ChevronRight, Calendar, List,
   Clock, MapPin, TrendingUp, AlertTriangle,
   Briefcase, Umbrella, Thermometer, BookOpen,
-  UserPlus, XCircle, BarChart2,
+  UserPlus, XCircle, BarChart2, Timer, Activity,
+  Zap,
 } from "lucide-react";
 
-/* ── Spec colour mapping ──────────────────────────────────────────────────
-   BLUE   = Working
-   YELLOW = Annual Leave
-   ORANGE = Sick
-   GREEN  = CPPE Training
-   PURPLE = Cover
-   RED    = Gap / Urgent Gap
-   SLATE  = Cancelled / No shift
-─────────────────────────────────────────────────────────────────────────── */
 const STATUS_CONFIG = {
   working:      { bg: "bg-blue-500",   light: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200",   label: "Working",      Icon: Briefcase   },
   annual_leave: { bg: "bg-yellow-400", light: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", label: "Annual Leave", Icon: Umbrella    },
@@ -31,13 +24,12 @@ const STATUS_CONFIG = {
 
 const getStatus = (status) => STATUS_CONFIG[status] || STATUS_CONFIG.cancelled;
 
-/* ── Helpers ─────────────────────────────────────────────────────────────── */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
 const fmtTime = (t) => {
   if (!t) return "";
-  return String(t).slice(0, 5); // "09:00:00" → "09:00"
+  return String(t).slice(0, 5);
 };
 
 const fmtHours = (start, end) => {
@@ -48,7 +40,16 @@ const fmtHours = (start, end) => {
   return diff > 0 ? diff : null;
 };
 
-/* ── Stats derived from shifts ───────────────────────────────────────────── */
+/* ── Live duration formatter ── */
+const formatLiveDuration = (startIso) => {
+  if (!startIso) return "00:00:00";
+  const diffMs = Date.now() - new Date(startIso).getTime();
+  const h = Math.floor(diffMs / 3_600_000);
+  const m = Math.floor((diffMs % 3_600_000) / 60_000);
+  const s = Math.floor((diffMs % 60_000) / 1_000);
+  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+};
+
 const deriveStats = (shifts) => {
   let working = 0, leave = 0, sick = 0, cppe = 0, cover = 0, gaps = 0, totalHours = 0;
   shifts.forEach((s) => {
@@ -66,7 +67,7 @@ const deriveStats = (shifts) => {
   return { working, leave, sick, cppe, cover, gaps, totalHours: Math.round(totalHours * 10) / 10 };
 };
 
-/* ── Practice name resolver ──────────────────────────────────────────────── */
+/* ── Practice name resolver ── */
 const usePracticeMap = () => {
   const { data } = usePractices?.() ?? {};
   return useMemo(() => {
@@ -86,15 +87,143 @@ const usePracticeMap = () => {
 const shortId = (id) => {
   if (!id) return "—";
   const s = String(id);
-  // ODS code like P84001 — show as-is
   if (/^[A-Z][0-9]{5}$/.test(s)) return s;
-  // UUID — show last 8 chars
   return s.length > 12 ? `…${s.slice(-8)}` : s;
 };
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   ACTIVE SHIFT CARD (Live timer + stats)
+═══════════════════════════════════════════ */
+function ActiveShiftCard({ clinicianId }) {
+  const { data: activeEntry } = useActiveTimeEntry();
+  const { data: timeEntriesData } = useTimeEntries({ limit: 50 });
+  const [liveDisplay, setLiveDisplay] = useState("00:00:00");
+  const intervalRef = useRef(null);
+
+  const entries = Array.isArray(timeEntriesData) ? timeEntriesData : [];
+
+  /* Monthly totals from completed entries */
+  const now = new Date();
+  const monthlyHours = useMemo(() => {
+    return entries
+      .filter((e) => {
+        if (e.status !== "completed") return false;
+        const d = new Date(e.clock_in);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      })
+      .reduce((sum, e) => sum + Number(e.actual_hours || 0), 0)
+      .toFixed(1);
+  }, [entries, now]);
+
+  /* Active shifts count (shifts in rota with status=working for today) */
+  const completedThisMonth = entries.filter((e) => {
+    if (e.status !== "completed") return false;
+    const d = new Date(e.clock_in);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+
+  /* Live timer update */
+  useEffect(() => {
+    if (activeEntry?.clock_in) {
+      setLiveDisplay(formatLiveDuration(activeEntry.clock_in));
+      intervalRef.current = setInterval(() => {
+        setLiveDisplay(formatLiveDuration(activeEntry.clock_in));
+      }, 1000);
+    } else {
+      clearInterval(intervalRef.current);
+      setLiveDisplay("00:00:00");
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [activeEntry?.clock_in]);
+
+  if (!activeEntry && monthlyHours === "0.0" && completedThisMonth === 0) return null;
+
+  return (
+    <div className={`rounded-2xl border overflow-hidden ${activeEntry ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
+
+      {/* Header */}
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${activeEntry ? "border-emerald-200 bg-emerald-100/50" : "border-slate-100 bg-slate-50"}`}>
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeEntry ? "bg-emerald-600" : "bg-slate-400"}`}>
+            <Timer size={15} className="text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800">
+              {activeEntry ? "Shift In Progress" : "Shift Activity"}
+            </p>
+            <p className="text-xs text-slate-400">Time tracking overview</p>
+          </div>
+        </div>
+
+        {activeEntry && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            Live
+          </div>
+        )}
+      </div>
+
+      <div className="p-4">
+        {/* Live Timer Display */}
+        {activeEntry && (
+          <div className="mb-4 p-4 rounded-xl bg-white border border-emerald-200 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Current Session</p>
+            <p className="font-mono text-4xl font-black text-slate-900 tracking-tight tabular-nums">
+              {liveDisplay}
+            </p>
+            <div className="flex justify-center gap-4 mt-1 text-[9px] uppercase tracking-[0.15em] text-slate-400 font-semibold">
+              <span>Hours</span>
+              <span>Minutes</span>
+              <span>Seconds</span>
+            </div>
+            {activeEntry.clock_in && (
+              <p className="text-xs text-slate-400 mt-2">
+                Started at{" "}
+                <span className="font-bold text-slate-600">
+                  {new Date(activeEntry.clock_in).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 rounded-xl bg-white border border-slate-200 text-center">
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <Activity size={12} className="text-blue-500" />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">This Month</p>
+            </div>
+            <p className="text-2xl font-black text-slate-800">
+              {monthlyHours}
+              <span className="text-xs font-normal text-slate-400 ml-1">hrs</span>
+            </p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{completedThisMonth} sessions</p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white border border-slate-200 text-center">
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <Zap size={12} className="text-amber-500" />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</p>
+            </div>
+            <p className={`text-sm font-black mt-1 ${activeEntry ? "text-emerald-600" : "text-slate-400"}`}>
+              {activeEntry ? "Clocked In" : "Not Clocked In"}
+            </p>
+            {activeEntry?.planned_hours && (
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Planned: {activeEntry.planned_hours}h
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    LEAVE BALANCE CARD
-═══════════════════════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 function LeaveCard({ contract, data }) {
   const total     = Number(data?.total     ?? data?.totalDays     ?? 0);
   const used      = Number(data?.used      ?? data?.takenDays     ?? data?.taken ?? 0);
@@ -103,9 +232,9 @@ function LeaveCard({ contract, data }) {
   const isLow     = remaining <= 5 && total > 0;
 
   const CONTRACT_COLORS = {
-    ARRS:   { bar: "bg-blue-500",   ring: "ring-blue-200",   accent: "text-blue-600"   },
-    EA:     { bar: "bg-violet-500", ring: "ring-violet-200", accent: "text-violet-600" },
-    Direct: { bar: "bg-emerald-500",ring: "ring-emerald-200",accent: "text-emerald-600"},
+    ARRS:   { bar: "bg-blue-500",    ring: "ring-blue-200",    accent: "text-blue-600"    },
+    EA:     { bar: "bg-violet-500",  ring: "ring-violet-200",  accent: "text-violet-600"  },
+    Direct: { bar: "bg-emerald-500", ring: "ring-emerald-200", accent: "text-emerald-600" },
   };
   const colors = CONTRACT_COLORS[contract] || CONTRACT_COLORS.ARRS;
 
@@ -122,19 +251,13 @@ function LeaveCard({ contract, data }) {
           </span>
         )}
       </div>
-
       <div className="flex items-end gap-1 mb-2">
         <span className={`text-3xl font-black ${colors.accent}`}>{remaining}</span>
         <span className="text-sm text-slate-400 mb-1">/ {total} days</span>
       </div>
-
       <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${colors.bar}`}
-          style={{ width: `${pct}%` }}
-        />
+        <div className={`h-full rounded-full transition-all duration-700 ${colors.bar}`} style={{ width: `${pct}%` }} />
       </div>
-
       <div className="flex justify-between text-[10px] text-slate-400">
         <span>Taken <strong className="text-slate-600">{used}d</strong></span>
         <span>Remaining <strong className="text-slate-600">{remaining}d</strong></span>
@@ -143,9 +266,6 @@ function LeaveCard({ contract, data }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   STAT PILL
-═══════════════════════════════════════════════════════════════════════════ */
 function StatPill({ label, value, color = "bg-slate-100 text-slate-700" }) {
   return (
     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold ${color}`}>
@@ -155,9 +275,6 @@ function StatPill({ label, value, color = "bg-slate-100 text-slate-700" }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   CALENDAR DAY CELL
-═══════════════════════════════════════════════════════════════════════════ */
 function DayCell({ day, isCurrentMonth, isToday, shifts = [], onClick }) {
   const primary = shifts[0];
   const cfg     = primary ? getStatus(primary.status) : null;
@@ -174,15 +291,9 @@ function DayCell({ day, isCurrentMonth, isToday, shifts = [], onClick }) {
         ${cfg ? cfg.border : "border-slate-100"}
       `}
     >
-      {/* Day number */}
-      <div className={`
-        w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mb-1
-        ${isToday ? "bg-blue-500 text-white" : "text-slate-500"}
-      `}>
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mb-1 ${isToday ? "bg-blue-500 text-white" : "text-slate-500"}`}>
         {day}
       </div>
-
-      {/* Primary shift */}
       {primary && (
         <div className={`rounded-lg px-1.5 py-1 text-[10px] font-semibold leading-tight ${cfg.light} ${cfg.text}`}>
           <div className="flex items-center gap-1">
@@ -194,8 +305,6 @@ function DayCell({ day, isCurrentMonth, isToday, shifts = [], onClick }) {
           )}
         </div>
       )}
-
-      {/* Extra shifts badge */}
       {extra > 0 && (
         <div className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center">
           +{extra}
@@ -205,18 +314,18 @@ function DayCell({ day, isCurrentMonth, isToday, shifts = [], onClick }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════
    MAIN COMPONENT
-═══════════════════════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 export default function CalendarPanel({ clinicianId, canManage, userRole = "clinician" }) {
   const now      = useMemo(() => new Date(), []);
   const [month,  setMonth]  = useState(now.getMonth() + 1);
   const [year,   setYear]   = useState(now.getFullYear());
-  const [view,   setView]   = useState("list"); // "calendar" | "list"
+  const [view,   setView]   = useState("list");
   const [selected, setSelected] = useState(null);
 
-  const leaveQ     = useClinicianLeave(clinicianId);
-  const rotaQ      = useClinicianRota(clinicianId, month, year);
+  const leaveQ      = useClinicianLeave(clinicianId);
+  const rotaQ       = useClinicianRota(clinicianId, month, year);
   const practiceMap = usePracticeMap();
 
   const shifts   = rotaQ?.data?.data?.shifts ?? rotaQ?.data?.shifts ?? [];
@@ -225,7 +334,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
 
   const readOnly = userRole === "clinician" || !canManage;
 
-  /* ── Leave balances by contract ─────────────────────────────────────── */
   const byContract = useMemo(() => {
     const map = { ARRS: {}, EA: {}, Direct: {} };
     (Array.isArray(balances) ? balances : []).forEach((b) => {
@@ -235,10 +343,8 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
     return map;
   }, [balances]);
 
-  /* ── Month stats ─────────────────────────────────────────────────────── */
   const stats = useMemo(() => deriveStats(shifts), [shifts]);
 
-  /* ── Shifts keyed by date ────────────────────────────────────────────── */
   const shiftsByDate = useMemo(() => {
     const map = {};
     shifts.forEach((s) => {
@@ -249,25 +355,19 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
     return map;
   }, [shifts]);
 
-  /* ── Calendar grid ───────────────────────────────────────────────────── */
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month - 1, 1);
     const lastDay  = new Date(year, month, 0);
-    // Monday-based: Mon=0 … Sun=6
     let startDow = firstDay.getDay() - 1;
     if (startDow < 0) startDow = 6;
-
     const days = [];
-    // Prev month padding
     for (let i = startDow - 1; i >= 0; i--) {
       const d = new Date(year, month - 1, -i);
       days.push({ date: d, isCurrentMonth: false });
     }
-    // Current month
     for (let d = 1; d <= lastDay.getDate(); d++) {
       days.push({ date: new Date(year, month - 1, d), isCurrentMonth: true });
     }
-    // Next month padding (fill to 6 rows)
     const remaining = 42 - days.length;
     for (let d = 1; d <= remaining; d++) {
       days.push({ date: new Date(year, month, d), isCurrentMonth: false });
@@ -275,7 +375,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
     return days;
   }, [month, year]);
 
-  /* ── Practice name lookup ────────────────────────────────────────────── */
   const getPracticeName = useCallback((shift) => {
     const id = shift?.practice_id;
     if (!id) return "—";
@@ -285,7 +384,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
     return shortId(id);
   }, [practiceMap]);
 
-  /* ── Navigate ────────────────────────────────────────────────────────── */
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
   const isToday   = (d) => {
@@ -296,20 +394,20 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   return (
     <div className="space-y-5">
 
-      {/* ── Leave Balance Cards ─────────────────────────────────────────── */}
+      {/* ── Active Shift Timer Card (superadmin view) ── */}
+      <ActiveShiftCard clinicianId={clinicianId} />
+
+      {/* ── Leave Balance Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {["ARRS", "EA", "Direct"].map((c) => (
           <LeaveCard key={c} contract={c} data={byContract[c]} />
         ))}
       </div>
 
-      {/* ── Calendar Header ────────────────────────────────────────────── */}
+      {/* ── Calendar Header ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-
-        {/* Top bar */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            {/* Month navigation */}
             <button onClick={prevMonth}
               className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
               <ChevronLeft size={14} className="text-slate-600" />
@@ -321,8 +419,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
               className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
               <ChevronRight size={14} className="text-slate-600" />
             </button>
-
-            {/* Today button */}
             <button
               onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()); }}
               className="text-xs font-semibold text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200">
@@ -330,9 +426,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
             </button>
           </div>
 
-          {/* Stats + View Toggle */}
           <div className="flex items-center gap-3">
-            {/* Quick stats */}
             <div className="hidden md:flex items-center gap-1.5">
               {stats.working > 0    && <StatPill label="working"  value={stats.working}    color="bg-blue-50 text-blue-700"    />}
               {stats.leave > 0      && <StatPill label="leave"    value={stats.leave}      color="bg-yellow-50 text-yellow-700"/>}
@@ -341,7 +435,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
               {stats.totalHours > 0 && <StatPill label="hrs"      value={stats.totalHours} color="bg-slate-100 text-slate-700" />}
             </div>
 
-            {/* View toggle */}
             <div className="flex items-center rounded-xl border border-slate-200 overflow-hidden">
               <button onClick={() => setView("calendar")}
                 className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${view === "calendar" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
@@ -355,7 +448,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
           </div>
         </div>
 
-        {/* Loading */}
         {isLoading && (
           <div className="flex items-center justify-center h-32 gap-2 text-sm text-slate-400">
             <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
@@ -363,10 +455,9 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
           </div>
         )}
 
-        {/* ── CALENDAR VIEW ───────────────────────────────────────────── */}
+        {/* ── CALENDAR VIEW ── */}
         {!isLoading && view === "calendar" && (
           <div className="p-4">
-            {/* Day headers */}
             <div className="grid grid-cols-7 mb-2">
               {DAYS.map((d) => (
                 <div key={d} className={`text-center text-[11px] font-bold uppercase tracking-wider py-2 ${d === "Sat" || d === "Sun" ? "text-slate-400" : "text-slate-500"}`}>
@@ -374,11 +465,9 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                 </div>
               ))}
             </div>
-
-            {/* Day cells */}
             <div className="grid grid-cols-7 gap-1.5">
               {calendarDays.map(({ date, isCurrentMonth }, idx) => {
-                const key   = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+                const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
                 const dayShifts = shiftsByDate[key] || [];
                 return (
                   <DayCell
@@ -392,8 +481,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                 );
               })}
             </div>
-
-            {/* Legend */}
             <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-slate-100">
               {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                 <div key={key} className="flex items-center gap-1.5 text-[11px] text-slate-500">
@@ -405,7 +492,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
           </div>
         )}
 
-        {/* ── LIST VIEW ───────────────────────────────────────────────── */}
+        {/* ── LIST VIEW ── */}
         {!isLoading && view === "list" && (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -440,7 +527,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                       onClick={() => setSelected(s)}
                       className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
                     >
-                      {/* Date */}
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2">
                           <div className="text-xs font-bold text-slate-800">
@@ -451,24 +537,18 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                           )}
                         </div>
                       </td>
-
-                      {/* Status badge */}
                       <td className="px-5 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${cfg.light} ${cfg.text} ${cfg.border}`}>
                           <cfg.Icon size={10} />
                           {s.status === "gap" && s.urgent ? "URGENT GAP" : cfg.label}
                         </span>
                       </td>
-
-                      {/* Time */}
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-1 text-xs text-slate-600">
                           <Clock size={11} className="text-slate-400" />
                           {s.start_time ? `${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}` : "—"}
                         </div>
                       </td>
-
-                      {/* Hours */}
                       <td className="px-5 py-3">
                         {hours ? (
                           <span className="text-xs font-bold text-slate-700">{hours}h</span>
@@ -476,21 +556,14 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                           <span className="text-xs text-slate-300">—</span>
                         )}
                       </td>
-
-                      {/* Practice — ✅ FIXED: shows name instead of UUID */}
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-1.5 max-w-[180px]">
                           <MapPin size={11} className="text-slate-400 shrink-0" />
-                          <span
-                            className="text-xs text-slate-700 font-medium truncate"
-                            title={String(s.practice_id || "")}
-                          >
+                          <span className="text-xs text-slate-700 font-medium truncate" title={String(s.practice_id || "")}>
                             {practiceName}
                           </span>
                         </div>
                       </td>
-
-                      {/* Clinical system */}
                       <td className="px-5 py-3">
                         {s.clinical_system ? (
                           <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
@@ -500,8 +573,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                           <span className="text-xs text-slate-300">—</span>
                         )}
                       </td>
-
-                      {/* Rate */}
                       <td className="px-5 py-3">
                         {s.hourly_rate ? (
                           <span className="text-xs font-semibold text-emerald-700">
@@ -518,7 +589,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
               </tbody>
             </table>
 
-            {/* List footer summary */}
             {shifts.length > 0 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50">
                 <span className="text-xs text-slate-500">
@@ -544,7 +614,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
         )}
       </div>
 
-      {/* ── Shift Detail Modal ───────────────────────────────────────────── */}
+      {/* ── Shift Detail Modal ── */}
       <ShiftDetailModal
         open={!!selected}
         onClose={() => setSelected(null)}
