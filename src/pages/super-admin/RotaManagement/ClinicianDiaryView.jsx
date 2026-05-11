@@ -1,27 +1,12 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { useClinicianRota, useRotaList } from "../../../hooks/useRota";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useClinicianRota } from "../../../hooks/useRota";
+import { useClinicians } from "../../../hooks/useClinicians";
 import { usePractices } from "../../../hooks/usePractice";
 import { useTimeEntries, useActiveTimeEntry } from "../../../hooks/useTimeEntry";
 import {
-  Building2,
-  Users,
-  Calendar,
-  Clock,
-  Filter,
-  Briefcase,
-  Umbrella,
-  Thermometer,
-  BookOpen,
-  UserPlus,
-  AlertTriangle,
-  XCircle,
-  Loader2,
-  FileText,
-  Search,
-  ChevronDown,
-  X,
-  Timer,
-  Activity,
+  Building2, Users, Calendar, Clock, Filter, Briefcase,
+  Umbrella, Thermometer, BookOpen, UserPlus, AlertTriangle,
+  XCircle, Loader2, FileText, Search, ChevronDown, X, Timer, Activity,
 } from "lucide-react";
 
 const STATUS_CONFIG = {
@@ -39,7 +24,6 @@ const getStatus = (s) =>
 
 const ALL_STATUSES = ["all", ...Object.keys(STATUS_CONFIG)];
 
-/* ── Live timer formatter ── */
 const formatLiveDuration = (startIso) => {
   if (!startIso) return "00:00:00";
   const diffMs = Date.now() - new Date(startIso).getTime();
@@ -64,44 +48,48 @@ const StatCard = ({ icon: Icon, iconBg, label, value, sub }) => (
 
 /* ══════════════════════════════════════════════
    ACTIVE SHIFT BANNER
-   Sirf tab show hota hai jab koi clinician
-   select ho aur uski active entry ho
 ══════════════════════════════════════════════ */
-function ActiveShiftBanner({ selectedClinician }) {
-  const { data: activeEntry } = useActiveTimeEntry();
-  const { data: timeEntriesData } = useTimeEntries({ limit: 100 });
+function ActiveShiftBanner({ selectedClinicianId }) {
+  const { data: activeEntry } = useActiveTimeEntry({
+    clinicianId: selectedClinicianId || undefined,
+    enabled: !!selectedClinicianId,
+  });
+
+  const { data: timeEntriesRaw } = useTimeEntries(
+    { clinicianId: selectedClinicianId, limit: 100 },
+    { enabled: !!selectedClinicianId }
+  );
+
   const [liveDisplay, setLiveDisplay] = useState("00:00:00");
   const intervalRef = useRef(null);
 
-  const entries = Array.isArray(timeEntriesData) ? timeEntriesData : [];
+  const entries = useMemo(() => {
+    if (Array.isArray(timeEntriesRaw)) return timeEntriesRaw;
+    if (Array.isArray(timeEntriesRaw?.data)) return timeEntriesRaw.data;
+    return [];
+  }, [timeEntriesRaw]);
 
-  /* Monthly clocked hours from completed entries */
   const now = new Date();
-  const monthlyHours = useMemo(() => {
-    return entries
+
+  const monthlyHours = useMemo(() =>
+    entries
       .filter((e) => {
         if (e.status !== "completed") return false;
         const d = new Date(e.clock_in);
-        return (
-          d.getFullYear() === now.getFullYear() &&
-          d.getMonth() === now.getMonth()
-        );
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
       })
       .reduce((sum, e) => sum + Number(e.actual_hours || 0), 0)
-      .toFixed(1);
-  }, [entries, now]);
+      .toFixed(1),
+  [entries]);
 
-  /* Active sessions this month */
-  const sessionsThisMonth = entries.filter((e) => {
-    if (e.status !== "completed") return false;
-    const d = new Date(e.clock_in);
-    return (
-      d.getFullYear() === now.getFullYear() &&
-      d.getMonth() === now.getMonth()
-    );
-  }).length;
+  const sessionsThisMonth = useMemo(() =>
+    entries.filter((e) => {
+      if (e.status !== "completed") return false;
+      const d = new Date(e.clock_in);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length,
+  [entries]);
 
-  /* Live timer */
   useEffect(() => {
     if (activeEntry?.clock_in) {
       setLiveDisplay(formatLiveDuration(activeEntry.clock_in));
@@ -115,10 +103,7 @@ function ActiveShiftBanner({ selectedClinician }) {
     return () => clearInterval(intervalRef.current);
   }, [activeEntry?.clock_in]);
 
-  /* Koi clinician select nahi — kuch mat dikhao */
-  if (!selectedClinician) return null;
-
-  /* Na active shift, na koi history — card mat dikhao */
+  if (!selectedClinicianId) return null;
   if (!activeEntry && monthlyHours === "0.0" && sessionsThisMonth === 0) return null;
 
   return (
@@ -135,7 +120,6 @@ function ActiveShiftBanner({ selectedClinician }) {
             <p className="text-xs text-slate-400">Live clock-in status</p>
           </div>
         </div>
-
         {activeEntry && (
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -145,8 +129,6 @@ function ActiveShiftBanner({ selectedClinician }) {
       </div>
 
       <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-        {/* Live Timer */}
         <div className={`rounded-xl border p-3 text-center ${activeEntry ? "border-emerald-200 bg-white" : "border-slate-200 bg-slate-50"}`}>
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
             {activeEntry ? "Current Session" : "No Active Session"}
@@ -164,7 +146,6 @@ function ActiveShiftBanner({ selectedClinician }) {
           )}
         </div>
 
-        {/* Monthly Hours */}
         <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
           <div className="flex items-center justify-center gap-1 mb-1">
             <Activity size={11} className="text-blue-500" />
@@ -177,7 +158,6 @@ function ActiveShiftBanner({ selectedClinician }) {
           <p className="text-[11px] text-slate-400 mt-0.5">{sessionsThisMonth} sessions</p>
         </div>
 
-        {/* Status */}
         <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Status</p>
           <p className={`text-sm font-black mt-1 ${activeEntry ? "text-emerald-600" : "text-slate-400"}`}>
@@ -207,21 +187,12 @@ export default function ClinicianDiaryView() {
   const [practiceFilter,    setPracticeFilter]     = useState("");
   const dropdownRef = useRef(null);
 
-  const { data: rotaData, isLoading: rotaLoading } = useRotaList({ month, year });
-
+  /* ── FIXED: Saare clinicians directly DB se — rota se nahi ── */
+  const { data: cliniciansRes, isLoading: cliniciansLoading } = useClinicians({ active: true });
   const allClinicians = useMemo(() => {
-    const rows = rotaData?.data?.clinicians ?? rotaData?.clinicians ?? [];
-    return rows
-      .filter((r) => {
-        if (r?.status === "gap") return false;
-        const name = (r?.clinician?.fullName ?? r?.clinician?.name ?? "").toLowerCase();
-        if (name.startsWith("gap")) return false;
-        if (!r?.clinician?.email && !r?.clinician?.fullName && !r?.clinician?.name) return false;
-        return true;
-      })
-      .map((r) => r?.clinician)
-      .filter(Boolean);
-  }, [rotaData]);
+    const list = cliniciansRes?.clinicians ?? cliniciansRes?.data ?? cliniciansRes ?? [];
+    return Array.isArray(list) ? list : [];
+  }, [cliniciansRes]);
 
   const filteredClinicians = useMemo(() =>
     allClinicians.filter((c) => {
@@ -242,9 +213,7 @@ export default function ClinicianDiaryView() {
   }, []);
 
   const { data: rawDiaryData, isLoading: diaryLoading } = useClinicianRota(
-    selectedClinician || null,
-    month,
-    year
+    selectedClinician || null, month, year
   );
 
   const diaryPayload = rawDiaryData?.data ?? rawDiaryData ?? null;
@@ -255,9 +224,7 @@ export default function ClinicianDiaryView() {
   const practicesPayload = practicesRes?.data ?? practicesRes;
   const practices = Array.isArray(practicesPayload)
     ? practicesPayload
-    : Array.isArray(practicesPayload?.data)
-      ? practicesPayload.data
-      : [];
+    : Array.isArray(practicesPayload?.data) ? practicesPayload.data : [];
 
   const practiceNameById = useMemo(() => {
     const map = new Map();
@@ -312,7 +279,7 @@ export default function ClinicianDiaryView() {
   }, [filteredShifts]);
 
   const selectClinician = (c) => {
-    setSelectedClinician(c._id ?? c.id ?? "");
+    setSelectedClinician(String(c._id ?? c.id ?? ""));
     setSearchQuery(c.fullName ?? c.name ?? "");
     setDropdownOpen(false);
   };
@@ -328,18 +295,15 @@ export default function ClinicianDiaryView() {
   return (
     <div className="space-y-4">
 
-      {/* ── Top stat cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users}         iconBg="bg-blue-600"    label="Shifts"       value={stats.total}      sub="this month" />
         <StatCard icon={Clock}         iconBg="bg-emerald-600" label="Total Hours"  value={stats.totalHours} sub="hrs worked" />
-        <StatCard icon={Briefcase}     iconBg="bg-violet-600"  label="Working Days" value={stats.breakdown.find(b => b.status === "working")?.count ?? 0}  sub="working" />
+        <StatCard icon={Briefcase}     iconBg="bg-violet-600"  label="Working Days" value={stats.breakdown.find(b => b.status === "working")?.count ?? 0} sub="working" />
         <StatCard icon={AlertTriangle} iconBg="bg-orange-500"  label="Gaps / Sick"  value={(stats.breakdown.find(b => b.status === "gap")?.count ?? 0) + (stats.breakdown.find(b => b.status === "sick")?.count ?? 0)} sub="gaps + sick" />
       </div>
 
-      {/* ── Active Shift Banner — sirf tab show ho jab clinician select ho ── */}
-      <ActiveShiftBanner selectedClinician={selectedClinician} />
+      <ActiveShiftBanner selectedClinicianId={selectedClinician} />
 
-      {/* ── Main diary card ── */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
@@ -348,7 +312,7 @@ export default function ClinicianDiaryView() {
             </div>
             <div>
               <p className="text-sm font-bold text-slate-800">Clinician Diary</p>
-              <p className="text-xs text-slate-400 mt-0.5">Full diary: shifts, dates, locations, clients</p>
+              <p className="text-xs text-slate-400 mt-0.5">{allClinicians.length} clinicians · select one to view diary</p>
             </div>
           </div>
           {stats.total > 0 && (
@@ -358,18 +322,16 @@ export default function ClinicianDiaryView() {
           )}
         </div>
 
-        {/* ── Filters ── */}
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 space-y-3">
           <div className="flex flex-col sm:flex-row gap-3">
 
-            {/* Clinician search dropdown */}
             <div className="flex-1 min-w-[220px]" ref={dropdownRef}>
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                 Clinician <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="relative">
-                  {isLoading || rotaLoading
+                  {cliniciansLoading
                     ? <Loader2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin pointer-events-none" />
                     : <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   }
@@ -382,7 +344,7 @@ export default function ClinicianDiaryView() {
                       if (!e.target.value) setSelectedClinician("");
                     }}
                     onFocus={() => setDropdownOpen(true)}
-                    placeholder={rotaLoading ? "Loading clinicians…" : "Search clinician name or email…"}
+                    placeholder={cliniciansLoading ? "Loading clinicians…" : `Search from ${allClinicians.length} clinicians…`}
                     className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-200 bg-white text-sm text-slate-800
                       focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
                   />
@@ -400,26 +362,23 @@ export default function ClinicianDiaryView() {
 
                 {dropdownOpen && (
                   <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
-                    <div className="max-h-56 overflow-y-auto">
-                      {rotaLoading ? (
+                    <div className="max-h-64 overflow-y-auto">
+                      {cliniciansLoading ? (
                         <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
                           <Loader2 size={15} className="animate-spin text-blue-500" />
                           Loading clinicians…
                         </div>
                       ) : filteredClinicians.length === 0 ? (
                         <div className="py-6 text-center text-sm text-slate-400">
-                          {searchQuery ? "No clinicians match your search" : "No clinicians found for this month"}
+                          {searchQuery ? "No clinicians match your search" : "No clinicians found"}
                         </div>
                       ) : (
                         filteredClinicians.map((c) => {
-                          const id       = c._id ?? c.id ?? "";
+                          const id       = String(c._id ?? c.id ?? "");
                           const name     = c.fullName ?? c.name ?? "Unknown";
                           const email    = c.email ?? "";
+                          const type     = c.clinicianType ?? "";
                           const isActive = selectedClinician === id;
-                          const rows     = rotaData?.data?.clinicians ?? rotaData?.clinicians ?? [];
-                          const row      = rows.find((r) => (r?.clinician?._id ?? r?.clinician?.id) === id);
-                          const shiftCnt = row?.shifts ? Object.keys(row.shifts).length : 0;
-
                           return (
                             <button
                               key={id}
@@ -436,11 +395,11 @@ export default function ClinicianDiaryView() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-semibold truncate ${isActive ? "text-blue-800" : "text-slate-800"}`}>{name}</p>
-                                {email && <p className="text-xs text-slate-400 truncate">{email}</p>}
+                                <p className="text-xs text-slate-400 truncate">{email || type}</p>
                               </div>
-                              {shiftCnt > 0 && (
+                              {type && (
                                 <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-                                  {shiftCnt}
+                                  {type}
                                 </span>
                               )}
                             </button>
@@ -453,7 +412,6 @@ export default function ClinicianDiaryView() {
               </div>
             </div>
 
-            {/* Practice filter */}
             <div className="flex-1 min-w-[160px]">
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Practice</label>
               <div className="relative">
@@ -469,7 +427,6 @@ export default function ClinicianDiaryView() {
               </div>
             </div>
 
-            {/* Month picker */}
             <div>
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Month / Year</label>
               <input
@@ -482,7 +439,6 @@ export default function ClinicianDiaryView() {
             </div>
           </div>
 
-          {/* Status filter pills */}
           <div>
             <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Status</label>
             <div className="flex items-center gap-1 overflow-x-auto pb-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm scrollbar-hide">
@@ -490,10 +446,7 @@ export default function ClinicianDiaryView() {
                 const cfg    = s === "all" ? null : getStatus(s);
                 const active = statusFilter === s;
                 return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setStatusFilter(s)}
+                  <button key={s} type="button" onClick={() => setStatusFilter(s)}
                     className={[
                       "flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-all shrink-0 active:scale-95",
                       active ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
@@ -508,7 +461,6 @@ export default function ClinicianDiaryView() {
           </div>
         </div>
 
-        {/* ── Selected clinician info bar ── */}
         {clinician && (
           <div className="px-5 py-3.5 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shrink-0">
@@ -526,15 +478,12 @@ export default function ClinicianDiaryView() {
           </div>
         )}
 
-        {/* ── Status breakdown chips ── */}
         {stats.breakdown.length > 0 && (
           <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap gap-2">
             {stats.breakdown.map(({ status, count, cfg, pct }) => {
               const { Icon } = cfg;
               return (
-                <button
-                  key={status}
-                  type="button"
+                <button key={status} type="button"
                   onClick={() => setStatusFilter(statusFilter === status ? "all" : status)}
                   className={[
                     "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all hover:scale-105 active:scale-95",
@@ -550,7 +499,6 @@ export default function ClinicianDiaryView() {
           </div>
         )}
 
-        {/* ── Diary content ── */}
         <div className="px-5 py-5">
           {isLoading ? (
             <div className="flex items-center justify-center py-16 gap-3">
@@ -584,7 +532,6 @@ export default function ClinicianDiaryView() {
                       {dayShifts.length} shift{dayShifts.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-
                   <div className="divide-y divide-slate-100">
                     {dayShifts.map((shift) => {
                       const cfg = getStatus(shift.status);
@@ -601,31 +548,17 @@ export default function ClinicianDiaryView() {
                                   <p className="text-sm font-bold text-slate-800">{cfg.label}</p>
                                   {(shift.start_time || shift.end_time) && (
                                     <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                                      <Clock size={10} />
-                                      {shift.start_time} – {shift.end_time}
+                                      <Clock size={10} />{shift.start_time} – {shift.end_time}
                                     </p>
                                   )}
                                 </div>
-                                {shift.hours && (
-                                  <span className="text-sm font-extrabold text-slate-700 shrink-0">
-                                    {shift.hours}h
-                                  </span>
-                                )}
+                                {shift.hours && <span className="text-sm font-extrabold text-slate-700 shrink-0">{shift.hours}h</span>}
                               </div>
-
                               <div className="flex flex-wrap gap-x-4 gap-y-1">
                                 {shift.practice_id && (
                                   <span className="flex items-center gap-1 text-xs text-slate-500">
                                     <Building2 size={11} className="text-slate-400" />
-                                    <span className="font-medium">
-                                      {practiceNameById.get(String(shift.practice_id)) ?? String(shift.practice_id)}
-                                    </span>
-                                  </span>
-                                )}
-                                {shift.client_id && (
-                                  <span className="flex items-center gap-1 text-xs text-slate-500">
-                                    <Users size={11} className="text-slate-400" />
-                                    <span className="font-medium">{shift.client_id}</span>
+                                    <span className="font-medium">{practiceNameById.get(String(shift.practice_id)) ?? String(shift.practice_id)}</span>
                                   </span>
                                 )}
                                 {shift.clinical_system && (
@@ -640,7 +573,6 @@ export default function ClinicianDiaryView() {
                                   </span>
                                 )}
                               </div>
-
                               {shift.workstreams_notes && (
                                 <div className="mt-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs text-slate-600">
                                   <strong>Notes:</strong> {shift.workstreams_notes}
