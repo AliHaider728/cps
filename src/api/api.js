@@ -1,5 +1,7 @@
 import { authService, clientManagementService, pcnService, apiClient } from "../services/api";
 
+import { timeEntryService } from "../services/api/timeEntryService";
+
 const api = apiClient;
 
 // ─────────────────────────────────────────────────────────────
@@ -196,4 +198,14 @@ export default {
   ...reportingArchiveAPI,
   ...clinicianAPI,               // ← Added
   ...restrictedClinicianAPI,     // ← Added
+};
+// ─────────────────────────────────────────────────────────────
+// Time Entries (Clock-In / Clock-Out)
+// ─────────────────────────────────────────────────────────────
+export const timeEntryAPI = {
+  clockIn:          (data)        => timeEntryService.clockIn(data),
+  clockOut:         ()            => timeEntryService.clockOut(),
+  getActive:        (params)      => timeEntryService.getActive(params),
+  list:             (params)      => timeEntryService.list(params),
+  getAdminSummary:  ()            => timeEntryService.getAdminSummary(),
 };

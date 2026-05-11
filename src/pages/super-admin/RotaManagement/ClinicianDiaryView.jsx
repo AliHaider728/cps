@@ -21,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 
-/* ── Status config ───────────────────────────────────────────────────── */
 const STATUS_CONFIG = {
   working:      { bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-200", dot: "bg-emerald-500", label: "Working",      Icon: Briefcase     },
   annual_leave: { bg: "bg-blue-100",    text: "text-blue-800",    border: "border-blue-200",    dot: "bg-blue-500",    label: "Annual Leave", Icon: Umbrella      },
@@ -37,7 +36,6 @@ const getStatus = (s) =>
 
 const ALL_STATUSES = ["all", ...Object.keys(STATUS_CONFIG)];
 
-/* ── Stat Card ───────────────────────────────────────────────────────── */
 const StatCard = ({ icon: Icon, iconBg, label, value, sub }) => (
   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
@@ -51,7 +49,6 @@ const StatCard = ({ icon: Icon, iconBg, label, value, sub }) => (
   </div>
 );
 
-/* ── Main component ──────────────────────────────────────────────────── */
 export default function ClinicianDiaryView() {
   const [selectedClinician, setSelectedClinician] = useState("");
   const [searchQuery,       setSearchQuery]        = useState("");
@@ -62,14 +59,25 @@ export default function ClinicianDiaryView() {
   const [practiceFilter,    setPracticeFilter]     = useState("");
   const dropdownRef = useRef(null);
 
-  /* ── All clinicians from rota list (for dropdown) ── */
   const { data: rotaData, isLoading: rotaLoading } = useRotaList({ month, year });
+
+  // ✅ FIX: filter out "gap" rows — only real clinicians in dropdown
   const allClinicians = useMemo(() => {
     const rows = rotaData?.data?.clinicians ?? rotaData?.clinicians ?? [];
-    return rows.map((r) => r?.clinician).filter(Boolean);
+    // 🔍 TEMP DEBUG — browser console mein dekho phir hata dena
+    console.log("RAW ROWS:", JSON.stringify(rows.slice(0, 5), null, 2));
+    return rows
+      .filter((r) => {
+        if (r?.status === "gap") return false;
+        const name = (r?.clinician?.fullName ?? r?.clinician?.name ?? "").toLowerCase();
+        if (name.startsWith("gap")) return false;
+        if (!r?.clinician?.email && !r?.clinician?.fullName && !r?.clinician?.name) return false;
+        return true;
+      })
+      .map((r) => r?.clinician)
+      .filter(Boolean);
   }, [rotaData]);
 
-  /* ── Filtered dropdown clinicians ── */
   const filteredClinicians = useMemo(() =>
     allClinicians.filter((c) => {
       const name  = (c.fullName ?? c.name ?? "").toLowerCase();
@@ -79,7 +87,6 @@ export default function ClinicianDiaryView() {
     }),
   [allClinicians, searchQuery]);
 
-  /* ── Close dropdown on outside click ── */
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
@@ -89,16 +96,12 @@ export default function ClinicianDiaryView() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* ── Diary data — only fetches when clinician selected ── */
   const { data: rawDiaryData, isLoading: diaryLoading } = useClinicianRota(
     selectedClinician || null,
     month,
     year
   );
 
-  // ✅ FIX: Backend returns { success, data: { clinician, shifts, month, year } }
-  // Hook does r.data so rawDiaryData = { success, data: { clinician, shifts } }
-  // Must go one level deeper: rawDiaryData?.data
   const diaryPayload = rawDiaryData?.data ?? rawDiaryData ?? null;
   const clinician    = diaryPayload?.clinician ?? null;
   const shifts       = Array.isArray(diaryPayload?.shifts) ? diaryPayload.shifts : [];
@@ -120,14 +123,12 @@ export default function ClinicianDiaryView() {
     return map;
   }, [practices]);
 
-  /* ── Month input ── */
   const monthInputValue = `${year}-${String(month).padStart(2, "0")}`;
   const handleMonthChange = (e) => {
     const [y, m] = e.target.value.split("-");
     if (y && m) { setYear(parseInt(y)); setMonth(parseInt(m)); }
   };
 
-  /* ── Filtered shifts ── */
   const filteredShifts = useMemo(() =>
     shifts.filter((s) => {
       const statusOk   = statusFilter === "all" || s.status === statusFilter;
@@ -136,7 +137,6 @@ export default function ClinicianDiaryView() {
     }),
   [shifts, statusFilter, practiceFilter]);
 
-  /* ── Group by date ── */
   const shiftsByDate = useMemo(() => {
     const grouped = {};
     filteredShifts.forEach((s) => {
@@ -147,7 +147,6 @@ export default function ClinicianDiaryView() {
     return grouped;
   }, [filteredShifts]);
 
-  /* ── Stats ── */
   const stats = useMemo(() => {
     let totalHours = 0;
     const byStatus = {};
@@ -166,7 +165,6 @@ export default function ClinicianDiaryView() {
     };
   }, [filteredShifts]);
 
-  /* ── Select clinician from dropdown ── */
   const selectClinician = (c) => {
     setSelectedClinician(c._id ?? c.id ?? "");
     setSearchQuery(c.fullName ?? c.name ?? "");
@@ -183,7 +181,6 @@ export default function ClinicianDiaryView() {
 
   return (
     <div className="space-y-4">
-      {/* ── Top stat bar ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users}         iconBg="bg-blue-600"    label="Shifts"       value={stats.total}      sub="this month" />
         <StatCard icon={Clock}         iconBg="bg-emerald-600" label="Total Hours"  value={stats.totalHours} sub="hrs worked" />
@@ -191,9 +188,7 @@ export default function ClinicianDiaryView() {
         <StatCard icon={AlertTriangle} iconBg="bg-orange-500"  label="Gaps / Sick"  value={(stats.breakdown.find(b => b.status === "gap")?.count ?? 0) + (stats.breakdown.find(b => b.status === "sick")?.count ?? 0)} sub="gaps + sick" />
       </div>
 
-      {/* ── Main card ── */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        {/* Header */}
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
@@ -211,11 +206,9 @@ export default function ClinicianDiaryView() {
           )}
         </div>
 
-        {/* ── Filters ── */}
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 space-y-3">
           <div className="flex flex-col sm:flex-row gap-3">
 
-            {/* ── Clinician Search Dropdown ── */}
             <div className="flex-1 min-w-[220px]" ref={dropdownRef}>
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                 Clinician <span className="text-red-500">*</span>
@@ -257,7 +250,6 @@ export default function ClinicianDiaryView() {
                   </button>
                 </div>
 
-                {/* Dropdown list */}
                 {dropdownOpen && (
                   <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
                     <div className="max-h-56 overflow-y-auto">
@@ -314,7 +306,6 @@ export default function ClinicianDiaryView() {
               </div>
             </div>
 
-            {/* Practice filter */}
             <div className="flex-1 min-w-[160px]">
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Practice</label>
               <div className="relative">
@@ -330,7 +321,6 @@ export default function ClinicianDiaryView() {
               </div>
             </div>
 
-            {/* Month/Year */}
             <div>
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Month / Year</label>
               <input
@@ -343,7 +333,6 @@ export default function ClinicianDiaryView() {
             </div>
           </div>
 
-          {/* Status filter pills */}
           <div>
             <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Status</label>
             <div className="flex items-center gap-1 overflow-x-auto pb-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm scrollbar-hide">
@@ -371,7 +360,6 @@ export default function ClinicianDiaryView() {
           </div>
         </div>
 
-        {/* ── Clinician banner ── */}
         {clinician && (
           <div className="px-5 py-3.5 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shrink-0">
@@ -389,7 +377,6 @@ export default function ClinicianDiaryView() {
           </div>
         )}
 
-        {/* ── Status breakdown chips ── */}
         {stats.breakdown.length > 0 && (
           <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap gap-2">
             {stats.breakdown.map(({ status, count, cfg, pct }) => {
@@ -413,7 +400,6 @@ export default function ClinicianDiaryView() {
           </div>
         )}
 
-        {/* ── Shift list ── */}
         <div className="px-5 py-5">
           {isLoading ? (
             <div className="flex items-center justify-center py-16 gap-3">
@@ -434,7 +420,6 @@ export default function ClinicianDiaryView() {
             <div className="space-y-4">
               {Object.entries(shiftsByDate).sort(([a], [b]) => a.localeCompare(b)).map(([date, dayShifts]) => (
                 <div key={date} className="rounded-2xl border border-slate-200 overflow-hidden">
-                  {/* Date header */}
                   <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Calendar size={14} className="text-slate-500" />
@@ -449,7 +434,6 @@ export default function ClinicianDiaryView() {
                     </span>
                   </div>
 
-                  {/* Shifts */}
                   <div className="divide-y divide-slate-100">
                     {dayShifts.map((shift) => {
                       const cfg = getStatus(shift.status);

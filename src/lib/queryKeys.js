@@ -76,4 +76,10 @@ export const QK = {
   ROTA:      (id) => ["rota", "shift", id],
   ROTA_GAPS: (params) => ["rota", "gaps", params],
   ROTA_COVER_REQUESTS: (params) => ["rota", "cover-requests", params],
+
+  // ── Time Entries (Clock-In / Clock-Out) ─────────────────────
+  TIME_ENTRIES_ACTIVE:          ["time-entries", "active"],
+  TIME_ENTRIES_LIST:            (params) => ["time-entries", "list", params],
+  TIME_ENTRIES_ADMIN_SUMMARY:   ["time-entries", "admin-summary"],
+
 };

@@ -30,7 +30,7 @@ const TABS = [
   { id: "skills",      label: "Skills",          icon: Sparkles      },
   { id: "compliance",  label: "Compliance",      icon: ShieldIcon    },
   { id: "history",     label: "Client History",  icon: Building2     },
-  { id: "calendar",    label: "Calendar",        icon: CalendarDays  },
+  { id: "calendar",    label: "TimeSheet",        icon: CalendarDays  },
   { id: "supervision", label: "Supervision",     icon: UsersIcon     },
   { id: "cppe",        label: "CPPE",            icon: GraduationCap },
   { id: "onboarding",  label: "Onboarding",      icon: Rocket        },
