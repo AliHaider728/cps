@@ -44,6 +44,9 @@ const FinanceDashboard   = lazy(() => import("../pages/finance/FinanceDashboard.
 const TrainingDashboard  = lazy(() => import("../pages/training/TrainingDashboard.jsx"));
 const WorkforceDashboard = lazy(() => import("../pages/workforce/WorkforceDashboard.jsx"));
 const ClinicianDashboard = lazy(() => import("../pages/clinician/ClinicianDashboard.jsx"));
+const MyTimesheetPage = lazy(() => import("../pages/clinician/MyTimesheetPage.jsx"));
+const ApplyForLeavePage = lazy(() => import("../pages/clinician/ApplyForLeavePage.jsx"));
+const MyLeaveBalancePage = lazy(() => import("../pages/clinician/MyLeaveBalancePage.jsx"));
 
 // ── Module 5 — Rota Management
 const RotaPage = lazy(() => import("../pages/super-admin/RotaManagement/RotaPage.jsx"));
@@ -182,6 +185,12 @@ const AppRouter = () => (
     {/* ──────────────────────── Clinician Portal ──────────────────────────── */}
     <Route path="/portal/clinician"
       element={<P roles={["clinician","super_admin"]}><ClinicianDashboard /></P>} />
+    <Route path="/portal/clinician/timesheet"
+      element={<P roles={["clinician","super_admin"]}><MyTimesheetPage /></P>} />
+    <Route path="/portal/clinician/apply-leave"
+      element={<P roles={["clinician","super_admin"]}><ApplyForLeavePage /></P>} />
+    <Route path="/portal/clinician/leave-balance"
+      element={<P roles={["clinician","super_admin"]}><MyLeaveBalancePage /></P>} />
     <Route path="/portal/clinician/*"
       element={<P roles={["clinician","super_admin"]}><ClinicianDashboard /></P>} />
 

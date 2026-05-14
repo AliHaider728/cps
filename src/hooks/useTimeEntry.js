@@ -1,65 +1,66 @@
-/**
- * hooks/useTimeEntry.js — Rota Module (Clock-In / Clock-Out)
- *
- * TanStack Query hooks for time entry operations.
- * Follows same pattern as useRota.js, useClinician.js, etc.
- */
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { timeEntryService } from "../services/api/timeEntryService";
+import { apiClient } from "../services/api/client";
 
-/* ─── Query Keys ─────────────────────────────────────────────── */
-const QK_ACTIVE         = ["time-entries", "active"];
-const QK_LIST           = (params) => ["time-entries", "list", params];
-const QK_ADMIN_SUMMARY  = ["time-entries", "admin-summary"];
+const BASE = "/time-entries";
+const QK = {
+  active: ["time-entries", "active"],
+  list: (params) => ["time-entries", "list", params],
+  adminSummary: ["time-entries", "admin-summary"],
+};
 
-/* ─── Get active clock-in entry (clinician) ──────────────────── */
-export const useActiveTimeEntry = (options = {}) =>
+export const useActiveTimeEntry = () =>
   useQuery({
-    queryKey: QK_ACTIVE,
-    queryFn:  () => timeEntryService.getActive().then((r) => r.data?.data ?? null),
-    refetchInterval: 30_000, // refresh every 30s to keep timer in sync
-    ...options,
+    queryKey: QK.active,
+    queryFn: () => apiClient.get(`${BASE}/active`).then((r) => r.data?.data ?? null),
+    refetchInterval: 30_000,
+    retry: false,
   });
 
-/* ─── List time entries ──────────────────────────────────────── */
-export const useTimeEntries = (params = {}, options = {}) =>
+export const useTimeEntries = (params = {}) =>
   useQuery({
-    queryKey: QK_LIST(params),
-    queryFn:  () => timeEntryService.list(params).then((r) => r.data?.data ?? []),
-    ...options,
+    queryKey: QK.list(params),
+    queryFn: () =>
+      apiClient
+        .get(BASE, { params })
+        .then((r) => {
+          const d = r.data?.data;
+          return Array.isArray(d) ? d : (d?.entries ?? []);
+        }),
+    retry: false,
   });
 
-/* ─── Admin summary ──────────────────────────────────────────── */
-export const useTimeEntryAdminSummary = (options = {}) =>
-  useQuery({
-    queryKey: QK_ADMIN_SUMMARY,
-    queryFn:  () => timeEntryService.getAdminSummary().then((r) => r.data?.data ?? {}),
-    staleTime: 60_000, // 1 min
-    ...options,
-  });
-
-/* ─── Clock In mutation ──────────────────────────────────────── */
-export const useClockIn = () => {
-  const queryClient = useQueryClient();
+export const useClockIn = (options = {}) => {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => timeEntryService.clockIn(data).then((r) => r.data?.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QK_ACTIVE });
-      queryClient.invalidateQueries({ queryKey: ["time-entries", "list"] });
+    mutationFn: (body = {}) =>
+      apiClient.post(`${BASE}/clock-in`, body).then((r) => r.data?.data),
+    onSuccess: (data, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: QK.active });
+      qc.invalidateQueries({ queryKey: ["time-entries", "list"] });
+      options.onSuccess?.(data, vars, ctx);
     },
+    onError: options.onError,
   });
 };
 
-/* ─── Clock Out mutation ─────────────────────────────────────── */
-export const useClockOut = () => {
-  const queryClient = useQueryClient();
+export const useTimeEntryAdminSummary = (options = {}) =>
+  useQuery({
+    queryKey: QK.adminSummary,
+    queryFn: () => apiClient.get(`${BASE}/admin/summary`).then((r) => r.data?.data ?? {}),
+    retry: false,
+    ...options,
+  });
+
+export const useClockOut = (options = {}) => {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => timeEntryService.clockOut().then((r) => r.data?.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QK_ACTIVE });
-      queryClient.invalidateQueries({ queryKey: ["time-entries", "list"] });
-      queryClient.invalidateQueries({ queryKey: QK_ADMIN_SUMMARY });
+    mutationFn: () =>
+      apiClient.post(`${BASE}/clock-out`).then((r) => r.data?.data),
+    onSuccess: (data, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: QK.active });
+      qc.invalidateQueries({ queryKey: ["time-entries", "list"] });
+      options.onSuccess?.(data, vars, ctx);
     },
+    onError: options.onError,
   });
 };

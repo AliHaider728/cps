@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
-import { useCreateRota, useRotaList } from "../../../hooks/useRota";
+import { useCreateRota } from "../../../hooks/useRota";
+import { useClinicians } from "../../../hooks/useClinicians"; // ✅ ADDED THIS HOOK
 import {
   Building2, Clock, User, FileText, ChevronDown, Loader2,
   Briefcase, Umbrella, Thermometer, BookOpen, AlertTriangle,
@@ -7,7 +8,7 @@ import {
 } from "lucide-react";
 
 /* ── Status options ─────────────────────────────────────────────────────── */
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS =[
   { value: "working",      label: "Working",      color: "bg-emerald-500", Icon: Briefcase     },
   { value: "annual_leave", label: "Annual Leave", color: "bg-blue-500",    Icon: Umbrella      },
   { value: "sick",         label: "Sick",         color: "bg-red-500",     Icon: Thermometer   },
@@ -17,10 +18,10 @@ const STATUS_OPTIONS = [
   { value: "cancelled",    label: "Cancelled",    color: "bg-slate-400",   Icon: XCircle       },
 ];
 
-const CLINICAL_SYSTEMS = ["EMIS", "SystmOne", "Vision", "AccuRx", "ICE", "Other"];
-const SERVICE_CODES    = ["GPX", "EAX", "PCN", "EA"];
+const CLINICAL_SYSTEMS =["EMIS", "SystmOne", "Vision", "AccuRx", "ICE", "Other"];
+const SERVICE_CODES    =["GPX", "EAX", "PCN", "EA"];
 
-const KNOWN_PRACTICES = [
+const KNOWN_PRACTICES =[
   { id: "P84001", name: "Pendleton Medical Centre",    system: "EMIS"      },
   { id: "P84002", name: "Weaste & Seedley Surgery",    system: "EMIS"      },
   { id: "P82001", name: "Fishergate Hill Surgery",     system: "SystmOne"  },
@@ -60,22 +61,12 @@ const parseError = (err) => {
 /* ── Main Modal ─────────────────────────────────────────────────────────── */
 export default function AddShiftModal({ open, onClose, clinicianId, date }) {
 
-  // ✅ FIX: derive month/year from the date PROP (not always current date)
-  // So that clinician dropdown fetches the right month's rota
-  const { month, year } = useMemo(() => {
-    if (date) {
-      const d = new Date(date + "T00:00:00");
-      return { month: d.getMonth() + 1, year: d.getFullYear() };
-    }
-    const now = new Date();
-    return { month: now.getMonth() + 1, year: now.getFullYear() };
-  }, [date]);
-
-  const { data: rotaData, isLoading: rotaLoading } = useRotaList({ month, year });
+  // ✅ FIX: Get all clinicians from DB instead of Rota to show everyone!
+  const { data: cliniciansRes, isLoading: cliniciansLoading } = useClinicians({ active: true });
   const allClinicians = useMemo(() => {
-    const rows = rotaData?.data?.clinicians ?? rotaData?.clinicians ?? [];
-    return rows.map((r) => r?.clinician).filter(Boolean);
-  }, [rotaData]);
+    const list = cliniciansRes?.clinicians ?? cliniciansRes?.data ?? cliniciansRes ??[];
+    return Array.isArray(list) ? list : [];
+  }, [cliniciansRes]);
 
   const create = useCreateRota();
 
@@ -84,21 +75,21 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
   const [clinicianSearch,     setClinicianSearch]     = useState("");
   const [clinicianDdOpen,     setClinicianDdOpen]     = useState(false);
   const [practiceSearch,      setPracticeSearch]      = useState("");
-  const [practiceDdOpen,      setPracticeDdOpen]      = useState(false);
+  const[practiceDdOpen,      setPracticeDdOpen]      = useState(false);
   const [selectedPractice,    setSelectedPractice]    = useState(null);
   const [customPracticeId,    setCustomPracticeId]    = useState("");
-  const [showCustomPractice,  setShowCustomPractice]  = useState(false);
+  const[showCustomPractice,  setShowCustomPractice]  = useState(false);
   const [status,              setStatus]              = useState("working");
   const [startTime,           setStartTime]           = useState("09:00");
   const [endTime,             setEndTime]             = useState("17:00");
   const [clinicalSystem,      setClinicalSystem]      = useState("");
-  const [serviceCode,         setServiceCode]         = useState("GPX");
+  const[serviceCode,         setServiceCode]         = useState("GPX");
   const [notes,               setNotes]               = useState("");
   const [isCover,             setIsCover]             = useState(false);
-  const [coverReason,         setCoverReason]         = useState("");
+  const[coverReason,         setCoverReason]         = useState("");
   const [hourlyRate,          setHourlyRate]          = useState("");
 
-  // ✅ FIX: sync clinicianId prop → state when prop changes (e.g. different cell clicked)
+  // ✅ FIX: sync clinicianId prop → state when prop changes
   useEffect(() => {
     setSelectedClinicianId(clinicianId || "");
     setClinicianSearch("");
@@ -178,7 +169,7 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
       practice_id:       practiceId,
       date,
       day_of_week:       date
-        ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(date + "T00:00:00").getDay()]
+        ?["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(date + "T00:00:00").getDay()]
         : null,
       start_time:        startTime,
       end_time:          endTime,
@@ -235,14 +226,12 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
               <User size={11} className="inline mr-1" /> Clinician
-              {/* ✅ Show hint when gap is selected */}
               {isGap
                 ? <span className="ml-1 text-orange-500 font-normal normal-case">(not applicable for gap shifts)</span>
                 : <span className="ml-1 text-slate-400 font-normal normal-case">(optional — leave blank for gap)</span>
               }
             </label>
 
-            {/* ✅ Disable clinician field when gap is selected */}
             {isGap ? (
               <div className="flex items-center gap-3 h-10 px-3 rounded-xl border border-orange-200 bg-orange-50">
                 <AlertTriangle size={14} className="text-orange-400 shrink-0" />
@@ -265,7 +254,7 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
                   onChange={(e) => { setClinicianSearch(e.target.value); setClinicianDdOpen(true); }}
                   onFocus={() => setClinicianDdOpen(true)}
                   onBlur={() => setTimeout(() => setClinicianDdOpen(false), 200)}
-                  placeholder={rotaLoading ? "Loading…" : "Search clinician name or email…"}
+                  placeholder={cliniciansLoading ? "Loading clinicians…" : "Search clinician name or email…"}
                   className="w-full h-10 pl-3 pr-9 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800
                     focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
                 />

@@ -399,9 +399,9 @@ export const sidebarConfig = {
     {
       section: "MY WORK",
       items: [
-        { icon: "Clock",       label: "My Timesheet",    path: "/portal/clinician/timesheet"     },
-        { icon: "CalendarOff", label: "Apply for Leave", path: "/portal/clinician/leave"         },
-        { icon: "Scale",       label: "My Leave Balance", path: "/portal/clinician/leave-balance" },
+        { icon: "Clock",         label: "My Timesheet",     path: "/portal/clinician/timesheet"      },
+        { icon: "CalendarOff",   label: "Apply for Leave",  path: "/portal/clinician/apply-leave"    },
+        { icon: "CalendarCheck", label: "My Leave Balance", path: "/portal/clinician/leave-balance"  },
       ],
     },
     {

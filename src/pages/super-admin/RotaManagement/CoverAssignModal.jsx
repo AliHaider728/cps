@@ -1,28 +1,64 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAssignCover } from "../../../hooks/useRota";
+import { useClinicians } from "../../../hooks/useClinicians"; // ✅ Added hook for all clinicians
 import { rotaService } from "../../../services/api/rotaService";
 import { useAuth } from "../../../context/AuthContext";
+import { User, ChevronDown, X } from "lucide-react"; // ✅ Added icons
 
 const SERVICE_CODES = ["PCN", "EA", "GPX"];
 
 export default function CoverAssignModal({ open, onClose, gapShift }) {
   const assign = useAssignCover();
   const { user } = useAuth();
-  const [clinicianId, setClinicianId] = useState("");
-  const [serviceCode, setServiceCode] = useState("PCN");
+  
+  // ✅ Fetch all clinicians from database
+  const { data: cliniciansRes, isLoading: cliniciansLoading } = useClinicians({ active: true });
+  const allClinicians = useMemo(() => {
+    const list = cliniciansRes?.clinicians ?? cliniciansRes?.data ?? cliniciansRes ??[];
+    return Array.isArray(list) ? list : [];
+  }, [cliniciansRes]);
+
+  const[clinicianId, setClinicianId] = useState("");
+  const [clinicianSearch, setClinicianSearch] = useState("");
+  const [clinicianDdOpen, setClinicianDdOpen] = useState(false);
+  const[serviceCode, setServiceCode] = useState("PCN");
   const [reason, setReason] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
-  const [complianceMissing, setComplianceMissing] = useState([]);
+  const[complianceMissing, setComplianceMissing] = useState([]);
   const [blockedMessage, setBlockedMessage] = useState("");
-  const [checking, setChecking] = useState(false);
+  const[checking, setChecking] = useState(false);
 
-  const canOverride = ["ops_manager", "super_admin"].includes(String(user?.role || ""));
+  // ✅ Reset form on close
+  useEffect(() => {
+    if (!open) {
+      setClinicianId("");
+      setClinicianSearch("");
+      setServiceCode("PCN");
+      setReason("");
+      setOverrideReason("");
+      setComplianceMissing([]);
+      setBlockedMessage("");
+    }
+  }, [open]);
+
+  const canOverride =["ops_manager", "super_admin"].includes(String(user?.role || ""));
   const canRender = open && !!gapShift;
 
   const title = useMemo(
     () => `Assign cover — ${String(gapShift?.date || "").slice(0, 10)}`,
     [gapShift]
   );
+
+  const selectedClinician = allClinicians.find(
+    (c) => String(c._id ?? c.id) === String(clinicianId)
+  );
+
+  const filteredClinicians = allClinicians.filter((c) => {
+    const name = (c.fullName ?? c.name ?? "").toLowerCase();
+    const email = (c.email ?? "").toLowerCase();
+    const q = clinicianSearch.toLowerCase();
+    return !q || name.includes(q) || email.includes(q);
+  });
 
   const runChecks = async () => {
     setChecking(true);
@@ -34,7 +70,7 @@ export default function CoverAssignModal({ open, onClose, gapShift }) {
       return { ok: false };
     }
     const complianceRes = await rotaService.checkMandatoryCompliance(clinicianId);
-    const missing = complianceRes?.data?.data?.missing || [];
+    const missing = complianceRes?.data?.data?.missing ||[];
     setComplianceMissing(missing);
     if (missing.length > 0 && !canOverride) {
       setBlockedMessage(`Missing/expired compliance: ${missing.join(", ")}`);
@@ -49,7 +85,7 @@ export default function CoverAssignModal({ open, onClose, gapShift }) {
     setBlockedMessage("");
     const checked = await runChecks();
     if (!checked.ok) return;
-    if ((checked.missing || []).length > 0 && !override) {
+    if ((checked.missing ||[]).length > 0 && !override) {
       setBlockedMessage("Compliance override required.");
       return;
     }
@@ -98,15 +134,74 @@ export default function CoverAssignModal({ open, onClose, gapShift }) {
 
         {/* Body */}
         <div className="px-5 py-4 space-y-4">
-          {/* Clinician */}
+          
+          {/* ✅ UPDATED Clinician Dropdown Selection */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Clinician ID</label>
-            <input
-              value={clinicianId}
-              onChange={(e) => setClinicianId(e.target.value)}
-              className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 placeholder-slate-400 transition-all focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
-              placeholder="e.g. CLN-001"
-            />
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <User size={12} className="inline mr-1" /> Assign to Clinician
+            </label>
+            
+            {clinicianId ? (
+              <div className="flex items-center justify-between h-10 px-3 rounded-lg border border-blue-200 bg-blue-50">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                    {(selectedClinician?.fullName ?? "?").charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-semibold text-blue-800 truncate">
+                    {selectedClinician?.fullName ?? selectedClinician?.name ?? clinicianId}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setClinicianId(""); setClinicianSearch(""); }}
+                  className="p-1 text-blue-400 hover:text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={clinicianSearch}
+                  onChange={(e) => { setClinicianSearch(e.target.value); setClinicianDdOpen(true); }}
+                  onFocus={() => setClinicianDdOpen(true)}
+                  onBlur={() => setTimeout(() => setClinicianDdOpen(false), 200)}
+                  placeholder={cliniciansLoading ? "Loading clinicians..." : "Search clinician name..."}
+                  className="w-full h-10 pl-3 pr-9 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                />
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+
+                {clinicianDdOpen && filteredClinicians.length > 0 && (
+                  <div className="absolute z-30 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-xl max-h-48 overflow-y-auto" onMouseDown={(e) => e.preventDefault()}>
+                    {filteredClinicians.map((c) => {
+                      const id = String(c._id ?? c.id ?? "");
+                      const name = c.fullName ?? c.name ?? "Unknown";
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => {
+                            setClinicianId(id);
+                            setClinicianSearch(name);
+                            setClinicianDdOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-blue-50 border-b border-slate-50 last:border-0"
+                        >
+                          <div className="w-6 h-6 rounded-md bg-slate-400 flex items-center justify-center shrink-0 text-white text-[10px] font-bold">
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
+                            {c.email && <p className="text-xs text-slate-400 truncate">{c.email}</p>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Service code + project code */}
