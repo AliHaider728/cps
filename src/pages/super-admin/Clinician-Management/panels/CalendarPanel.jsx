@@ -3,23 +3,25 @@ import { useClinicianLeave } from "../../../../hooks/useClinicianLeave";
 import { useClinicianRota } from "../../../../hooks/useRota";
 import { usePractices } from "../../../../hooks/usePractice";
 import { useTimeEntries, useActiveTimeEntry } from "../../../../hooks/useTimeEntry";
+import { apiClient } from "../../../../services/api/client";
+import { useQuery } from "@tanstack/react-query";
 import ShiftDetailModal from "../../../super-admin/RotaManagement/ShiftDetailModal";
 import {
   ChevronLeft, ChevronRight, Calendar, List,
-  Clock, MapPin, TrendingUp, AlertTriangle,
+  Clock, MapPin, AlertTriangle,
   Briefcase, Umbrella, Thermometer, BookOpen,
   UserPlus, XCircle, BarChart2, Timer, Activity,
   Zap,
 } from "lucide-react";
 
 const STATUS_CONFIG = {
-  working:      { bg: "bg-blue-500",   light: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200",   label: "Working",      Icon: Briefcase   },
-  annual_leave: { bg: "bg-yellow-400", light: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", label: "Annual Leave", Icon: Umbrella    },
-  sick:         { bg: "bg-orange-500", light: "bg-orange-50", text: "text-orange-700", border: "border-orange-200", label: "Sick",         Icon: Thermometer },
-  cppe:         { bg: "bg-green-500",  light: "bg-green-50",  text: "text-green-700",  border: "border-green-200",  label: "CPPE",         Icon: BookOpen    },
-  cover:        { bg: "bg-purple-500", light: "bg-purple-50", text: "text-purple-700", border: "border-purple-200", label: "Cover",        Icon: UserPlus    },
-  gap:          { bg: "bg-red-500",    light: "bg-red-50",    text: "text-red-700",    border: "border-red-200",    label: "Gap",          Icon: AlertTriangle },
-  cancelled:    { bg: "bg-slate-400",  light: "bg-slate-50",  text: "text-slate-500",  border: "border-slate-200",  label: "Cancelled",    Icon: XCircle     },
+  working:      { bg: "bg-blue-500",   light: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200",   label: "Working",      Icon: Briefcase    },
+  annual_leave: { bg: "bg-yellow-400", light: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", label: "Annual Leave", Icon: Umbrella     },
+  sick:         { bg: "bg-orange-500", light: "bg-orange-50", text: "text-orange-700", border: "border-orange-200", label: "Sick",         Icon: Thermometer  },
+  cppe:         { bg: "bg-green-500",  light: "bg-green-50",  text: "text-green-700",  border: "border-green-200",  label: "CPPE",         Icon: BookOpen     },
+  cover:        { bg: "bg-purple-500", light: "bg-purple-50", text: "text-purple-700", border: "border-purple-200", label: "Cover",        Icon: UserPlus     },
+  gap:          { bg: "bg-red-500",    light: "bg-red-50",    text: "text-red-700",    border: "border-red-200",    label: "Gap",          Icon: AlertTriangle},
+  cancelled:    { bg: "bg-slate-400",  light: "bg-slate-50",  text: "text-slate-500",  border: "border-slate-200",  label: "Cancelled",    Icon: XCircle      },
 };
 
 const getStatus = (status) => STATUS_CONFIG[status] || STATUS_CONFIG.cancelled;
@@ -27,10 +29,7 @@ const getStatus = (status) => STATUS_CONFIG[status] || STATUS_CONFIG.cancelled;
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
-const fmtTime = (t) => {
-  if (!t) return "";
-  return String(t).slice(0, 5);
-};
+const fmtTime = (t) => { if (!t) return ""; return String(t).slice(0, 5); };
 
 const fmtHours = (start, end) => {
   if (!start || !end) return null;
@@ -40,7 +39,6 @@ const fmtHours = (start, end) => {
   return diff > 0 ? diff : null;
 };
 
-/* ── Live duration formatter ── */
 const formatLiveDuration = (startIso) => {
   if (!startIso) return "00:00:00";
   const diffMs = Date.now() - new Date(startIso).getTime();
@@ -55,19 +53,18 @@ const deriveStats = (shifts) => {
   shifts.forEach((s) => {
     const h = fmtHours(s.start_time, s.end_time) ?? s.hours ?? 0;
     switch (s.status) {
-      case "working":      working++;      totalHours += h; break;
-      case "annual_leave": leave++;        break;
-      case "sick":         sick++;         break;
-      case "cppe":         cppe++;         break;
-      case "cover":        cover++;        totalHours += h; break;
-      case "gap":          gaps++;         break;
+      case "working":      working++;   totalHours += h; break;
+      case "annual_leave": leave++;     break;
+      case "sick":         sick++;      break;
+      case "cppe":         cppe++;      break;
+      case "cover":        cover++;     totalHours += h; break;
+      case "gap":          gaps++;      break;
       default: break;
     }
   });
   return { working, leave, sick, cppe, cover, gaps, totalHours: Math.round(totalHours * 10) / 10 };
 };
 
-/* ── Practice name resolver ── */
 const usePracticeMap = () => {
   const { data } = usePractices?.() ?? {};
   return useMemo(() => {
@@ -75,8 +72,8 @@ const usePracticeMap = () => {
     const map = new Map();
     if (Array.isArray(list)) {
       list.forEach((p) => {
-        if (p?.id)  map.set(String(p.id),  p.name || p.practiceName || p.practice_name || "");
-        if (p?._id) map.set(String(p._id), p.name || p.practiceName || p.practice_name || "");
+        if (p?.id)       map.set(String(p.id),       p.name || p.practiceName || p.practice_name || "");
+        if (p?._id)      map.set(String(p._id),      p.name || p.practiceName || p.practice_name || "");
         if (p?.ods_code) map.set(String(p.ods_code), p.name || "");
       });
     }
@@ -91,19 +88,61 @@ const shortId = (id) => {
   return s.length > 12 ? `…${s.slice(-8)}` : s;
 };
 
-/* ═══════════════════════════════════════════
-   ACTIVE SHIFT CARD (Live timer + stats)
-═══════════════════════════════════════════ */
-function ActiveShiftCard({ clinicianId }) {
-  const { data: activeEntry } = useActiveTimeEntry();
-  const { data: timeEntriesData } = useTimeEntries({ limit: 50 });
-  const [liveDisplay, setLiveDisplay] = useState("00:00:00");
+/* ════════════════════════════════════════════════════════════
+   ✅ FIX: Hook to fetch a specific clinician's time entries
+   (SuperAdmin viewing another clinician — uses admin endpoint)
+   ════════════════════════════════════════════════════════════ */
+function useClinicianTimeEntriesAdmin(clinicianId) {
+  return useQuery({
+    queryKey: ["time-entries", "admin", clinicianId],
+    queryFn: () =>
+      apiClient
+        .get(`/time-entries/admin/clinician/${clinicianId}`)
+        .then((r) => r.data?.data ?? { entries: [], is_clocked_in: false, active_since: null }),
+    enabled: !!clinicianId,
+    refetchInterval: 30_000,
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   ACTIVE SHIFT CARD
+   ✅ FIX: Now fetches the VIEWED clinician's data, not the
+   logged-in admin's own clock-in state
+   ════════════════════════════════════════════════════════════ */
+function ActiveShiftCard({ clinicianId, isOwnDashboard }) {
   const intervalRef = useRef(null);
+  const [liveDisplay, setLiveDisplay] = useState("00:00:00");
 
-  const entries = Array.isArray(timeEntriesData) ? timeEntriesData : [];
+  // ✅ FIX: If admin is viewing someone else → use admin endpoint
+  //         If clinician is viewing own dashboard → use self endpoint
+  const adminQ  = useClinicianTimeEntriesAdmin(isOwnDashboard ? null : clinicianId);
+  const selfQ   = useActiveTimeEntry();
 
-  /* Monthly totals from completed entries */
+  const isClockedIn  = isOwnDashboard
+    ? !!selfQ.data
+    : (adminQ.data?.is_clocked_in ?? false);
+
+  const activeSince  = isOwnDashboard
+    ? selfQ.data?.clock_in
+    : adminQ.data?.active_since;
+
+  // ✅ FIX: Extract entries array correctly from admin response
+  const rawEntries = isOwnDashboard
+    ? []   // own entries come from useTimeEntries below
+    : (adminQ.data?.entries ?? []);
+
   const now = new Date();
+
+  // ✅ FIX: For own dashboard, use the self time entries hook
+  const selfEntriesQ = useTimeEntries({ limit: 50 });
+  const selfEntries  = useMemo(() => {
+    const d = selfEntriesQ.data;
+    // useTimeEntries returns Array or { entries: [] }
+    return Array.isArray(d) ? d : (d?.entries ?? []);
+  }, [selfEntriesQ.data]);
+
+  const entries = isOwnDashboard ? selfEntries : rawEntries;
+
   const monthlyHours = useMemo(() => {
     return entries
       .filter((e) => {
@@ -113,49 +152,45 @@ function ActiveShiftCard({ clinicianId }) {
       })
       .reduce((sum, e) => sum + Number(e.actual_hours || 0), 0)
       .toFixed(1);
-  }, [entries, now]);
+  }, [entries]);
 
-  /* Active shifts count (shifts in rota with status=working for today) */
   const completedThisMonth = entries.filter((e) => {
     if (e.status !== "completed") return false;
     const d = new Date(e.clock_in);
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   }).length;
 
-  /* Live timer update */
+  // Live timer
   useEffect(() => {
-    if (activeEntry?.clock_in) {
-      setLiveDisplay(formatLiveDuration(activeEntry.clock_in));
+    if (activeSince) {
+      setLiveDisplay(formatLiveDuration(activeSince));
       intervalRef.current = setInterval(() => {
-        setLiveDisplay(formatLiveDuration(activeEntry.clock_in));
+        setLiveDisplay(formatLiveDuration(activeSince));
       }, 1000);
     } else {
       clearInterval(intervalRef.current);
       setLiveDisplay("00:00:00");
     }
     return () => clearInterval(intervalRef.current);
-  }, [activeEntry?.clock_in]);
+  }, [activeSince]);
 
-  if (!activeEntry && monthlyHours === "0.0" && completedThisMonth === 0) return null;
+  if (!isClockedIn && monthlyHours === "0.0" && completedThisMonth === 0) return null;
 
   return (
-    <div className={`rounded-2xl border overflow-hidden ${activeEntry ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
-
-      {/* Header */}
-      <div className={`px-4 py-3 flex items-center justify-between border-b ${activeEntry ? "border-emerald-200 bg-emerald-100/50" : "border-slate-100 bg-slate-50"}`}>
+    <div className={`rounded-2xl border overflow-hidden ${isClockedIn ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${isClockedIn ? "border-emerald-200 bg-emerald-100/50" : "border-slate-100 bg-slate-50"}`}>
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeEntry ? "bg-emerald-600" : "bg-slate-400"}`}>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isClockedIn ? "bg-emerald-600" : "bg-slate-400"}`}>
             <Timer size={15} className="text-white" />
           </div>
           <div>
             <p className="text-sm font-bold text-slate-800">
-              {activeEntry ? "Shift In Progress" : "Shift Activity"}
+              {isClockedIn ? "Shift In Progress" : "Shift Activity"}
             </p>
             <p className="text-xs text-slate-400">Time tracking overview</p>
           </div>
         </div>
-
-        {activeEntry && (
+        {isClockedIn && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             Live
@@ -164,8 +199,7 @@ function ActiveShiftCard({ clinicianId }) {
       </div>
 
       <div className="p-4">
-        {/* Live Timer Display */}
-        {activeEntry && (
+        {isClockedIn && (
           <div className="mb-4 p-4 rounded-xl bg-white border border-emerald-200 text-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Current Session</p>
             <p className="font-mono text-4xl font-black text-slate-900 tracking-tight tabular-nums">
@@ -176,18 +210,17 @@ function ActiveShiftCard({ clinicianId }) {
               <span>Minutes</span>
               <span>Seconds</span>
             </div>
-            {activeEntry.clock_in && (
+            {activeSince && (
               <p className="text-xs text-slate-400 mt-2">
                 Started at{" "}
                 <span className="font-bold text-slate-600">
-                  {new Date(activeEntry.clock_in).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(activeSince).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </p>
             )}
           </div>
         )}
 
-        {/* Stats row */}
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 rounded-xl bg-white border border-slate-200 text-center">
             <div className="flex items-center justify-center gap-1.5 mb-1">
@@ -206,14 +239,9 @@ function ActiveShiftCard({ clinicianId }) {
               <Zap size={12} className="text-amber-500" />
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</p>
             </div>
-            <p className={`text-sm font-black mt-1 ${activeEntry ? "text-emerald-600" : "text-slate-400"}`}>
-              {activeEntry ? "Clocked In" : "Not Clocked In"}
+            <p className={`text-sm font-black mt-1 ${isClockedIn ? "text-emerald-600" : "text-slate-400"}`}>
+              {isClockedIn ? "Clocked In" : "Not Clocked In"}
             </p>
-            {activeEntry?.planned_hours && (
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Planned: {activeEntry.planned_hours}h
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -221,9 +249,9 @@ function ActiveShiftCard({ clinicianId }) {
   );
 }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════════════
    LEAVE BALANCE CARD
-═══════════════════════════════════════════ */
+   ════════════════════════════════════════════ */
 function LeaveCard({ contract, data }) {
   const total     = Number(data?.total     ?? data?.totalDays     ?? 0);
   const used      = Number(data?.used      ?? data?.takenDays     ?? data?.taken ?? 0);
@@ -314,9 +342,13 @@ function DayCell({ day, isCurrentMonth, isToday, shifts = [], onClick }) {
   );
 }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════════════
    MAIN COMPONENT
-═══════════════════════════════════════════ */
+   Props:
+     clinicianId  — clinician being viewed
+     canManage    — admin can edit
+     userRole     — logged-in user's role
+   ════════════════════════════════════════════ */
 export default function CalendarPanel({ clinicianId, canManage, userRole = "clinician" }) {
   const now      = useMemo(() => new Date(), []);
   const [month,  setMonth]  = useState(now.getMonth() + 1);
@@ -328,11 +360,13 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   const rotaQ       = useClinicianRota(clinicianId, month, year);
   const practiceMap = usePracticeMap();
 
-  const shifts   = rotaQ?.data?.data?.shifts ?? rotaQ?.data?.shifts ?? [];
-  const balances = leaveQ?.data?.balances ?? leaveQ?.data?.data?.balances ?? [];
+  const shifts    = rotaQ?.data?.data?.shifts ?? rotaQ?.data?.shifts ?? [];
+  const balances  = leaveQ?.data?.balances ?? leaveQ?.data?.data?.balances ?? [];
   const isLoading = rotaQ?.isLoading || leaveQ?.isLoading;
 
-  const readOnly = userRole === "clinician" || !canManage;
+  // ✅ FIX: isOwnDashboard — clinician viewing own calendar vs admin viewing someone
+  const isOwnDashboard = userRole === "clinician";
+  const readOnly       = isOwnDashboard || !canManage;
 
   const byContract = useMemo(() => {
     const map = { ARRS: {}, EA: {}, Direct: {} };
@@ -385,7 +419,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   }, [practiceMap]);
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
-  const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
+  const nextMonth = () => { if (month === 12) { setMonth(1);  setYear(y => y + 1); } else setMonth(m => m + 1); };
   const isToday   = (d) => {
     const t = new Date();
     return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
@@ -394,17 +428,17 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   return (
     <div className="space-y-5">
 
-      {/* ── Active Shift Timer Card (superadmin view) ── */}
-      <ActiveShiftCard clinicianId={clinicianId} />
+      {/* ✅ FIX: Pass isOwnDashboard so card fetches correct clinician's data */}
+      <ActiveShiftCard clinicianId={clinicianId} isOwnDashboard={isOwnDashboard} />
 
-      {/* ── Leave Balance Cards ── */}
+      {/* Leave Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {["ARRS", "EA", "Direct"].map((c) => (
           <LeaveCard key={c} contract={c} data={byContract[c]} />
         ))}
       </div>
 
-      {/* ── Calendar Header ── */}
+      {/* Calendar */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -428,13 +462,12 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
 
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-1.5">
-              {stats.working > 0    && <StatPill label="working"  value={stats.working}    color="bg-blue-50 text-blue-700"    />}
-              {stats.leave > 0      && <StatPill label="leave"    value={stats.leave}      color="bg-yellow-50 text-yellow-700"/>}
-              {stats.sick > 0       && <StatPill label="sick"     value={stats.sick}       color="bg-orange-50 text-orange-700"/>}
-              {stats.gaps > 0       && <StatPill label="gaps"     value={stats.gaps}       color="bg-red-50 text-red-700"      />}
-              {stats.totalHours > 0 && <StatPill label="hrs"      value={stats.totalHours} color="bg-slate-100 text-slate-700" />}
+              {stats.working > 0    && <StatPill label="working"  value={stats.working}    color="bg-blue-50 text-blue-700"     />}
+              {stats.leave > 0      && <StatPill label="leave"    value={stats.leave}      color="bg-yellow-50 text-yellow-700" />}
+              {stats.sick > 0       && <StatPill label="sick"     value={stats.sick}       color="bg-orange-50 text-orange-700" />}
+              {stats.gaps > 0       && <StatPill label="gaps"     value={stats.gaps}       color="bg-red-50 text-red-700"       />}
+              {stats.totalHours > 0 && <StatPill label="hrs"      value={stats.totalHours} color="bg-slate-100 text-slate-700"  />}
             </div>
-
             <div className="flex items-center rounded-xl border border-slate-200 overflow-hidden">
               <button onClick={() => setView("calendar")}
                 className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${view === "calendar" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
@@ -455,7 +488,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
           </div>
         )}
 
-        {/* ── CALENDAR VIEW ── */}
+        {/* CALENDAR VIEW */}
         {!isLoading && view === "calendar" && (
           <div className="p-4">
             <div className="grid grid-cols-7 mb-2">
@@ -492,7 +525,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
           </div>
         )}
 
-        {/* ── LIST VIEW ── */}
+        {/* LIST VIEW */}
         {!isLoading && view === "list" && (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -517,24 +550,16 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                   </tr>
                 )}
                 {shifts.map((s, i) => {
-                  const cfg   = getStatus(s.status);
-                  const hours = fmtHours(s.start_time, s.end_time) ?? s.hours;
+                  const cfg          = getStatus(s.status);
+                  const hours        = fmtHours(s.start_time, s.end_time) ?? s.hours;
                   const practiceName = getPracticeName(s);
-
                   return (
-                    <tr
-                      key={s.id || i}
-                      onClick={() => setSelected(s)}
-                      className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
-                    >
+                    <tr key={s.id || i} onClick={() => setSelected(s)}
+                      className="hover:bg-slate-50/70 cursor-pointer transition-colors group">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="text-xs font-bold text-slate-800">
-                            {String(s.date || "").slice(0, 10)}
-                          </div>
-                          {s.day_of_week && (
-                            <span className="text-[10px] text-slate-400 font-medium">{s.day_of_week}</span>
-                          )}
+                          <div className="text-xs font-bold text-slate-800">{String(s.date || "").slice(0, 10)}</div>
+                          {s.day_of_week && <span className="text-[10px] text-slate-400 font-medium">{s.day_of_week}</span>}
                         </div>
                       </td>
                       <td className="px-5 py-3">
@@ -550,11 +575,9 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                         </div>
                       </td>
                       <td className="px-5 py-3">
-                        {hours ? (
-                          <span className="text-xs font-bold text-slate-700">{hours}h</span>
-                        ) : (
-                          <span className="text-xs text-slate-300">—</span>
-                        )}
+                        {hours
+                          ? <span className="text-xs font-bold text-slate-700">{hours}h</span>
+                          : <span className="text-xs text-slate-300">—</span>}
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-1.5 max-w-[180px]">
@@ -565,23 +588,17 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                         </div>
                       </td>
                       <td className="px-5 py-3">
-                        {s.clinical_system ? (
-                          <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                            {s.clinical_system}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-300">—</span>
-                        )}
+                        {s.clinical_system
+                          ? <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{s.clinical_system}</span>
+                          : <span className="text-xs text-slate-300">—</span>}
                       </td>
                       <td className="px-5 py-3">
-                        {s.hourly_rate ? (
-                          <span className="text-xs font-semibold text-emerald-700">
-                            £{s.hourly_rate}/hr
-                            {s.total_value ? <span className="text-slate-400 font-normal ml-1">(£{s.total_value})</span> : null}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-300">—</span>
-                        )}
+                        {s.hourly_rate
+                          ? <span className="text-xs font-semibold text-emerald-700">
+                              £{s.hourly_rate}/hr
+                              {s.total_value ? <span className="text-slate-400 font-normal ml-1">(£{s.total_value})</span> : null}
+                            </span>
+                          : <span className="text-xs text-slate-300">—</span>}
                       </td>
                     </tr>
                   );
@@ -614,7 +631,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
         )}
       </div>
 
-      {/* ── Shift Detail Modal ── */}
       <ShiftDetailModal
         open={!!selected}
         onClose={() => setSelected(null)}

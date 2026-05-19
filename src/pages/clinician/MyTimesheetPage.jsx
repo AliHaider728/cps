@@ -1,129 +1,181 @@
-import { useState } from "react";
-import { Clock, Calendar, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
-import { useTimeEntries } from "../../hooks/useTimeEntry";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Send } from "lucide-react";
+import { Badge } from "../../components/ui/Badge";
+import { Button } from "../../components/ui/Button";
+import { useMyTimesheet, useSubmitTimesheet, useUpdateTimesheetEntry } from "../../hooks/useRota";
 
-function formatDate(iso) {
-  if (!iso) return "-";
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const statusColor = { draft: "default", submitted: "warning", approved: "success", rejected: "danger" };
+
+function hours(start, end) {
+  if (!start || !end) return null;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  const diff = eh * 60 + em - (sh * 60 + sm);
+  return diff > 0 ? Math.round((diff / 60) * 100) / 100 : null;
 }
 
-function formatTime(iso) {
-  if (!iso) return "-";
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+function diffMeta(expected, actual) {
+  const diff = Math.round((Number(actual || 0) - Number(expected || 0)) * 100) / 100;
+  const color = Math.abs(diff) === 0 ? "success" : Math.abs(diff) < 1 ? "warning" : "danger";
+  return { diff, color };
 }
 
 export default function MyTimesheetPage() {
-  const [page, setPage] = useState(0);
-  const limit = 15;
-  const { data: entries = [], isLoading } = useTimeEntries({ limit, offset: page * limit });
+  const today = new Date();
+  const [cursor, setCursor] = useState({ month: today.getMonth() + 1, year: today.getFullYear() });
+  const [drafts, setDrafts] = useState({});
+  const [confirming, setConfirming] = useState(false);
+  const { data, isLoading, error } = useMyTimesheet(cursor.month, cursor.year);
+  const updateEntry = useUpdateTimesheetEntry();
+  const submit = useSubmitTimesheet();
 
-  const completed = entries.filter((entry) => entry.status === "completed");
-  const totalHours = completed.reduce((sum, entry) => sum + Number(entry.actual_hours || 0), 0).toFixed(1);
-  const totalShifts = completed.length;
+  const timesheet = data?.timesheet;
+  const entries = data?.entries || [];
+  const rows = useMemo(() => entries.map((entry) => ({ ...entry, ...(drafts[entry.id] || {}) })), [entries, drafts]);
+  const isDraft = timesheet?.status === "draft" || timesheet?.status === "rejected";
+  const title = new Date(cursor.year, cursor.month - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
+  const moveMonth = (delta) => {
+    const next = new Date(cursor.year, cursor.month - 1 + delta, 1);
+    setCursor({ month: next.getMonth() + 1, year: next.getFullYear() });
+    setDrafts({});
+  };
+
+  const setRow = (id, key, value) => setDrafts((current) => ({ ...current, [id]: { ...(current[id] || {}), [key]: value } }));
+  const saveRow = (entry) => updateEntry.mutate({ entryId: entry.id, data: { start_time: entry.start_time, end_time: entry.end_time, notes: entry.notes || "" } });
+  const missingRows = rows.filter((entry) => !entry.start_time || !entry.end_time);
+
+  const handleSubmit = () => {
+    submit.mutate(timesheet.id, {
+      onSuccess: () => setConfirming(false),
+    });
+  };
 
   return (
-    <div className="max-w-5xl mx-auto pb-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">My Timesheet</h1>
-        <p className="text-slate-500 mt-1">Your logged shift history and hours summary.</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Clock size={20} /></div>
-            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Hours</p>
+    <div className="space-y-5 pb-10">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">My Timesheet - {title}</h1>
+          <div className="mt-2 flex items-center gap-2">
+            <Badge color={statusColor[timesheet?.status] || "default"}>{timesheet?.status || "Draft"}</Badge>
           </div>
-          <h3 className="text-4xl font-black text-slate-900">{totalHours}<span className="text-base font-medium text-slate-400 ml-1">hrs</span></h3>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600"><Calendar size={20} /></div>
-            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Shifts</p>
-          </div>
-          <h3 className="text-4xl font-black text-slate-900">{totalShifts}</h3>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-amber-50 rounded-xl text-amber-600"><TrendingUp size={20} /></div>
-            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Avg per Shift</p>
-          </div>
-          <h3 className="text-4xl font-black text-slate-900">
-            {totalShifts ? (Number(totalHours) / totalShifts).toFixed(1) : "0.0"}
-            <span className="text-base font-medium text-slate-400 ml-1">hrs</span>
-          </h3>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => moveMonth(-1)} title="Previous month">
+            <ChevronLeft size={18} />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => moveMonth(1)} title="Next month">
+            <ChevronRight size={18} />
+          </Button>
+          <Button disabled={!isDraft || missingRows.length > 0} isLoading={submit.isLoading} onClick={() => setConfirming(true)}>
+            <Send size={16} /> Submit
+          </Button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800">Shift Log</h2>
+      {timesheet?.status === "rejected" && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+          {timesheet.rejection_reason || "This timesheet was rejected. Please update and resubmit."}
         </div>
-        {isLoading ? (
-          <div className="p-12 text-center text-slate-400 text-sm">Loading entries...</div>
-        ) : entries.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-sm italic">No shifts recorded yet.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs font-bold uppercase text-slate-400 tracking-wider bg-slate-50">
-                  <th className="px-6 py-3 text-left">Date</th>
-                  <th className="px-6 py-3 text-left">Clock In</th>
-                  <th className="px-6 py-3 text-left">Clock Out</th>
-                  <th className="px-6 py-3 text-right">Hours</th>
-                  <th className="px-6 py-3 text-center">Status</th>
+      )}
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error.message}</div>}
+
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="w-full min-w-[1040px] text-sm">
+          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Surgery Name</th>
+              <th className="px-4 py-3">Expected Hours</th>
+              <th className="px-4 py-3">Start Time</th>
+              <th className="px-4 py-3">End Time</th>
+              <th className="px-4 py-3">Actual Hours</th>
+              <th className="px-4 py-3">Difference</th>
+              <th className="px-4 py-3">Notes</th>
+              <th className="px-4 py-3">Cover?</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {isLoading && (
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                  Loading timesheet...
+                </td>
+              </tr>
+            )}
+            {!isLoading && rows.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                  No rota shifts found for this month.
+                </td>
+              </tr>
+            )}
+            {rows.map((entry) => {
+              const actual = hours(entry.start_time, entry.end_time) ?? entry.actual_hours;
+              const meta = diffMeta(entry.expected_hours, actual);
+              const date = new Date(`${entry.shift_date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+              return (
+                <tr key={entry.id} className={entry.is_cover ? "bg-amber-50" : "bg-white"}>
+                  <td className="px-4 py-3 font-semibold text-slate-900">{date}</td>
+                  <td className="px-4 py-3">{entry.surgery_name}</td>
+                  <td className="px-4 py-3">{Number(entry.expected_hours || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3">
+                    <input
+                      disabled={!isDraft}
+                      type="time"
+                      value={entry.start_time || ""}
+                      onChange={(e) => setRow(entry.id, "start_time", e.target.value)}
+                      onBlur={() => saveRow(entry)}
+                      className="rounded-md border border-slate-200 px-2 py-1 disabled:bg-slate-50"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      disabled={!isDraft}
+                      type="time"
+                      value={entry.end_time || ""}
+                      onChange={(e) => setRow(entry.id, "end_time", e.target.value)}
+                      onBlur={() => saveRow(entry)}
+                      className="rounded-md border border-slate-200 px-2 py-1 disabled:bg-slate-50"
+                    />
+                  </td>
+                  <td className="px-4 py-3">{actual == null ? "-" : Number(actual).toFixed(2)}</td>
+                  <td className="px-4 py-3">
+                    <Badge color={meta.color}>{meta.diff.toFixed(2)}</Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      disabled={!isDraft}
+                      value={entry.notes || ""}
+                      onChange={(e) => setRow(entry.id, "notes", e.target.value)}
+                      onBlur={() => saveRow(entry)}
+                      className="w-full rounded-md border border-slate-200 px-2 py-1 disabled:bg-slate-50"
+                    />
+                  </td>
+                  <td className="px-4 py-3">{entry.is_cover && <Badge color="warning">Cover</Badge>}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {entries.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-700">{formatDate(entry.clock_in)}</td>
-                    <td className="px-6 py-4 text-slate-600">{formatTime(entry.clock_in)}</td>
-                    <td className="px-6 py-4 text-slate-600">
-                      {entry.clock_out ? formatTime(entry.clock_out) : <span className="text-emerald-500 font-semibold">Active</span>}
-                    </td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-800">
-                      {entry.status === "active" ? "-" : `${Number(entry.actual_hours || 0).toFixed(1)}h`}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                        entry.status === "active"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-600"
-                      }`}>
-                        {entry.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-          <p className="text-xs text-slate-400">Showing {page * limit + 1}-{page * limit + entries.length}</p>
-          <div className="flex gap-2">
-            <button
-              disabled={page === 0}
-              onClick={() => setPage((current) => current - 1)}
-              className="p-2 rounded-xl hover:bg-slate-100 disabled:opacity-30 transition-colors"
-              type="button"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              disabled={entries.length < limit}
-              onClick={() => setPage((current) => current + 1)}
-              className="p-2 rounded-xl hover:bg-slate-100 disabled:opacity-30 transition-colors"
-              type="button"
-            >
-              <ChevronRight size={16} />
-            </button>
+      {confirming && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-bold text-slate-900">Submit timesheet?</h2>
+            <p className="mt-2 text-sm text-slate-600">Once submitted, your timesheet will go to the approvals queue.</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setConfirming(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} isLoading={submit.isLoading}>
+                Submit
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
-}
+}       

@@ -1,46 +1,94 @@
 import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useClinicianRota } from "../../../../hooks/useRota";
-import ShiftDetailModal from "../../../super-admin/RotaManagement/ShiftDetailModal";
 
-export default function RotaTab({ staffData = {}, userRole = "" }) {
-  const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
-  const [selected, setSelected] = useState(null);
-  const clinicianId = staffData?._id || staffData?.id;
-  const rotaQ = useClinicianRota(clinicianId, month, year);
-  const shifts = rotaQ?.data?.data?.shifts || rotaQ?.data?.shifts || [];
-  const totalHours = useMemo(() => shifts.reduce((sum, s) => sum + (Number(s.hours) || 0), 0), [shifts]);
-  const readOnly = userRole === "clinician";
+const style = {
+  working: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  annual_leave: "bg-blue-50 text-blue-800 border-blue-200",
+  sick: "bg-red-50 text-red-800 border-red-200",
+  cppe_training: "bg-purple-50 text-purple-800 border-purple-200",
+  cppe: "bg-purple-50 text-purple-800 border-purple-200",
+  cover: "bg-yellow-50 text-yellow-800 border-yellow-200",
+};
+
+const pad = (value) => String(value).padStart(2, "0");
+const daysInMonth = (month, year) => new Date(year, month, 0).getDate();
+
+export default function Rotatab({ clinicianId }) {
+  const today = new Date();
+  const [cursor, setCursor] = useState({ month: today.getMonth() + 1, year: today.getFullYear() });
+  const { data, isLoading } = useClinicianRota(clinicianId, cursor.month, cursor.year);
+  const shifts = data?.data?.shifts || data?.shifts || [];
+  const byDate = useMemo(() => {
+    const map = new Map();
+    shifts.forEach((shift) => {
+      const key = String(shift.shift_date || shift.date).slice(0, 10);
+      map.set(key, [...(map.get(key) || []), shift]);
+    });
+    return map;
+  }, [shifts]);
+  const counts = shifts.reduce((acc, shift) => {
+    const key = shift.shift_type || shift.status || "working";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  const moveMonth = (delta) => {
+    setCursor((cur) => {
+      const next = new Date(cur.year, cur.month - 1 + delta, 1);
+      return { month: next.getMonth() + 1, year: next.getFullYear() };
+    });
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <select className="h-9 px-2 rounded-md border border-slate-200" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-          {Array.from({ length: 12 }).map((_, i) => <option key={i + 1} value={i + 1}>{String(i + 1).padStart(2, "0")}</option>)}
-        </select>
-        <input className="h-9 w-24 px-2 rounded-md border border-slate-200" type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} />
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Rota</h2>
+          <p className="text-sm text-slate-500">View-only clinician rota.</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1">
+          <button onClick={() => moveMonth(-1)} className="p-2 rounded-md hover:bg-slate-100"><ChevronLeft size={16} /></button>
+          <span className="min-w-40 text-center text-sm font-semibold">{new Date(cursor.year, cursor.month - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</span>
+          <button onClick={() => moveMonth(1)} className="p-2 rounded-md hover:bg-slate-100"><ChevronRight size={16} /></button>
+        </div>
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-sm font-semibold text-slate-800">Total working hours this month: {totalHours}</p>
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-bold uppercase text-slate-500">Working</p><p className="text-2xl font-black">{counts.working || 0}</p></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-bold uppercase text-slate-500">AL</p><p className="text-2xl font-black">{counts.annual_leave || 0}</p></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-bold uppercase text-slate-500">Sick</p><p className="text-2xl font-black">{counts.sick || 0}</p></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-bold uppercase text-slate-500">CPPE</p><p className="text-2xl font-black">{counts.cppe_training || counts.cppe || 0}</p></div>
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50"><tr><th className="text-left px-3 py-2 border-b border-slate-200">Date</th><th className="text-left px-3 py-2 border-b border-slate-200">Status</th><th className="text-left px-3 py-2 border-b border-slate-200">Surgery</th><th className="text-left px-3 py-2 border-b border-slate-200">Hours</th></tr></thead>
-          <tbody>
-            {shifts.map((s) => (
-              <tr key={s.id} className="odd:bg-white even:bg-slate-50/30 cursor-pointer" onClick={() => setSelected(s)}>
-                <td className="px-3 py-2 border-b border-slate-100">{String(s.date || "").slice(0, 10)}</td>
-                <td className="px-3 py-2 border-b border-slate-100">{s.status}</td>
-                <td className="px-3 py-2 border-b border-slate-100">{s.practice_name || s.practice_id || "-"}</td>
-                <td className="px-3 py-2 border-b border-slate-100">{s.hours ?? "-"}</td>
-              </tr>
-            ))}
-            {shifts.length === 0 ? <tr><td className="px-3 py-6 text-center text-slate-500" colSpan={4}>No rota entries found.</td></tr> : null}
-          </tbody>
-        </table>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        {isLoading ? (
+          <p className="p-8 text-center text-sm text-slate-500">Loading rota...</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+            {Array.from({ length: daysInMonth(cursor.month, cursor.year) }, (_, index) => {
+              const key = `${cursor.year}-${pad(cursor.month)}-${pad(index + 1)}`;
+              const items = byDate.get(key) || [];
+              return (
+                <div key={key} className="min-h-28 rounded-lg border border-slate-100 bg-slate-50 p-2">
+                  <div className="mb-2 text-xs font-bold text-slate-500">{index + 1}</div>
+                  <div className="space-y-1">
+                    {items.map((shift) => {
+                      const type = shift.shift_type || shift.status;
+                      return (
+                        <div key={shift.id} className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${style[type] || "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                          <div>{String(type || "shift").replace("_", " ")}</div>
+                          <div className="truncate">{shift.surgery_name || shift.practice_name || "Surgery"}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-      <ShiftDetailModal open={!!selected} onClose={() => setSelected(null)} shift={selected} readOnly={readOnly} />
     </div>
   );
 }

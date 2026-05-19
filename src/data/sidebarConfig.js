@@ -7,6 +7,7 @@
  *   ✅ Applied across: super_admin, ops_manager, workforce, director
  *   ✅ All other paths and sections unchanged
  *   ✅ System Settings dropdown kept at bottom for all roles
+ *   ✅ FIX: Clinician "My Timesheet" path corrected → /portal/clinician/my-timesheet
  */
 
 export const sidebarConfig = {
@@ -40,9 +41,9 @@ export const sidebarConfig = {
     {
       section: "OPERATIONS",
       items: [
-        { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "Calendar",      label: "Rota Management", path: "/dashboard/rota", roles: ["super_admin", "ops_manager", "workforce", "director", "training", "finance"] },
-        { icon: "FileSignature", label: "Contracts",        path: "/dashboard/contracts" },
+        { icon: "UserCheck",     label: "Clinician Management", path: "/dashboard/clinicians" },
+        { icon: "Calendar",      label: "Rota Management",      path: "/dashboard/rota"       },
+        { icon: "FileSignature", label: "Contracts",            path: "/dashboard/contracts"  },
       ],
     },
     {
@@ -122,12 +123,12 @@ export const sidebarConfig = {
     {
       section: "VIEW ONLY",
       items: [
-        { icon: "BarChart3",     label: "Finance Dashboard", path: "/dashboard/finance"       },
-        { icon: "FileSignature", label: "Contracts",         path: "/dashboard/contracts"     },
-        { icon: "AlertTriangle", label: "Complaints",        path: "/dashboard/complaints"    },
-        { icon: "UserCheck",     label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "PieChart",      label: "Monthly Reports",   path: "/dashboard/reports"       },
-        { icon: "Bell",          label: "Notifications",     path: "/dashboard/notifications" },
+        { icon: "BarChart3",     label: "Finance Dashboard",    path: "/dashboard/finance"       },
+        { icon: "FileSignature", label: "Contracts",            path: "/dashboard/contracts"     },
+        { icon: "AlertTriangle", label: "Complaints",           path: "/dashboard/complaints"    },
+        { icon: "UserCheck",     label: "Clinician Management", path: "/dashboard/clinicians"    },
+        { icon: "PieChart",      label: "Monthly Reports",      path: "/dashboard/reports"       },
+        { icon: "Bell",          label: "Notifications",        path: "/dashboard/notifications" },
       ],
     },
     {
@@ -166,16 +167,16 @@ export const sidebarConfig = {
             { icon: "Stethoscope", label: "Practices / Surgeries", path: "/dashboard/super-admin/clients/practice" },
           ],
         },
-        { icon: "GitBranch", label: "Hierarchy View",      path: "/dashboard/super-admin/clients"           },
-        { icon: "Layers",    label: "Compliance Groups",   path: "/dashboard/super-admin/compliance/groups" },
+        { icon: "GitBranch", label: "Hierarchy View",    path: "/dashboard/super-admin/clients"           },
+        { icon: "Layers",    label: "Compliance Groups", path: "/dashboard/super-admin/compliance/groups" },
       ],
     },
     {
       section: "WORKFORCE",
       items: [
         { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "Calendar",  label: "Rota Management", path: "/dashboard/rota", roles: ["super_admin", "ops_manager", "workforce", "director", "training", "finance"] },
-        { icon: "RefreshCw", label: "Cover & Gaps",    path: "/dashboard/cover" },
+        { icon: "Calendar",  label: "Rota Management",      path: "/dashboard/rota"       },
+        { icon: "RefreshCw", label: "Cover & Gaps",         path: "/dashboard/cover"      },
       ],
     },
     {
@@ -308,9 +309,9 @@ export const sidebarConfig = {
     {
       section: "CPPE & TRAINING",
       items: [
-        { icon: "GraduationCap", label: "CPPE Tracker",     path: "/dashboard/cppe"        },
-        { icon: "BookMarked",    label: "Study Leave Log",  path: "/dashboard/study-leave" },
-        { icon: "Compass",       label: "Scope of Practice", path: "/dashboard/scope"      },
+        { icon: "GraduationCap", label: "CPPE Tracker",      path: "/dashboard/cppe"        },
+        { icon: "BookMarked",    label: "Study Leave Log",   path: "/dashboard/study-leave" },
+        { icon: "Compass",       label: "Scope of Practice", path: "/dashboard/scope"       },
       ],
     },
     {
@@ -351,14 +352,14 @@ export const sidebarConfig = {
       section: "CLINICIANS",
       items: [
         { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "Compass",   label: "Scope of Practice",   path: "/dashboard/scope"    },
-        { icon: "Phone",     label: "Staff Contacts",      path: "/dashboard/contacts" },
+        { icon: "Compass",   label: "Scope of Practice",   path: "/dashboard/scope"      },
+        { icon: "Phone",     label: "Staff Contacts",      path: "/dashboard/contacts"   },
       ],
     },
     {
       section: "ROTA & COVER",
       items: [
-        { icon: "Calendar",    label: "Monthly Rota",   path: "/dashboard/rota", roles: ["super_admin", "ops_manager", "workforce", "director", "training", "finance"] },
+        { icon: "Calendar",    label: "Monthly Rota",   path: "/dashboard/rota"      },
         { icon: "RefreshCw",   label: "Cover Requests", path: "/dashboard/cover"     },
         { icon: "AlertCircle", label: "Rota Gaps",      path: "/dashboard/rota-gaps" },
       ],
@@ -399,9 +400,10 @@ export const sidebarConfig = {
     {
       section: "MY WORK",
       items: [
-        { icon: "Clock",         label: "My Timesheet",     path: "/portal/clinician/timesheet"      },
-        { icon: "CalendarOff",   label: "Apply for Leave",  path: "/portal/clinician/apply-leave"    },
-        { icon: "CalendarCheck", label: "My Leave Balance", path: "/portal/clinician/leave-balance"  },
+        // ✅ FIX: path was /portal/clinician/timesheet — corrected to /portal/clinician/my-timesheet
+        { icon: "Clock",         label: "My Timesheet",     path: "/portal/clinician/my-timesheet" },
+        { icon: "CalendarOff",   label: "Apply for Leave",  path: "/portal/clinician/apply-leave"  },
+        { icon: "CalendarCheck", label: "My Leave Balance", path: "/portal/clinician/leave-balance" },
       ],
     },
     {
@@ -415,9 +417,9 @@ export const sidebarConfig = {
     {
       section: "MY COMPLIANCE",
       items: [
-        { icon: "ClipboardCheck", label: "Mandatory Training",  path: "/portal/clinician/mandatory"    },
-        { icon: "Upload",         label: "Upload Certificates", path: "/portal/clinician/certificates" },
-        { icon: "FolderOpen",     label: "Resources",           path: "/portal/clinician/resources"    },
+        { icon: "ClipboardCheck", label: "Mandatory Training",  path: "/portal/clinician/mandatory"     },
+        { icon: "Upload",         label: "Upload Certificates", path: "/portal/clinician/certificates"  },
+        { icon: "FolderOpen",     label: "Resources",           path: "/portal/clinician/resources"     },
         { icon: "Bell",           label: "My Notifications",    path: "/portal/clinician/notifications" },
       ],
     },
@@ -428,9 +430,9 @@ export const sidebarConfig = {
           icon: "Settings",
           label: "System Settings",
           children: [
-            { icon: "User",       label: "My Profile",          path: "/portal/clinician/profile"      },
-            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users"   },
-            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit"   },
+            { icon: "User",       label: "My Profile",          path: "/portal/clinician/profile"    },
+            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
+            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
           ],
         },
       ],

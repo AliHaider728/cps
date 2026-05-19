@@ -5,7 +5,7 @@ import GapReportView       from "./GapReportView";
 import ClinicianDiaryView  from "./ClinicianDiaryView";
 import RotaFilters         from "./RotaFilters";
 import SendRotaModal       from "./SendRotaModal";
-import { useGenerateRota } from "../../../hooks/useRota";
+import { useGenerateRota, useRotaGaps, useSendRotaToClients } from "../../../hooks/useRota";
 import {
   Users,
   Calendar,
@@ -30,6 +30,11 @@ export default function RotaPage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year,  setYear]  = useState(now.getFullYear());
   const generate = useGenerateRota();
+  const sendToClients = useSendRotaToClients();
+  const { data: gapsData } = useRotaGaps();
+  const gaps = gapsData?.gaps || [];
+  const urgent = gaps.filter((gap) => gap.urgency === "urgent").length;
+  const critical = gaps.filter((gap) => gap.urgency === "critical").length;
 
   return (
     <div>
@@ -49,13 +54,14 @@ export default function RotaPage() {
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={() => setSendOpen(true)}
+              onClick={() => sendToClients.mutateAsync({ month, year })}
+              disabled={sendToClients.isPending}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold
                 text-slate-700 bg-white border border-slate-200 rounded-xl
                 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm transition-all"
             >
               <Mail size={15} />
-              <span className="hidden sm:inline">Send Rota</span>
+              <span className="hidden sm:inline">{sendToClients.isPending ? "Sending..." : "Send to Clients"}</span>
             </button>
             <button
               type="button"
@@ -109,6 +115,20 @@ export default function RotaPage() {
 
       {/* ── Content — no extra min-height ── */}
       <div className="pt-6">
+        <div className="mb-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Gaps next 14 days</p>
+            <p className="mt-1 text-3xl font-black text-slate-900">{gaps.length}</p>
+          </div>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-red-600">Urgent within 48h</p>
+            <p className="mt-1 text-3xl font-black text-red-700">{urgent}</p>
+          </div>
+          <div className="rounded-lg border border-red-300 bg-red-100 p-4 animate-pulse">
+            <p className="text-xs font-bold uppercase tracking-wide text-red-700">Critical within 24h</p>
+            <p className="mt-1 text-3xl font-black text-red-800">{critical}</p>
+          </div>
+        </div>
         {activeTab === "monthly" && <MonthlyCalendarView month={month} year={year} />}
         {activeTab === "weekly"  && <WeeklyView          month={month} year={year} />}
         {activeTab === "gaps"    && <GapReportView />}

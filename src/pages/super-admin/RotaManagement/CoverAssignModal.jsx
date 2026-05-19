@@ -5,7 +5,7 @@ import { rotaService } from "../../../services/api/rotaService";
 import { useAuth } from "../../../context/AuthContext";
 import { User, ChevronDown, X } from "lucide-react"; // ✅ Added icons
 
-const SERVICE_CODES = ["PCN", "EA", "GPX"];
+const SERVICE_CODES = ["PCN", "GP", "EA"];
 
 export default function CoverAssignModal({ open, onClose, gapShift }) {
   const assign = useAssignCover();
@@ -92,6 +92,8 @@ export default function CoverAssignModal({ open, onClose, gapShift }) {
     await assign.mutateAsync({
       gapId: gapShift?.id,
       clinicianId,
+      project_code: "COVER",
+      surgery_id: gapShift?.surgery_id || gapShift?.practice_id,
       service_code: serviceCode,
       cover_reason: reason,
       compliance_override_by: override ? user?._id || user?.id : null,
@@ -209,7 +211,7 @@ export default function CoverAssignModal({ open, onClose, gapShift }) {
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Project code</label>
               <div className="h-10 flex items-center rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-500">
-                COV1
+                COVER
               </div>
             </div>
             <div>

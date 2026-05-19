@@ -3,6 +3,23 @@ import { apiClient } from "./client";
 const base = "/rota";
 
 export const rotaService = {
+  generateRota: (month, year) => apiClient.post(`${base}/generate`, { month, year }),
+  getMonthlyRota: (month, year) => apiClient.get(base, { params: { month, year } }),
+  getRotaGaps: () => apiClient.get(`${base}/gaps`),
+  sendRotaToClients: (month, year) => apiClient.post(`${base}/send-to-clients`, { month, year }),
+
+  getMyRota: (month, year) => apiClient.get(`${base}/my`, { params: { month, year } }),
+  getMyTimesheet: (month, year) => apiClient.get(`${base}/timesheet/my`, { params: { month, year } }),
+  updateTimesheetEntry: (entryId, data) => apiClient.put(`${base}/timesheet/entry/${entryId}`, data),
+  submitTimesheet: (timesheetId) => apiClient.post(`${base}/timesheet/${timesheetId}/submit`),
+
+  getPendingTimesheets: () => apiClient.get(`${base}/timesheets/pending`),
+  getClinicianTimesheet: (clinicianId, month, year) =>
+    apiClient.get(`${base}/timesheets/clinician/${clinicianId}`, { params: { month, year } }),
+  getTimesheetDetail: (id) => apiClient.get(`${base}/timesheets/${id}/detail`),
+  approveTimesheet: (id) => apiClient.post(`${base}/timesheets/${id}/approve`),
+  rejectTimesheet: (id, reason) => apiClient.post(`${base}/timesheets/${id}/reject`, { rejection_reason: reason }),
+
   // ── Grid & diary ──────────────────────────────────────────────────────────
   getRotaGrid: (month, year, params = {}) =>
     apiClient.get(base, { params: { month, year, ...params } }),
@@ -16,6 +33,7 @@ export const rotaService = {
 
   // ── Shift CRUD ────────────────────────────────────────────────────────────
   createShift: (data) => apiClient.post(`${base}/shift`, data),
+  createBulkShifts: (data) => apiClient.post(`${base}/bulk`, data),
 
   // ✅ FIX: was PUT — backend route is PATCH /shift/:id
   updateShift: (id, data) => apiClient.patch(`${base}/shift/${id}`, data),

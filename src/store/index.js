@@ -4,6 +4,7 @@ import clientsReducer from "../slices/clientsSlice";
 import pcnReducer from "../slices/pcnSlice";
 import clinicianReducer from "../slices/clinicianSlice";
 import rotaReducer from "../slices/rotaSlice";
+import timesheetReducer from "../slices/timesheetSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     pcn: pcnReducer,
     clinician: clinicianReducer,
     rota: rotaReducer,
+    timesheet: timesheetReducer,
   },
   devTools: import.meta.env.DEV,
 });

@@ -1,585 +1,362 @@
-import { useMemo, useState, useEffect } from "react";
-import { useCreateRota } from "../../../hooks/useRota";
-import { useClinicians } from "../../../hooks/useClinicians"; // ✅ ADDED THIS HOOK
-import {
-  Building2, Clock, User, FileText, ChevronDown, Loader2,
-  Briefcase, Umbrella, Thermometer, BookOpen, AlertTriangle,
-  UserPlus, XCircle, X, Plus, PoundSterling, ShieldAlert,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Building2, CalendarDays, ChevronDown, Clock, FileText, Loader2, Plus, PoundSterling, User, X } from "lucide-react";
+import { useCreateBulkRota } from "../../../hooks/useRota";
+import { useClinicians } from "../../../hooks/useClinicians";
+import { usePractices } from "../../../hooks/usePractice";
 
-/* ── Status options ─────────────────────────────────────────────────────── */
-const STATUS_OPTIONS =[
-  { value: "working",      label: "Working",      color: "bg-emerald-500", Icon: Briefcase     },
-  { value: "annual_leave", label: "Annual Leave", color: "bg-blue-500",    Icon: Umbrella      },
-  { value: "sick",         label: "Sick",         color: "bg-red-500",     Icon: Thermometer   },
-  { value: "cppe",         label: "CPPE",         color: "bg-purple-500",  Icon: BookOpen      },
-  { value: "gap",          label: "Gap",          color: "bg-orange-500",  Icon: AlertTriangle },
-  { value: "cover",        label: "Cover",        color: "bg-amber-500",   Icon: UserPlus      },
-  { value: "cancelled",    label: "Cancelled",    color: "bg-slate-400",   Icon: XCircle       },
+const STATUS_OPTIONS = [
+  ["working", "Working"],
+  ["annual_leave", "Annual Leave"],
+  ["sick", "Sick"],
+  ["cppe", "CPPE"],
+  ["gap", "Gap"],
+  ["cover", "Cover"],
+  ["cancelled", "Cancelled"],
 ];
-
-const CLINICAL_SYSTEMS =["EMIS", "SystmOne", "Vision", "AccuRx", "ICE", "Other"];
-const SERVICE_CODES    =["GPX", "EAX", "PCN", "EA"];
-
-const KNOWN_PRACTICES =[
-  { id: "P84001", name: "Pendleton Medical Centre",    system: "EMIS"      },
-  { id: "P84002", name: "Weaste & Seedley Surgery",    system: "EMIS"      },
-  { id: "P82001", name: "Fishergate Hill Surgery",     system: "SystmOne"  },
-  { id: "P82002", name: "Larches Surgery",             system: "SystmOne"  },
-  { id: "P83001", name: "Speke Medical Centre",        system: "SystmOne"  },
+const CLINICAL_SYSTEMS = ["EMIS", "SystmOne", "Vision", "AccuRx", "ICE", "Other"];
+const SERVICE_CODES = ["GPX", "EAX", "PCN", "EA"];
+const DAYS = [
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
 ];
+const FIELD_CLASS = "w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition placeholder:text-slate-400";
 
 const calcHours = (start, end) => {
-  if (!start || !end) return null;
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
+  const [sh, sm] = String(start || "").split(":").map(Number);
+  const [eh, em] = String(end || "").split(":").map(Number);
+  if (![sh, sm, eh, em].every(Number.isFinite)) return null;
   const diff = (eh * 60 + em) - (sh * 60 + sm);
-  if (diff <= 0) return null;
-  return Math.round((diff / 60) * 100) / 100;
+  return diff > 0 ? Math.round((diff / 60) * 100) / 100 : null;
 };
 
-/* ── Parse a friendly error from axios error ────────────────────────────── */
-const parseError = (err) => {
-  const status  = err?.response?.status;
-  const data    = err?.response?.data;
-  const message = data?.message || err?.message || "Unknown error";
-  const missing = data?.data?.missing || data?.missing;
-
-  if (status === 403)
-    return { title: "Clinician Restricted", body: message, icon: "restricted" };
-
-  if (status === 409 && missing?.length)
-    return {
-      title: "Compliance Incomplete",
-      body: `Missing: ${missing.join(", ")}. An ops manager or super admin can override.`,
-      icon: "compliance",
-    };
-
-  return { title: "Failed to create shift", body: message, icon: "error" };
+const serviceCodeFromContract = (contract) => {
+  const value = String(contract || "").toUpperCase();
+  if (value.includes("EA")) return "EA";
+  if (value.includes("GPX")) return "GPX";
+  if (value.includes("EAX")) return "EAX";
+  return "PCN";
 };
 
-/* ── Main Modal ─────────────────────────────────────────────────────────── */
 export default function AddShiftModal({ open, onClose, clinicianId, date }) {
-
-  // ✅ FIX: Get all clinicians from DB instead of Rota to show everyone!
+  const create = useCreateBulkRota();
   const { data: cliniciansRes, isLoading: cliniciansLoading } = useClinicians({ active: true });
-  const allClinicians = useMemo(() => {
-    const list = cliniciansRes?.clinicians ?? cliniciansRes?.data ?? cliniciansRes ??[];
+  const { data: practicesRes, isLoading: practicesLoading } = usePractices({ active: true });
+
+  const clinicians = useMemo(() => {
+    const list = cliniciansRes?.clinicians ?? cliniciansRes?.data ?? cliniciansRes ?? [];
     return Array.isArray(list) ? list : [];
   }, [cliniciansRes]);
 
-  const create = useCreateRota();
+  const practices = useMemo(() => {
+    const list = practicesRes?.practices ?? practicesRes?.data ?? practicesRes ?? [];
+    return Array.isArray(list) ? list : [];
+  }, [practicesRes]);
 
-  // Form state
   const [selectedClinicianId, setSelectedClinicianId] = useState(clinicianId || "");
-  const [clinicianSearch,     setClinicianSearch]     = useState("");
-  const [clinicianDdOpen,     setClinicianDdOpen]     = useState(false);
-  const [practiceSearch,      setPracticeSearch]      = useState("");
-  const[practiceDdOpen,      setPracticeDdOpen]      = useState(false);
-  const [selectedPractice,    setSelectedPractice]    = useState(null);
-  const [customPracticeId,    setCustomPracticeId]    = useState("");
-  const[showCustomPractice,  setShowCustomPractice]  = useState(false);
-  const [status,              setStatus]              = useState("working");
-  const [startTime,           setStartTime]           = useState("09:00");
-  const [endTime,             setEndTime]             = useState("17:00");
-  const [clinicalSystem,      setClinicalSystem]      = useState("");
-  const[serviceCode,         setServiceCode]         = useState("GPX");
-  const [notes,               setNotes]               = useState("");
-  const [isCover,             setIsCover]             = useState(false);
-  const[coverReason,         setCoverReason]         = useState("");
-  const [hourlyRate,          setHourlyRate]          = useState("");
+  const [clinicianSearch, setClinicianSearch] = useState("");
+  const [clinicianOpen, setClinicianOpen] = useState(false);
+  const [selectedPracticeId, setSelectedPracticeId] = useState("");
+  const [practiceSearch, setPracticeSearch] = useState("");
+  const [practiceOpen, setPracticeOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState(date || "");
+  const [dateTo, setDateTo] = useState(date || "");
+  const [daysOfWeek, setDaysOfWeek] = useState([1, 2, 3, 4, 5]);
+  const [shiftStart, setShiftStart] = useState("09:00");
+  const [shiftEnd, setShiftEnd] = useState("17:00");
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [status, setStatus] = useState("working");
+  const [clinicalSystem, setClinicalSystem] = useState("");
+  const [serviceCode, setServiceCode] = useState("PCN");
+  const [notes, setNotes] = useState("");
 
-  // ✅ FIX: sync clinicianId prop → state when prop changes
+  const selectedClinician = clinicians.find((c) => String(c._id ?? c.id) === String(selectedClinicianId));
+  const selectedPractice = practices.find((p) => String(p._id ?? p.id) === String(selectedPracticeId));
+  const totalHours = calcHours(shiftStart, shiftEnd);
+  const totalCost = hourlyRate && totalHours ? Math.round(Number(hourlyRate) * totalHours * 100) / 100 : null;
+
   useEffect(() => {
+    if (!open) return;
     setSelectedClinicianId(clinicianId || "");
-    setClinicianSearch("");
-  }, [clinicianId]);
+    setDateFrom(date || "");
+    setDateTo(date || "");
+  }, [open, clinicianId, date]);
 
-  // ✅ FIX: reset form when modal opens/closes
   useEffect(() => {
-    if (!open) {
-      setStatus("working");
-      setIsCover(false);
-      setCoverReason("");
-      setNotes("");
-      setHourlyRate("");
-      setSelectedPractice(null);
-      setPracticeSearch("");
-      setCustomPracticeId("");
-      setShowCustomPractice(false);
-    }
-  }, [open]);
+    if (!selectedClinician) return;
+    const rate = selectedClinician.hourly_rate ?? selectedClinician.hourlyRate ?? "";
+    const system = selectedClinician.scope_of_practice ?? selectedClinician.scopeOfPractice ?? "";
+    if (rate !== "") setHourlyRate(String(rate));
+    if (system && CLINICAL_SYSTEMS.includes(system)) setClinicalSystem(system);
+    setServiceCode(serviceCodeFromContract(selectedClinician.contractType || selectedClinician.contract_type));
+    setClinicianSearch(selectedClinician.fullName || selectedClinician.name || "");
+  }, [selectedClinician]);
 
-  const calculatedHours = calcHours(startTime, endTime);
-  const totalValue = hourlyRate && calculatedHours
-    ? Math.round(parseFloat(hourlyRate) * calculatedHours * 100) / 100
-    : null;
-
-  const selectedClinician = allClinicians.find(
-    (c) => String(c._id ?? c.id) === String(selectedClinicianId)
-  );
-
-  const filteredClinicians = allClinicians.filter((c) => {
-    const name  = (c.fullName ?? c.name ?? "").toLowerCase();
-    const email = (c.email ?? "").toLowerCase();
-    const q     = clinicianSearch.toLowerCase();
-    return !q || name.includes(q) || email.includes(q);
+  const filteredClinicians = clinicians.filter((clinician) => {
+    const query = clinicianSearch.toLowerCase();
+    const name = String(clinician.fullName || clinician.name || "").toLowerCase();
+    const email = String(clinician.email || "").toLowerCase();
+    return !query || name.includes(query) || email.includes(query);
   });
 
-  const filteredPractices = KNOWN_PRACTICES.filter((p) => {
-    const q = practiceSearch.toLowerCase();
-    return !q || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
+  const filteredPractices = practices.filter((practice) => {
+    const query = practiceSearch.toLowerCase();
+    const name = String(practice.name || "").toLowerCase();
+    const code = String(practice.odsCode || practice.ods_code || practice.id || practice._id || "").toLowerCase();
+    return !query || name.includes(query) || code.includes(query);
   });
 
-  const title = useMemo(() => {
-    if (!date) return "Add Shift";
-    const d = new Date(date + "T00:00:00");
-    return d.toLocaleDateString("en-GB", {
-      weekday: "long", day: "numeric", month: "long", year: "numeric",
-    });
-  }, [date]);
+  const toggleDay = (day) => {
+    setDaysOfWeek((current) =>
+      current.includes(day) ? current.filter((item) => item !== day) : [...current, day]
+    );
+  };
 
-  const practiceId = showCustomPractice
-    ? customPracticeId.trim()
-    : (selectedPractice?.id || "");
-
-  /* ── Status change handler ──────────────────────────────────────────── */
-  const handleStatusChange = (val) => {
-    setStatus(val);
-
-    if (val === "cover") {
-      setIsCover(true);
-    } else {
-      setIsCover(false);
-    }
-
-    // ✅ FIX: gap shifts cannot have a clinician — auto-clear on selection
-    if (val === "gap") {
+  const handleStatus = (value) => {
+    setStatus(value);
+    if (value === "gap") {
       setSelectedClinicianId("");
       setClinicianSearch("");
     }
   };
 
-  /* ── Submit ─────────────────────────────────────────────────────────── */
   const handleCreate = () => {
-    if (!practiceId) return;
+    if (!selectedPracticeId || !dateFrom || !dateTo || !totalHours || daysOfWeek.length === 0) return;
 
     create.mutate({
-      clinician_id:      status === "gap" ? null : (selectedClinicianId || null),
-      practice_id:       practiceId,
-      date,
-      day_of_week:       date
-        ?["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(date + "T00:00:00").getDay()]
-        : null,
-      start_time:        startTime,
-      end_time:          endTime,
-      hours:             calculatedHours,
-      hourly_rate:       hourlyRate ? parseFloat(hourlyRate) : null,
-      total_value:       totalValue,
-      clinical_system:   clinicalSystem || selectedPractice?.system || null,
+      clinician_id: status === "gap" ? null : selectedClinicianId || null,
+      clinician_name: status === "gap" ? null : selectedClinician?.fullName || selectedClinician?.name || null,
+      practice_id: selectedPracticeId,
+      practice_name: selectedPractice?.name || null,
+      pcn_id: selectedPractice?.pcn?._id || selectedPractice?.pcn?.id || selectedPractice?.pcn || null,
+      date_from: dateFrom,
+      date_to: dateTo,
+      days_of_week: daysOfWeek,
+      shift_start: shiftStart,
+      shift_end: shiftEnd,
+      hourly_rate: hourlyRate ? Number(hourlyRate) : null,
       status,
-      service_code:      serviceCode,
-      is_cover:          isCover,
-      project_code:      isCover ? "COV1" : null,
-      cover_reason:      isCover ? coverReason : null,
-      workstreams_notes: notes,
-      source:            "manual",
+      clinical_system: clinicalSystem || null,
+      service_code: serviceCode || null,
+      notes,
     }, {
       onSuccess: () => onClose?.(),
     });
   };
 
-  if (!open || !date) return null;
-
-  const errorInfo = create.isError ? parseError(create.error) : null;
-  const isGap     = status === "gap";
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/5 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-
-        {/* ── Header ── */}
-        <div className="sticky top-0 z-10 px-5 pt-5 pb-4 border-b border-slate-100 bg-white rounded-t-2xl">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
-                <Plus size={18} className="text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">Add Shift</p>
-                <p className="text-xs text-slate-500 mt-0.5">{title}</p>
-              </div>
+      <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/5 max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 z-10 px-5 py-4 border-b border-slate-100 bg-white rounded-t-2xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md">
+              <Plus size={18} className="text-white" />
             </div>
-            <button type="button" onClick={onClose}
-              className="rounded-xl p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-              <X size={16} />
-            </button>
+            <div>
+              <p className="text-sm font-bold text-slate-900">Add Shift</p>
+              <p className="text-xs text-slate-500">Create one shift or a date-range rota pattern.</p>
+            </div>
           </div>
+          <button type="button" onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+            <X size={16} />
+          </button>
         </div>
 
-        {/* ── Body ── */}
         <div className="px-5 py-5 space-y-5">
+          <SearchSelect
+            label="Clinician"
+            icon={User}
+            value={clinicianOpen ? clinicianSearch : selectedClinician?.fullName || selectedClinician?.name || clinicianSearch}
+            onChange={(value) => { setClinicianSearch(value); setClinicianOpen(true); }}
+            onFocus={() => setClinicianOpen(true)}
+            onBlur={() => setTimeout(() => setClinicianOpen(false), 200)}
+            placeholder={cliniciansLoading ? "Loading clinicians..." : "Search clinician name or email..."}
+            disabled={status === "gap"}
+            open={clinicianOpen && status !== "gap"}
+            items={filteredClinicians}
+            renderItem={(clinician) => clinician.fullName || clinician.name || "Unknown clinician"}
+            subItem={(clinician) => clinician.email}
+            onSelect={(clinician) => {
+              const id = String(clinician._id || clinician.id || "");
+              setSelectedClinicianId(id);
+              setClinicianSearch(clinician.fullName || clinician.name || "");
+              setClinicianOpen(false);
+            }}
+            emptyAction={() => {
+              setSelectedClinicianId("");
+              setClinicianSearch("");
+              setClinicianOpen(false);
+            }}
+            emptyLabel="No clinician (gap)"
+          />
 
-          {/* ── 1. Clinician ── */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              <User size={11} className="inline mr-1" /> Clinician
-              {isGap
-                ? <span className="ml-1 text-orange-500 font-normal normal-case">(not applicable for gap shifts)</span>
-                : <span className="ml-1 text-slate-400 font-normal normal-case">(optional — leave blank for gap)</span>
+          <SearchSelect
+            label="Practice"
+            icon={Building2}
+            required
+            value={practiceOpen ? practiceSearch : selectedPractice?.name || practiceSearch}
+            onChange={(value) => { setPracticeSearch(value); setPracticeOpen(true); }}
+            onFocus={() => setPracticeOpen(true)}
+            onBlur={() => setTimeout(() => setPracticeOpen(false), 200)}
+            placeholder={practicesLoading ? "Loading practices..." : "Search practice name or ODS code..."}
+            open={practiceOpen}
+            items={filteredPractices}
+            renderItem={(practice) => practice.name || "Unknown practice"}
+            subItem={(practice) => practice.odsCode || practice.ods_code || practice._id || practice.id}
+            onSelect={(practice) => {
+              setSelectedPracticeId(String(practice._id || practice.id || ""));
+              setPracticeSearch(practice.name || "");
+              setPracticeOpen(false);
+              if (practice.clinicalSystem && CLINICAL_SYSTEMS.includes(practice.clinicalSystem)) {
+                setClinicalSystem(practice.clinicalSystem);
               }
-            </label>
+            }}
+          />
 
-            {isGap ? (
-              <div className="flex items-center gap-3 h-10 px-3 rounded-xl border border-orange-200 bg-orange-50">
-                <AlertTriangle size={14} className="text-orange-400 shrink-0" />
-                <span className="text-sm text-orange-600 italic">Gap shift — no clinician assigned</span>
-              </div>
-            ) : clinicianId ? (
-              <div className="flex items-center gap-3 h-10 px-3 rounded-xl border border-blue-200 bg-blue-50">
-                <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                  {(selectedClinician?.fullName ?? "?").charAt(0)}
-                </div>
-                <span className="text-sm font-semibold text-blue-800 truncate">
-                  {selectedClinician?.fullName ?? selectedClinician?.name ?? clinicianId}
-                </span>
-              </div>
-            ) : (
-              <div className="relative">
-                <input
-                  type="text"
-                  value={clinicianSearch}
-                  onChange={(e) => { setClinicianSearch(e.target.value); setClinicianDdOpen(true); }}
-                  onFocus={() => setClinicianDdOpen(true)}
-                  onBlur={() => setTimeout(() => setClinicianDdOpen(false), 200)}
-                  placeholder={cliniciansLoading ? "Loading clinicians…" : "Search clinician name or email…"}
-                  className="w-full h-10 pl-3 pr-9 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800
-                    focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
-                />
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-
-                {clinicianDdOpen && filteredClinicians.length > 0 && (
-                  <div
-                    className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl max-h-48 overflow-y-auto"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <button type="button"
-                      onClick={() => { setSelectedClinicianId(""); setClinicianSearch(""); setClinicianDdOpen(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 border-b border-slate-100">
-                      <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
-                        <AlertTriangle size={13} className="text-orange-500" />
-                      </div>
-                      <span className="text-sm text-slate-500 italic">No clinician (gap shift)</span>
-                    </button>
-                    {filteredClinicians.map((c) => {
-                      const id   = String(c._id ?? c.id ?? "");
-                      const name = c.fullName ?? c.name ?? "Unknown";
-                      return (
-                        <button key={id} type="button"
-                          onClick={() => {
-                            setSelectedClinicianId(id);
-                            setClinicianSearch(name);
-                            setClinicianDdOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-blue-50 border-b border-slate-50 last:border-0 ${
-                            selectedClinicianId === id ? "bg-blue-50" : ""}`}
-                        >
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-white text-[10px] font-bold ${
-                            selectedClinicianId === id ? "bg-blue-600" : "bg-slate-400"}`}>
-                            {name.charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
-                            {c.email && <p className="text-xs text-slate-400 truncate">{c.email}</p>}
-                          </div>
-                          {selectedClinicianId === id && (
-                            <span className="text-blue-600 text-xs font-bold shrink-0">✓</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Date From" icon={CalendarDays} required>
+              <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); if (!dateTo) setDateTo(e.target.value); }} className={FIELD_CLASS} />
+            </Field>
+            <Field label="Date To" icon={CalendarDays} required>
+              <input type="date" value={dateTo} min={dateFrom} onChange={(e) => setDateTo(e.target.value)} className={FIELD_CLASS} />
+            </Field>
           </div>
 
-          {/* ── 2. Practice ── */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                <Building2 size={11} className="inline mr-1" /> Practice <span className="text-red-500">*</span>
-              </label>
-              <button type="button"
-                onClick={() => { setShowCustomPractice((p) => !p); setSelectedPractice(null); setPracticeSearch(""); }}
-                className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold">
-                {showCustomPractice ? "← Choose from list" : "Enter ID manually →"}
-              </button>
-            </div>
-
-            {showCustomPractice ? (
-              <input
-                value={customPracticeId}
-                onChange={(e) => setCustomPracticeId(e.target.value)}
-                placeholder="ODS code e.g. P84001 or any practice ID"
-                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800
-                  focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
-              />
-            ) : (
-              <div className="relative">
-                <input
-                  type="text"
-                  value={practiceDdOpen ? practiceSearch : (selectedPractice?.name || practiceSearch)}
-                  onChange={(e) => { setPracticeSearch(e.target.value); setPracticeDdOpen(true); }}
-                  onFocus={() => setPracticeDdOpen(true)}
-                  onBlur={() => setTimeout(() => setPracticeDdOpen(false), 200)}
-                  placeholder="Search practice name or ODS code…"
-                  className="w-full h-10 pl-3 pr-9 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800
-                    focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
-                />
-                <Building2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-
-                {practiceDdOpen && (
-                  <div
-                    className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl max-h-48 overflow-y-auto"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    {filteredPractices.length === 0 ? (
-                      <div className="py-4 text-center text-xs text-slate-400">No practices match. Try "Enter ID manually".</div>
-                    ) : filteredPractices.map((p) => (
-                      <button key={p.id} type="button"
-                        onClick={() => {
-                          setSelectedPractice(p);
-                          setClinicalSystem(p.system);
-                          setPracticeSearch(p.name);
-                          setPracticeDdOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 border-b border-slate-50 last:border-0 ${
-                          selectedPractice?.id === p.id ? "bg-blue-50" : ""}`}
-                      >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border text-xs font-bold ${
-                          selectedPractice?.id === p.id
-                            ? "bg-blue-600 text-white border-blue-600"
-                            : "bg-slate-100 text-slate-600 border-slate-200"}`}>
-                          {p.id.slice(-2)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
-                          <p className="text-xs text-slate-400">{p.id} · {p.system}</p>
-                        </div>
-                        {selectedPractice?.id === p.id && (
-                          <span className="text-blue-600 text-xs font-bold shrink-0">✓</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {selectedPractice && !showCustomPractice && (
-              <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
-                <Building2 size={13} className="text-emerald-600 shrink-0" />
-                <span className="text-xs font-semibold text-emerald-800 flex-1">{selectedPractice.name}</span>
-                <span className="text-[10px] text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{selectedPractice.id}</span>
-                <button type="button" onClick={() => { setSelectedPractice(null); setPracticeSearch(""); }}>
-                  <X size={12} className="text-emerald-600" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ── 3. Time ── */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              <Clock size={11} className="inline mr-1" /> Working Hours
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="text-[10px] text-slate-500 mb-1">Start</p>
-                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800
-                    focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 mb-1">End</p>
-                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800
-                    focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 mb-1">Total</p>
-                <div className={`h-10 flex items-center justify-center rounded-xl border text-sm font-bold ${
-                  calculatedHours
-                    ? "bg-blue-50 border-blue-200 text-blue-700"
-                    : "bg-slate-50 border-slate-200 text-slate-400"}`}>
-                  {calculatedHours ? `${calculatedHours}h` : "—"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── 4. Hourly Rate ── */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              <PoundSterling size={11} className="inline mr-1" /> Hourly Rate
-              <span className="ml-1 text-slate-400 font-normal normal-case">(optional)</span>
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold">£</span>
-                <input
-                  type="number" min="0" step="0.50"
-                  value={hourlyRate}
-                  onChange={(e) => setHourlyRate(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full h-10 pl-7 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800
-                    focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
-                />
-              </div>
-              <div className={`h-10 flex items-center justify-between px-3 rounded-xl border text-sm font-bold ${
-                totalValue
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                  : "bg-slate-50 border-slate-200 text-slate-400"}`}>
-                <span className="text-[10px] font-normal text-slate-500">Total</span>
-                <span>{totalValue ? `£${totalValue.toFixed(2)}` : "—"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── 5. Status ── */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Status</label>
-            <div className="grid grid-cols-4 gap-2">
-              {STATUS_OPTIONS.map(({ value, label, color, Icon }) => (
-                <button key={value} type="button"
-                  onClick={() => handleStatusChange(value)}
-                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 text-[11px] font-semibold transition-all hover:shadow-sm ${
-                    status === value
-                      ? "border-slate-900 bg-slate-900 text-white shadow-sm"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`}
-                >
-                  <span className={`h-5 w-5 rounded-full flex items-center justify-center ${status === value ? "bg-white/20" : color}`}>
-                    <Icon size={11} className="text-white" />
-                  </span>
-                  {label}
+          <Field label="Days of Week">
+            <div className="grid grid-cols-7 gap-2">
+              {DAYS.map((day) => (
+                <button key={day.value} type="button" onClick={() => toggleDay(day.value)}
+                  className={`h-10 rounded-xl border text-xs font-bold transition ${
+                    daysOfWeek.includes(day.value)
+                      ? "bg-indigo-600 border-indigo-600 text-white"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}>
+                  {day.label}
                 </button>
               ))}
             </div>
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Field label="Shift Start Time" icon={Clock}>
+              <input type="time" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} className={FIELD_CLASS} />
+            </Field>
+            <Field label="Shift End Time" icon={Clock}>
+              <input type="time" value={shiftEnd} onChange={(e) => setShiftEnd(e.target.value)} className={FIELD_CLASS} />
+            </Field>
+            <Field label="Total Hours">
+              <div className={`${FIELD_CLASS} flex items-center font-bold text-indigo-700 bg-indigo-50 border-indigo-100`}>{totalHours ? `${totalHours}h` : "-"}</div>
+            </Field>
           </div>
 
-          {/* ── 6. Clinical System + Service Code ── */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                <FileText size={11} className="inline mr-1" /> Clinical System
-              </label>
-              <select value={clinicalSystem} onChange={(e) => setClinicalSystem(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800
-                  focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all">
-                <option value="">Select…</option>
-                {CLINICAL_SYSTEMS.map((s) => <option key={s} value={s}>{s}</option>)}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Hourly Rate" icon={PoundSterling}>
+              <input type="number" min="0" step="0.5" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} className={FIELD_CLASS} placeholder="0.00" />
+            </Field>
+            <Field label="Total Cost">
+              <div className={`${FIELD_CLASS} flex items-center font-bold text-emerald-700 bg-emerald-50 border-emerald-100`}>{totalCost ? `GBP ${totalCost.toFixed(2)}` : "-"}</div>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Field label="Status">
+              <select value={status} onChange={(e) => handleStatus(e.target.value)} className={FIELD_CLASS}>
+                {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Service Code
-              </label>
-              <div className="flex gap-1.5">
-                {SERVICE_CODES.map((c) => (
-                  <button key={c} type="button" onClick={() => setServiceCode(c)}
-                    className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
-                      serviceCode === c
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}
-                  >{c}</button>
-                ))}
-              </div>
-            </div>
+            </Field>
+            <Field label="Clinical System" icon={FileText}>
+              <select value={clinicalSystem} onChange={(e) => setClinicalSystem(e.target.value)} className={FIELD_CLASS}>
+                <option value="">Select...</option>
+                {CLINICAL_SYSTEMS.map((system) => <option key={system} value={system}>{system}</option>)}
+              </select>
+            </Field>
+            <Field label="Service Code">
+              <select value={serviceCode} onChange={(e) => setServiceCode(e.target.value)} className={FIELD_CLASS}>
+                {SERVICE_CODES.map((code) => <option key={code} value={code}>{code}</option>)}
+              </select>
+            </Field>
           </div>
 
-          {/* ── 7. Cover details ── */}
-          {(isCover || status === "cover") && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
-              <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Cover Details</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-[10px] text-amber-700 mb-1">Project Code</p>
-                  <div className="h-9 flex items-center px-3 rounded-lg bg-amber-100 border border-amber-200 text-sm font-bold text-amber-800">COV1</div>
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] text-amber-700 mb-1">Cover Reason</p>
-                <input value={coverReason} onChange={(e) => setCoverReason(e.target.value)}
-                  placeholder="e.g. Covering Sarah — sick leave"
-                  className="w-full h-9 px-3 rounded-lg border border-amber-200 bg-white text-sm text-slate-800
-                    focus:outline-none focus:border-amber-400 transition-all placeholder:text-slate-400" />
-              </div>
-            </div>
-          )}
+          <Field label="Notes">
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Optional notes..." className={`${FIELD_CLASS} min-h-24 py-3 resize-none`} />
+          </Field>
 
-          {/* ── 8. Notes ── */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              placeholder="Optional notes…"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900
-                placeholder-slate-400 transition-all focus:border-blue-400 focus:bg-white focus:outline-none
-                focus:ring-2 focus:ring-blue-100 resize-none" />
-          </div>
-
-          {/* ── Error — specific messages for 403 / 409 / general ── */}
-          {errorInfo && (
-            <div className={`flex items-start gap-2 rounded-xl border px-4 py-3 text-xs ${
-              errorInfo.icon === "restricted"
-                ? "bg-red-50 border-red-200 text-red-700"
-                : errorInfo.icon === "compliance"
-                ? "bg-amber-50 border-amber-200 text-amber-800"
-                : "bg-red-50 border-red-200 text-red-700"
-            }`}>
-              {errorInfo.icon === "compliance"
-                ? <ShieldAlert size={14} className="shrink-0 mt-0.5 text-amber-500" />
-                : <X size={14} className="shrink-0 mt-0.5" />
-              }
-              <div>
-                <p className="font-semibold">{errorInfo.title}</p>
-                <p className="mt-0.5 opacity-80">{errorInfo.body}</p>
-              </div>
+          {create.isError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {create.error?.response?.data?.message || create.error?.message || "Failed to create shifts"}
             </div>
           )}
         </div>
 
-        {/* ── Footer ── */}
-        <div className="sticky bottom-0 px-5 pb-5 pt-4 flex items-center justify-between gap-3 border-t border-slate-100 bg-white rounded-b-2xl">
-          <div className="text-xs text-slate-400 space-y-0.5">
-            {practiceId && <span className="font-semibold text-slate-600">{practiceId}</span>}
-            {calculatedHours && <span> · <strong className="text-slate-700">{calculatedHours}h</strong></span>}
-            {startTime && endTime && <span> · {startTime}–{endTime}</span>}
-            {totalValue && <span> · <strong className="text-emerald-600">£{totalValue.toFixed(2)}</strong></span>}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600
-                transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95">
-              Cancel
-            </button>
-            <button type="button" onClick={handleCreate}
-              disabled={create.isPending || !practiceId}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white
-                shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:scale-95
-                disabled:opacity-50 disabled:cursor-not-allowed">
-              {create.isPending ? (
-                <><Loader2 size={14} className="animate-spin" /> Creating…</>
-              ) : (
-                <><Plus size={14} /> Create Shift</>
-              )}
-            </button>
-          </div>
+        <div className="sticky bottom-0 px-5 py-4 flex items-center justify-end gap-3 border-t border-slate-100 bg-white rounded-b-2xl">
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="button" onClick={handleCreate}
+            disabled={create.isPending || !selectedPracticeId || !dateFrom || !dateTo || !totalHours || daysOfWeek.length === 0}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            {create.isPending ? <><Loader2 size={14} className="animate-spin" /> Creating...</> : <><Plus size={14} /> Create Shifts</>}
+          </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function Field({ label, icon: Icon, required, children }) {
+  return (
+    <div>
+      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+        {Icon && <Icon size={11} className="inline mr-1" />}
+        {label} {required && <span className="text-rose-500">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function SearchSelect({ label, icon, required, value, onChange, onFocus, onBlur, placeholder, disabled, open, items, renderItem, subItem, onSelect, emptyAction, emptyLabel }) {
+  const Icon = icon;
+  return (
+    <Field label={label} icon={Icon} required={required}>
+      <div className="relative">
+        <input
+          type="text"
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          onFwtocus={onFocus}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          className={`${FIELD_CLASS} pr-9 disabled:bg-slate-100 disabled:text-slate-400`}
+        />
+        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        {open && (
+          <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl max-h-56 overflow-y-auto" onMouseDown={(e) => e.preventDefault()}>
+            {emptyAction && (
+              <button type="button" onClick={emptyAction} className="w-full px-4 py-2.5 text-left text-sm text-slate-500 hover:bg-slate-50 border-b border-slate-100">
+                {emptyLabel}
+              </button>
+            )}
+            {items.length === 0 ? (
+              <div className="py-4 text-center text-xs text-slate-400">No results found.</div>
+            ) : items.map((item) => (
+              <button key={String(item._id || item.id)} type="button" onClick={() => onSelect(item)}
+                className="w-full px-4 py-2.5 text-left hover:bg-indigo-50 border-b border-slate-50 last:border-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{renderItem(item)}</p>
+                {subItem?.(item) && <p className="text-xs text-slate-400 truncate">{subItem(item)}</p>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Field>
   );
 }

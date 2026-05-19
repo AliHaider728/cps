@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Clock,
 } from "lucide-react";
+import ShiftStatusBadge from "../../../components/ui/ShiftStatusBadge";
 
 const STATUS_OPTIONS = [
   { value: "working",      label: "Working",      bg: "bg-emerald-100", text: "text-emerald-800", dot: "bg-emerald-500" },
@@ -45,8 +46,6 @@ export default function ShiftDetailModal({ open, onClose, shift, readOnly = fals
     });
   }, [shift]);
 
-  const currentCfg = STATUS_OPTIONS.find((s) => s.value === status) ?? STATUS_OPTIONS[0];
-
   if (!open || !shift) return null;
 
   return (
@@ -58,10 +57,7 @@ export default function ShiftDetailModal({ open, onClose, shift, readOnly = fals
         <div className="px-5 pt-5 pb-4 border-b border-slate-100">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold mb-1.5 ${currentCfg.bg} ${currentCfg.text}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${currentCfg.dot}`} />
-                {currentCfg.label}
-              </span>
+              <div className="mb-1.5"><ShiftStatusBadge status={status} /></div>
               <p className="text-sm font-semibold text-slate-900">{title}</p>
               <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{String(shift.id ?? "")}</p>
             </div>

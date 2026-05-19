@@ -7,6 +7,7 @@ const keyRotaList  = (params) => (QK.ROTA_LIST  ? QK.ROTA_LIST(params)  : ["rota
 const keyRota      = (id)     => (QK.ROTA       ? QK.ROTA(id)            : ["rota", "shift", id]);
 const keyCompliance = (id)    => ["rota", "compliance", id];
 const keyRestricted = (clinicianId, practiceId) => ["rota", "restricted", clinicianId, practiceId];
+const unwrap = (response) => response.data?.data ?? response.data;
 
 /* ─── Queries ────────────────────────────────────────────────────────────── */
 
@@ -17,6 +18,53 @@ export const useRotaList = (params = {}) =>
       const { month, year, ...rest } = params || {};
       return rotaService.getRotaGrid(month, year, rest).then((r) => r.data);
     },
+  });
+
+export const useMonthlyRota = (month, year) =>
+  useQuery({
+    queryKey: ["rota", "monthly", month, year],
+    queryFn: () => rotaService.getMonthlyRota(month, year).then(unwrap),
+    enabled: !!month && !!year,
+  });
+
+export const useRotaGaps = () =>
+  useQuery({
+    queryKey: ["rota", "gaps"],
+    queryFn: () => rotaService.getRotaGaps().then(unwrap),
+  });
+
+export const useMyRota = (month, year) =>
+  useQuery({
+    queryKey: ["myRota", month, year],
+    queryFn: () => rotaService.getMyRota(month, year).then(unwrap),
+    enabled: !!month && !!year,
+  });
+
+export const useMyTimesheet = (month, year) =>
+  useQuery({
+    queryKey: ["myTimesheet", month, year],
+    queryFn: () => rotaService.getMyTimesheet(month, year).then(unwrap),
+    enabled: !!month && !!year,
+  });
+
+export const usePendingTimesheets = () =>
+  useQuery({
+    queryKey: ["pendingTimesheets"],
+    queryFn: () => rotaService.getPendingTimesheets().then(unwrap),
+  });
+
+export const useTimesheetDetail = (id) =>
+  useQuery({
+    queryKey: ["timesheetDetail", id],
+    queryFn: () => rotaService.getTimesheetDetail(id).then(unwrap),
+    enabled: !!id,
+  });
+
+export const useClinicianTimesheet = (clinicianId, month, year) =>
+  useQuery({
+    queryKey: ["clinicianTimesheet", clinicianId, month, year],
+    queryFn: () => rotaService.getClinicianTimesheet(clinicianId, month, year).then(unwrap),
+    enabled: !!clinicianId && !!month && !!year,
   });
 
 export const useRota = (id) =>
@@ -86,6 +134,21 @@ export const useCreateRota = (options = {}) => {
     },
     onError: (err, vars, ctx) => {
       // 403 → restricted clinician  |  409 → compliance incomplete
+      options.onError?.(err, vars, ctx);
+    },
+  });
+};
+
+export const useCreateBulkRota = (options = {}) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data) => rotaService.createBulkShifts(data).then((r) => r.data),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: (err, vars, ctx) => {
       options.onError?.(err, vars, ctx);
     },
   });
@@ -216,3 +279,70 @@ export const useGenerateRota = (options = {}) => {
     },
   });
 };
+
+export const useSendRotaToClients = (options = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ month, year }) => rotaService.sendRotaToClients(month, year).then(unwrap),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: options.onError,
+  });
+};
+
+export const useUpdateTimesheetEntry = (options = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ entryId, data }) => rotaService.updateTimesheetEntry(entryId, data).then(unwrap),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["myTimesheet"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: options.onError,
+  });
+};
+
+export const useSubmitTimesheet = (options = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (timesheetId) => rotaService.submitTimesheet(timesheetId).then(unwrap),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["myTimesheet"] });
+      qc.invalidateQueries({ queryKey: ["pendingTimesheets"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: options.onError,
+  });
+};
+
+export const useApproveTimesheetRota = (options = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => rotaService.approveTimesheet(id).then(unwrap),
+    onSuccess: (result, id, ctx) => {
+      qc.invalidateQueries({ queryKey: ["pendingTimesheets"] });
+      qc.invalidateQueries({ queryKey: ["timesheetDetail", id] });
+      qc.invalidateQueries({ queryKey: ["clinicianTimesheet"] });
+      options.onSuccess?.(result, id, ctx);
+    },
+    onError: options.onError,
+  });
+};
+
+export const useRejectTimesheetRota = (options = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }) => rotaService.rejectTimesheet(id, reason).then(unwrap),
+    onSuccess: (result, { id }, ctx) => {
+      qc.invalidateQueries({ queryKey: ["pendingTimesheets"] });
+      qc.invalidateQueries({ queryKey: ["timesheetDetail", id] });
+      qc.invalidateQueries({ queryKey: ["clinicianTimesheet"] });
+      options.onSuccess?.(result, { id }, ctx);
+    },
+    onError: options.onError,
+  });
+};
+
+export { useApproveTimesheetRota as useApproveTimesheet, useRejectTimesheetRota as useRejectTimesheet };

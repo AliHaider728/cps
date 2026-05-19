@@ -1,305 +1,313 @@
-import { useState, useEffect } from "react";
-import { 
-  Clock, 
-  CalendarCheck, 
-  ClipboardCheck, 
-  Timer, 
-  LogIn, 
-  LogOut, 
-  AlertCircle,
-  TrendingUp,
-  User,
-  ChevronRight
+/**
+ * ClinicianDashboard.jsx
+ *
+ * FIXED: Shows only shifts calendar.
+ * Leave balance → MyLeaveBalancePage
+ * Timesheet entry → MyTimesheetPage
+ * 
+ * Colors aligned with site theme:
+ * - Primary: Blue (blue-600)
+ * - Neutral: Slate
+ * - Semantic: Teal (working), Purple (leave), Green (hours)
+ */
+import { useCallback, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  CalendarDays, ChevronLeft, ChevronRight,
+  Clock, FileText, Stethoscope,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import {
-  useActiveTimeEntry,
-  useClockIn,
-  useClockOut,
-  useTimeEntries,
-} from "../../hooks/useTimeEntry";
-import { useClinicianLeave } from "../../hooks/useClinicianLeave";
+import { useMyRota } from "../../hooks/useRota";
 
-/* ── Helpers ──────────────────────────────────────────────────── */
-function formatDuration(startIso) {
-  if (!startIso) return "00:00:00";
-  const diffMs = Date.now() - new Date(startIso).getTime();
-  const h = Math.floor(diffMs / 3_600_000);
-  const m = Math.floor((diffMs % 3_600_000) / 60_000);
-  const s = Math.floor((diffMs % 60_000) / 1_000);
-  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
-}
+/* ── Shift type styles ─────────────────────────────────── */
+const TYPE_STYLE = {
+  working:       { cell: "bg-teal-50 text-teal-700 border-teal-200", label: "Working" },
+  annual_leave:  { cell: "bg-purple-50 text-purple-700 border-purple-200",          label: "AL"      },
+  sick:          { cell: "bg-red-50 text-red-700 border-red-200",             label: "Sick"    },
+  cppe_training: { cell: "bg-indigo-50 text-indigo-700 border-indigo-200",    label: "CPPE"    },
+  cppe:          { cell: "bg-indigo-50 text-indigo-700 border-indigo-200",    label: "CPPE"    },
+  cover:         { cell: "bg-amber-50 text-amber-700 border-amber-200",       label: "Cover"   },
+  bank_holiday:  { cell: "bg-slate-100 text-slate-600 border-slate-200",      label: "BH"      },
+};
 
-/* ── Live Timer Component (Refined) ─────────────────────────── */
-function LiveTimer({ clockIn }) {
-  const [display, setDisplay] = useState(() => formatDuration(clockIn));
-  useEffect(() => {
-    const id = setInterval(() => setDisplay(formatDuration(clockIn)), 1000);
-    return () => clearInterval(id);
-  }, [clockIn]);
+const daysInMonth = (m, y) => new Date(y, m, 0).getDate();
+const pad         = (v)    => String(v).padStart(2, "0");
+const dateKey     = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
 
-  return (
-    <div className="flex flex-col items-center">
-      <span className="font-mono text-5xl font-extrabold tracking-tighter text-slate-900 tabular-nums">
-        {display}
-      </span>
-      <div className="flex gap-8 mt-2 text-[10px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
-        <span>Hours</span>
-        <span>Minutes</span>
-        <span>Seconds</span>
-      </div>
-    </div>
-  );
-}
-
-/* ── Main Component ───────────────────────────────────────────── */
 export default function ClinicianDashboard() {
-  const { user } = useAuth();
-  const clinicianId = user?.clinicianId || null;
+  const { user }   = useAuth();
+  const navigate   = useNavigate();
+  const now        = new Date();
+  const [cursor, setCursor] = useState({
+    month: now.getMonth() + 1,
+    year:  now.getFullYear(),
+  });
 
-  const { data: activeEntry, isLoading: activeLoading } = useActiveTimeEntry();
-  const isClockedIn = !!activeEntry;
+  // Query shifts for the current month/year
+  const { data: rota, isLoading: rotaLoading } = useMyRota(cursor.month, cursor.year);
+  const shifts = useMemo(() => rota?.shifts ?? [], [rota]);
 
-  const { data: leaveData } = useClinicianLeave(clinicianId);
-  const arrsBalance = leaveData?.balances?.find((b) => b.contract === "ARRS") || null;
+  // Month navigation - no infinite loop risk
+  const moveMonth = useCallback((delta) => {
+    setCursor((c) => {
+      const next = new Date(c.year, c.month - 1 + delta, 1);
+      return { month: next.getMonth() + 1, year: next.getFullYear() };
+    });
+  }, []);
 
-  const { data: recentEntries = [] } = useTimeEntries({ limit: 5 });
+  const monthLabel  = new Date(cursor.year, cursor.month - 1, 1)
+    .toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const totalDays   = daysInMonth(cursor.month, cursor.year);
+  const firstOffset = (new Date(cursor.year, cursor.month - 1, 1).getDay() + 6) % 7;
 
-  const clockInMutation = useClockIn();
-  const clockOutMutation = useClockOut();
-  const [feedback, setFeedback] = useState(null);
-
-  const handleClockIn = async () => {
-    try {
-      setFeedback(null);
-      await clockInMutation.mutateAsync({});
-      setFeedback({ type: "success", msg: "Shift started successfully." });
-    } catch (err) {
-      setFeedback({ type: "error", msg: err.response?.data?.message || "Clock-in failed" });
-    }
-  };
-
-  const handleClockOut = async () => {
-    try {
-      setFeedback(null);
-      const result = await clockOutMutation.mutateAsync();
-      setFeedback({ type: "success", msg: `Shift ended. Total: ${result?.actual_hours ?? "0"}h` });
-    } catch (err) {
-      setFeedback({ type: "error", msg: err.response?.data?.message || "Clock-out failed" });
-    }
-  };
+  /* shift counts for summary bar */
+  const workingCount = useMemo(
+    () => shifts.filter((s) => s.shift_type === "working" || s.shift_type === "cover").length,
+    [shifts]
+  );
+  const leaveCount = useMemo(
+    () => shifts.filter((s) => s.shift_type === "annual_leave").length,
+    [shifts]
+  );
+  const totalExpected = useMemo(
+    () => shifts
+      .filter((s) => s.shift_type === "working" || s.shift_type === "cover")
+      .reduce((sum, s) => sum + parseFloat(s.expected_hours || 0), 0),
+    [shifts]
+  );
 
   return (
-    <div className="max-w-full mx-auto min-h-screen bg-[#F8FAFC] pb-12 antialiased">
-      {/* ── Top Navigation / Header ────────────────────────────── */}
-      <header className="flex items-center justify-between py-3">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-slate-500 font-medium mt-1">
-            {new Date().toLocaleDateString("en-GB", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
-          </p>
-        </div>
-        <div className="flex items-center gap-4 bg-white p-1.5 pr-4 rounded-full border border-slate-200 shadow-sm">
-          <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-            <User size={20} />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold text-slate-800 leading-none">{user?.name || "Clinician"}</span>
-            <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Medical Staff</span>
-          </div>
-        </div>
-      </header>
+   <>
+    <div className="space-y-8 pb-16 bg-slate-50 min-h-screen">
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* ── LEFT COLUMN: Clocking & Stats ────────────────────── */}
-        <div className="lg:col-span-7 space-y-6">
-          
-          {/* Main Timer Card */}
-          <div className="relative overflow-hidden bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-8">
-            {/* Background Decorative Gradient */}
-            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-50" />
-            
-            <div className="relative flex items-center justify-between mb-10">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${isClockedIn ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
-                  <Timer size={24} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800">Shift Controller</h2>
-                  <p className="text-xs text-slate-400 font-medium">Manage your daily attendance</p>
-                </div>
-              </div>
-              <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest border transition-all ${
-                isClockedIn 
-                ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                : "bg-slate-50 text-slate-400 border-slate-100"
-              }`}>
-                <span className={`w-2 h-2 rounded-full animate-pulse ${isClockedIn ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                {isClockedIn ? "Live Session" : "Inactive"}
-              </div>
+      {/* ── Hero Header ───────────────────────────────────── */}
+      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-3xl px-8 py-10 text-white shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+              <Stethoscope size={24} className="text-white" />
             </div>
-
-            {isClockedIn ? (
-              <div className="py-6 mb-10">
-                <LiveTimer clockIn={activeEntry.clock_in} />
-                <div className="flex justify-center gap-4 mt-8">
-                   <div className="px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Started At</p>
-                      <p className="text-sm font-bold text-slate-700">
-                        {new Date(activeEntry.clock_in).toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                   </div>
-                   <div className="px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Planned Hours</p>
-                      <p className="text-sm font-bold text-slate-700">{activeEntry.planned_hours || "—"}h</p>
-                   </div>
-                </div>
-              </div>
-            ) : (
-              <div className="py-12 mb-10 text-center">
-                <p className="text-slate-400 font-medium">Ready to start your rotation?</p>
-                <p className="text-sm text-slate-300">Clock in to begin tracking your active hours.</p>
-              </div>
-            )}
-
-            {feedback && (
-              <div className={`mb-6 p-4 rounded-2xl flex items-center gap-3 text-sm font-medium animate-in fade-in slide-in-from-top-2 ${
-                feedback.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-              }`}>
-                <AlertCircle size={18} />
-                {feedback.msg}
-              </div>
-            )}
-
-            <button
-              onClick={isClockedIn ? handleClockOut : handleClockIn}
-              disabled={clockInMutation.isPending || clockOutMutation.isPending}
-              className={`group relative w-full overflow-hidden rounded-[1.25rem] py-4 font-bold transition-all duration-300 transform active:scale-[0.98] ${
-                isClockedIn 
-                ? "bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 text-white" 
-                : "bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 text-white"
-              }`}
-            >
-              <div className="relative flex items-center justify-center gap-2 z-10">
-                {isClockedIn ? <LogOut size={20} /> : <LogIn size={20} />}
-                {isClockedIn ? "End Shift Now" : "Begin New Shift"}
-              </div>
-            </button>
-          </div>
-
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-amber-50 text-amber-600 rounded-xl"><CalendarCheck size={20} /></div>
-                <TrendingUp size={16} className="text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Leave Balance</p>
-                <h3 className="text-3xl font-black text-slate-800 mt-1">{arrsBalance?.remaining || "0"} <span className="text-sm font-medium text-slate-400">days</span></h3>
-                <div className="w-full h-1.5 bg-slate-100 rounded-full mt-4 overflow-hidden">
-                  <div 
-                    className="h-full bg-amber-400 rounded-full" 
-                    style={{ width: `${(arrsBalance?.used / arrsBalance?.total) * 100 || 0}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl"><Clock size={20} /></div>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Monthly Hours</p>
-                <h3 className="text-3xl font-black text-slate-800 mt-1">
-                  {recentEntries
-                    .filter((e) => e.status === "completed")
-                    .reduce((sum, e) => sum + Number(e.actual_hours || 0), 0)
-                    .toFixed(1)}
-                  <span className="text-sm font-medium text-slate-400 ml-1">hrs</span>
-                </h3>
-                <p className="text-[11px] text-emerald-600 font-bold mt-2 uppercase tracking-tight">+12% from last month</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── RIGHT COLUMN: Activity Log ────────────────────────── */}
-        <div className="lg:col-span-5">
-          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm h-full overflow-hidden flex flex-col">
-            <div className="p-8 border-b border-slate-50">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                  <ClipboardCheck className="text-slate-400" size={22} />
-                  Recent Activity
-                </h2>
-                <button className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-widest">
-                  View All
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 p-4 overflow-y-auto">
-              <div className="space-y-3">
-                {recentEntries.length > 0 ? (
-                  recentEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="group flex items-center justify-between p-4 rounded-2xl border border-transparent hover:border-slate-100 hover:bg-slate-50/50 transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
-                          entry.status === 'active' 
-                          ? 'border-emerald-100 bg-emerald-50 text-emerald-600' 
-                          : 'border-slate-100 bg-white text-slate-400'
-                        }`}>
-                          <Clock size={18} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-slate-800">
-                            {new Date(entry.clock_in).toLocaleDateString("en-GB", {
-                              day: "numeric",
-                              month: "short",
-                            })}
-                          </p>
-                          <p className="text-[11px] text-slate-400 font-medium">
-                            {new Date(entry.clock_in).toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' })}
-                            {entry.clock_out ? ` — ${new Date(entry.clock_out).toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' })}` : " — Currently Active"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`text-sm font-black ${entry.status === 'active' ? 'text-emerald-600' : 'text-slate-700'}`}>
-                          {entry.status === "active" ? "Active" : `${entry.actual_hours}h`}
-                        </span>
-                        <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-20 text-center">
-                    <p className="text-slate-400 text-sm italic">No recent activity found.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="p-6 bg-slate-50/50 mt-auto border-t border-slate-100">
-              <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-[0.2em]">
-                Secure Clinician Portal v3.0
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">My Shifts</h1>
+              <p className="text-blue-100 text-sm mt-1">
+                {user?.name || "Clinician"} • {monthLabel}
               </p>
             </div>
           </div>
+
+          {/* Month navigator */}
+          <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm border border-white/30 rounded-2xl p-2">
+            <button
+              onClick={() => moveMonth(-1)}
+              className="p-2.5 rounded-xl hover:bg-white/20 transition-colors"
+              aria-label="Previous month"
+            >
+              <ChevronLeft size={18} className="text-white" />
+            </button>
+            <span className="min-w-[140px] text-center text-sm font-bold text-white">
+              {monthLabel}
+            </span>
+            <button
+              onClick={() => moveMonth(1)}
+              className="p-2.5 rounded-xl hover:bg-white/20 transition-colors"
+              aria-label="Next month"
+            >
+              <ChevronRight size={18} className="text-white" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* ── Summary Cards ──────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 px-1">
+        <div className="bg-white rounded-2xl border border-teal-200 p-6 hover:shadow-lg hover:shadow-teal-100 transition-all">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-xs font-bold text-teal-600 uppercase tracking-wider">
+              Working Days
+            </p>
+            <div className="p-2 bg-teal-50 rounded-lg">
+              <Clock size={16} className="text-teal-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-900">{workingCount}</p>
+          <p className="text-xs text-slate-500 mt-2">This month</p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-green-200 p-6 hover:shadow-lg hover:shadow-green-100 transition-all">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-xs font-bold text-green-600 uppercase tracking-wider">
+              Expected Hours
+            </p>
+            <div className="p-2 bg-green-50 rounded-lg">
+              <FileText size={16} className="text-green-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-900">{totalExpected.toFixed(1)}<span className="text-lg text-slate-500">h</span></p>
+          <p className="text-xs text-slate-500 mt-2">Total scheduled</p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-purple-200 p-6 hover:shadow-lg hover:shadow-purple-100 transition-all">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-xs font-bold text-purple-600 uppercase tracking-wider">
+              Leave Days
+            </p>
+            <div className="p-2 bg-purple-50 rounded-lg">
+              <CalendarDays size={16} className="text-purple-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-900">{leaveCount}</p>
+          <p className="text-xs text-slate-500 mt-2">Annual leave</p>
+        </div>
+      </div>
+
+      {/* ── Quick Action Buttons ──────────────────────────── */}
+      <div className="flex flex-col sm:flex-row gap-3 px-1">
+        <button
+          onClick={() => navigate("/portal/clinician/my-timesheet")}
+          className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 
+            hover:from-blue-700 hover:to-blue-800 px-6 py-3 text-sm font-bold text-white
+            shadow-lg shadow-blue-200 active:scale-[0.98] transition-all"
+        >
+          <Clock size={17} />
+          Enter My Hours
+        </button>
+        <button
+          onClick={() => navigate("/portal/clinician/apply-leave")}
+          className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-white border-2 border-blue-200
+            hover:bg-blue-50 hover:border-blue-300 px-6 py-3 text-sm font-bold text-blue-700
+            active:scale-[0.98] transition-all"
+        >
+          <CalendarDays size={17} />
+          Apply for Leave
+        </button>
+        <button
+          onClick={() => navigate("/portal/clinician/leave-balance")}
+          className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-white border-2 border-slate-200
+            hover:bg-slate-50 hover:border-slate-300 px-6 py-3 text-sm font-bold text-slate-700
+            active:scale-[0.98] transition-all"
+        >
+          <FileText size={17} />
+          Leave Balance
+        </button>
+      </div>
+
+      {/* ── Calendar ─────────────────────────────────────── */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden">
+        <div className="flex items-center gap-3 border-b border-slate-200 px-8 py-5 bg-gradient-to-r from-slate-50 to-white">
+          <div className="p-2.5 bg-blue-100 rounded-xl">
+            <CalendarDays size={18} className="text-blue-600" />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900">
+            My Shifts — {monthLabel}
+          </h2>
+        </div>
+
+        {rotaLoading ? (
+          <div className="p-16 text-center">
+            <div className="w-8 h-8 border-3 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-sm text-slate-500">Loading your rota…</p>
+          </div>
+        ) : (
+          <>
+            {/* Day headers */}
+            <div className="grid grid-cols-7 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-2 py-3">
+              {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
+                <div key={d} className="text-center text-xs font-bold text-slate-600 uppercase tracking-wide">
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar cells */}
+            <div className="grid grid-cols-7 gap-0.5 bg-slate-100 p-2 pb-3">
+              {/* Empty offset cells */}
+              {Array.from({ length: firstOffset }, (_, i) => (
+                <div key={`b${i}`} className="bg-white min-h-[100px]" />
+              ))}
+
+              {/* Day cells */}
+              {Array.from({ length: totalDays }, (_, idx) => {
+                const day     = idx + 1;
+                const key     = dateKey(cursor.year, cursor.month, day);
+                const isToday = key === dateKey(now.getFullYear(), now.getMonth() + 1, now.getDate());
+                const dayShifts = shifts.filter(
+                  (s) => String(s.shift_date || s.date).slice(0, 10) === key
+                );
+
+                return (
+                  <div
+                    key={key}
+                    className={`bg-white min-h-[100px] p-3 rounded-lg transition-all ${
+                      isToday 
+                        ? "ring-2 ring-blue-500 shadow-md bg-gradient-to-br from-blue-50 to-white" 
+                        : "hover:shadow-md"
+                    }`}
+                  >
+                    <p className={`text-xs font-bold mb-2 ${
+                      isToday ? "text-blue-700" : "text-slate-600"
+                    }`}>
+                      {day}
+                    </p>
+                    <div className="space-y-1.5">
+                      {dayShifts.length === 0 ? (
+                        <p className="text-[11px] text-slate-300">—</p>
+                      ) : (
+                        dayShifts.map((shift) => {
+                          const s = TYPE_STYLE[shift.shift_type] || TYPE_STYLE.working;
+                          return (
+                            <div
+                              key={shift.id}
+                              className={`rounded-lg border-l-3 px-2 py-1.5 text-[11px] font-semibold truncate transition-all hover:shadow-md ${s.cell}`}
+                              style={{ borderLeftColor: `currentColor`, opacity: 0.95 }}
+                            >
+                              <div className="font-bold truncate text-[10px]">
+                                {shift.surgery_name || shift.practice_name || "Surgery"}
+                              </div>
+                              <div className="opacity-75 text-[10px]">
+                                {Number(shift.expected_hours || 0).toFixed(1)}h
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Legend ───────────────────────────────────────── */}
+      <div className="px-1">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <h3 className="text-sm font-bold text-slate-900 mb-4">Shift Types</h3>
+          <div className="flex flex-wrap gap-2.5">
+            {[
+              { type: "working",      label: "Working"  },
+              { type: "cover",        label: "Cover"    },
+              { type: "annual_leave", label: "Annual Leave" },
+              { type: "sick",         label: "Sick Leave"     },
+              { type: "cppe",         label: "CPPE"     },
+              { type: "bank_holiday", label: "Bank Holiday" },
+            ].map(({ type, label }) => {
+              const s = TYPE_STYLE[type];
+              return (
+                <span
+                  key={type}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-full
+                    text-xs font-semibold border ${s.cell}`}
+                >
+                  <span className="w-2 h-2 rounded-full opacity-60"></span>
+                  {label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>     
+      </>
   );
-}
+}   
