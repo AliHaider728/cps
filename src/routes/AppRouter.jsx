@@ -1,9 +1,3 @@
-// AppRouter.jsx — Fixed Version
-// Changes:
-//   1. MyTimesheetPage uncommented + proper route added
-//   2. /portal/clinician/* wildcard REMOVED (was swallowing all unknown paths)
-//   3. Global <Route path="*"> handles 404 for everything
-
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute.jsx";
@@ -48,7 +42,7 @@ const TrainingDashboard  = lazy(() => import("../pages/training/TrainingDashboar
 const WorkforceDashboard = lazy(() => import("../pages/workforce/WorkforceDashboard.jsx"));
 const ClinicianDashboard = lazy(() => import("../pages/clinician/ClinicianDashboard.jsx"));
 
-//  MyTimesheetPage uncomment kar diya
+// ── Clinician Portal
 const MyTimesheetPage    = lazy(() => import("../pages/clinician/MyTimesheetPage.jsx"));
 const ApplyForLeavePage  = lazy(() => import("../pages/clinician/ApplyForLeavePage.jsx"));
 const MyLeaveBalancePage = lazy(() => import("../pages/clinician/MyLeaveBalancePage.jsx"));
@@ -56,6 +50,10 @@ const MyLeaveBalancePage = lazy(() => import("../pages/clinician/MyLeaveBalanceP
 // ── Module 5 — Rota Management
 const RotaPage     = lazy(() => import("../pages/super-admin/RotaManagement/RotaPage.jsx"));
 const RotaGapsPage = lazy(() => import("../pages/super-admin/RotaManagement/RotaGapsPage.jsx"));
+
+// ✅ NEW — Timesheet Queue + Detail (admin approval flow)
+const TimesheetQueuePage  = lazy(() => import("../pages/super-admin/RotaManagement/TimesheetQueuePage.jsx"));
+const TimesheetDetailPage = lazy(() => import("../pages/super-admin/RotaManagement/TimesheetDetailPage.jsx"));
 
 // ── Loader
 const PageLoader = () => (
@@ -78,45 +76,42 @@ const P = ({ roles, children }) => (
   </ProtectedRoute>
 );
 
-const CM_ROLES = ["super_admin", "director", "ops_manager", "training", "workforce"];
+const CM_ROLES        = ["super_admin", "director", "ops_manager", "training", "workforce"];
 const CLINICIAN_ROLES = ["clinician", "super_admin"];
+const TS_ROLES        = ["super_admin", "ops_manager", "finance", "director"];
 
 const AppRouter = () => (
   <Routes>
-    {/*   Public   */}
+    {/* ── Public ───────────────────────────────────────── */}
     <Route path="/"                element={<Navigate to="/login" replace />} />
     <Route path="/login"           element={<Login />} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/unauthorized"    element={<Unauthorized />} />
 
-    {/*   Super Admin  */}
+    {/* ── Super Admin ──────────────────────────────────── */}
     <Route path="/dashboard/super-admin"       element={<P roles={["super_admin"]}><SuperAdminDashboard /></P>} />
     <Route path="/dashboard/super-admin/users" element={<P roles={["super_admin"]}><ManageUsers /></P>} />
     <Route path="/dashboard/super-admin/audit" element={<P roles={["super_admin"]}><AuditTrail /></P>} />
 
-    {/*  Module 2 — Client Management */}
+    {/* ── Module 2 — Client Management ─────────────────── */}
     <Route path="/dashboard/super-admin/clients"
       element={<P roles={["super_admin","director","ops_manager"]}><ClientsPage /></P>} />
-
     <Route path="/dashboard/super-admin/clients/icb"
       element={<P roles={["super_admin","ops_manager"]}><ICBListPage /></P>} />
     <Route path="/dashboard/super-admin/clients/icb/:id"
       element={<P roles={["super_admin","ops_manager","director"]}><ICBDetailPage /></P>} />
-
     <Route path="/dashboard/super-admin/clients/federation"
       element={<P roles={["super_admin","ops_manager"]}><FederationListPage /></P>} />
-
     <Route path="/dashboard/super-admin/clients/pcn"
       element={<P roles={["super_admin","director","ops_manager","finance"]}><PCNListPage /></P>} />
     <Route path="/dashboard/super-admin/clients/pcn/:id"
       element={<P roles={["super_admin","director","ops_manager","finance"]}><PCNDetailPage /></P>} />
-
     <Route path="/dashboard/super-admin/clients/practice"
       element={<P roles={["super_admin","director","ops_manager","finance"]}><PracticeListPage /></P>} />
     <Route path="/dashboard/super-admin/clients/practice/:id"
       element={<P roles={["super_admin","director","ops_manager","finance"]}><PracticeDetailPage /></P>} />
 
-    {/*  Compliance  */}
+    {/* ── Compliance ────────────────────────────────────── */}
     <Route path="/dashboard/super-admin/compliance/documents"
       element={<P roles={["super_admin","ops_manager"]}><ComplianceDocumentsListPage /></P>} />
     <Route path="/dashboard/super-admin/compliance/documents/:id"
@@ -126,7 +121,7 @@ const AppRouter = () => (
     <Route path="/dashboard/super-admin/compliance/groups/:id"
       element={<P roles={["super_admin","ops_manager"]}><DocumentGroupDetailPage /></P>} />
 
-    {/*  Module 3 — Clinician Management  */}
+    {/* ── Module 3 — Clinician Management ──────────────── */}
     <Route path="/dashboard/clinicians"
       element={<P roles={CM_ROLES}><CliniciansListPage /></P>} />
     <Route path="/dashboard/clinicians/restricted"
@@ -134,45 +129,43 @@ const AppRouter = () => (
     <Route path="/dashboard/clinicians/:id"
       element={<P roles={CM_ROLES}><CliniciansDetailPage /></P>} />
 
-    {/* Sidebar tab shortcuts */}
-    <Route path="/dashboard/clinicians/basic-info"       element={<Navigate to="/dashboard/clinicians?tab=basic-info" replace />} />
-    <Route path="/dashboard/clinicians/skills"           element={<Navigate to="/dashboard/clinicians?tab=skills" replace />} />
-    <Route path="/dashboard/clinicians/compliance"       element={<Navigate to="/dashboard/clinicians?tab=compliance" replace />} />
-    <Route path="/dashboard/clinicians/client-history"   element={<Navigate to="/dashboard/clinicians?tab=client-history" replace />} />
-    <Route path="/dashboard/clinicians/calendar"         element={<Navigate to="/dashboard/clinicians?tab=calendar" replace />} />
-    <Route path="/dashboard/clinicians/supervision-log"  element={<Navigate to="/dashboard/clinicians?tab=supervision-log" replace />} />
-    <Route path="/dashboard/clinicians/cppe-status"      element={<Navigate to="/dashboard/clinicians?tab=cppe-status" replace />} />
-    <Route path="/dashboard/clinicians/onboarding"       element={<Navigate to="/dashboard/clinicians?tab=onboarding" replace />} />
-    <Route path="/dashboard/clinicians/scope"            element={<Navigate to="/dashboard/clinicians?tab=scope" replace />} />
+    {/* Sidebar tab shortcuts → redirect to list with ?tab= */}
+    <Route path="/dashboard/clinicians/basic-info"      element={<Navigate to="/dashboard/clinicians?tab=basic-info"      replace />} />
+    <Route path="/dashboard/clinicians/skills"          element={<Navigate to="/dashboard/clinicians?tab=skills"          replace />} />
+    <Route path="/dashboard/clinicians/compliance"      element={<Navigate to="/dashboard/clinicians?tab=compliance"      replace />} />
+    <Route path="/dashboard/clinicians/client-history"  element={<Navigate to="/dashboard/clinicians?tab=client-history"  replace />} />
+    <Route path="/dashboard/clinicians/calendar"        element={<Navigate to="/dashboard/clinicians?tab=calendar"        replace />} />
+    <Route path="/dashboard/clinicians/supervision-log" element={<Navigate to="/dashboard/clinicians?tab=supervision-log" replace />} />
+    <Route path="/dashboard/clinicians/cppe-status"     element={<Navigate to="/dashboard/clinicians?tab=cppe-status"     replace />} />
+    <Route path="/dashboard/clinicians/onboarding"      element={<Navigate to="/dashboard/clinicians?tab=onboarding"      replace />} />
+    <Route path="/dashboard/clinicians/scope"           element={<Navigate to="/dashboard/clinicians?tab=scope"           replace />} />
 
-    {/*  Module 5 — Rota Management */}
+    {/* ── Module 5 — Rota Management ───────────────────── */}
     <Route path="/dashboard/rota"
       element={<P roles={["super_admin","ops_manager","workforce","finance","training","director"]}><RotaPage /></P>} />
     <Route path="/dashboard/rota-gaps"
       element={<P roles={["super_admin","ops_manager","workforce","finance","training","director"]}><RotaGapsPage /></P>} />
 
-    {/* Role Dashboards */}
-    <Route path="/dashboard/director"   element={<P roles={["director","super_admin"]}><DirectorDashboard /></P>} />
+    {/* ✅ NEW — Timesheet approval queue + detail ─────── */}
+    <Route path="/dashboard/super-admin/timesheets"
+      element={<P roles={TS_ROLES}><TimesheetQueuePage /></P>} />
+    <Route path="/dashboard/super-admin/timesheets/:id"
+      element={<P roles={TS_ROLES}><TimesheetDetailPage /></P>} />
+
+    {/* ── Role Dashboards ───────────────────────────────── */}
+    <Route path="/dashboard/director"    element={<P roles={["director","super_admin"]}><DirectorDashboard /></P>} />
     <Route path="/dashboard/ops-manager" element={<P roles={["ops_manager","super_admin"]}><OpsDashboard /></P>} />
-    <Route path="/dashboard/finance"    element={<P roles={["finance","super_admin","director"]}><FinanceDashboard /></P>} />
-    <Route path="/dashboard/training"   element={<P roles={["training","super_admin"]}><TrainingDashboard /></P>} />
-    <Route path="/dashboard/workforce"  element={<P roles={["workforce","super_admin"]}><WorkforceDashboard /></P>} />
+    <Route path="/dashboard/finance"     element={<P roles={["finance","super_admin","director"]}><FinanceDashboard /></P>} />
+    <Route path="/dashboard/training"    element={<P roles={["training","super_admin"]}><TrainingDashboard /></P>} />
+    <Route path="/dashboard/workforce"   element={<P roles={["workforce","super_admin"]}><WorkforceDashboard /></P>} />
 
-    {/*  Clinician Portal */}
-    <Route path="/portal/clinician"
-      element={<P roles={CLINICIAN_ROLES}><ClinicianDashboard /></P>} />
+    {/* ── Clinician Portal ──────────────────────────────── */}
+    <Route path="/portal/clinician"              element={<P roles={CLINICIAN_ROLES}><ClinicianDashboard /></P>} />
+    <Route path="/portal/clinician/my-timesheet" element={<P roles={CLINICIAN_ROLES}><MyTimesheetPage /></P>} />
+    <Route path="/portal/clinician/apply-leave"  element={<P roles={CLINICIAN_ROLES}><ApplyForLeavePage /></P>} />
+    <Route path="/portal/clinician/leave-balance" element={<P roles={CLINICIAN_ROLES}><MyLeaveBalancePage /></P>} />
 
-    
-    <Route path="/portal/clinician/my-timesheet"
-      element={<P roles={CLINICIAN_ROLES}><MyTimesheetPage /></P>} />
-
-    <Route path="/portal/clinician/apply-leave"
-      element={<P roles={CLINICIAN_ROLES}><ApplyForLeavePage /></P>} />
-    <Route path="/portal/clinician/leave-balance"
-      element={<P roles={CLINICIAN_ROLES}><MyLeaveBalancePage /></P>} />
-
- 
-    {/*  404   */}
+    {/* ── 404 ───────────────────────────────────────────── */}
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
