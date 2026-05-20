@@ -26,17 +26,17 @@ const STATUS_CONFIG = {
 };
 
 const TIMESHEET_STATUS = {
-  draft:     { cls: "bg-slate-100 text-slate-600 border-slate-200",     label: "Draft"     },
-  submitted: { cls: "bg-blue-50 text-blue-700 border-blue-200",         label: "Submitted" },
+  draft:     { cls: "bg-slate-100 text-slate-600 border-slate-200",      label: "Draft"     },
+  submitted: { cls: "bg-blue-50 text-blue-700 border-blue-200",          label: "Submitted" },
   approved:  { cls: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Approved"  },
-  rejected:  { cls: "bg-rose-50 text-rose-700 border-rose-200",         label: "Rejected"  },
+  rejected:  { cls: "bg-rose-50 text-rose-700 border-rose-200",          label: "Rejected"  },
 };
 
-const getStatus    = (s) => STATUS_CONFIG[s] || STATUS_CONFIG.cancelled;
-const MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAYS         = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const fmtTime      = (t) => { if (!t) return ""; return String(t).slice(0, 5); };
-const fmtHours     = (start, end) => {
+const getStatus        = (s) => STATUS_CONFIG[s] || STATUS_CONFIG.cancelled;
+const MONTHS           = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS             = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const fmtTime          = (t) => { if (!t) return ""; return String(t).slice(0, 5); };
+const fmtHours         = (start, end) => {
   if (!start || !end) return null;
   const [sh, sm] = start.split(":").map(Number);
   const [eh, em] = end.split(":").map(Number);
@@ -91,7 +91,7 @@ const shortId = (id) => {
   return s.length > 12 ? `…${s.slice(-8)}` : s;
 };
 
-/* ── Admin time entries hook ──────────────────────── */
+/* ── Hooks ─────────────────────────────────────────── */
 function useClinicianTimeEntriesAdmin(clinicianId) {
   return useQuery({
     queryKey: ["time-entries", "admin", clinicianId],
@@ -99,12 +99,11 @@ function useClinicianTimeEntriesAdmin(clinicianId) {
       apiClient
         .get(`/time-entries/admin/clinician/${clinicianId}`)
         .then((r) => r.data?.data ?? { entries: [], is_clocked_in: false, active_since: null }),
-    enabled:       !!clinicianId,
+    enabled:         !!clinicianId,
     refetchInterval: 30_000,
   });
 }
 
-/* ── Timesheet hook (admin fetches clinician's timesheet) ── */
 function useClinicianTimesheetAdmin(clinicianId, month, year) {
   return useQuery({
     queryKey: ["timesheet", "admin", clinicianId, month, year],
@@ -116,7 +115,6 @@ function useClinicianTimesheetAdmin(clinicianId, month, year) {
   });
 }
 
-/* ── Approve / Reject mutations ───────────────────── */
 function useApproveTimesheet() {
   const qc = useQueryClient();
   return useMutation({
@@ -134,7 +132,7 @@ function useRejectTimesheet() {
   });
 }
 
-/* ── Difference badge ─────────────────────────────── */
+/* ── DiffBadge ──────────────────────────────────────── */
 function DiffBadge({ expected, actual }) {
   if (actual == null || expected == null) return <span className="text-slate-300 text-xs">—</span>;
   const diff = Math.round((parseFloat(actual) - parseFloat(expected)) * 100) / 100;
@@ -153,22 +151,20 @@ function DiffBadge({ expected, actual }) {
 }
 
 /* ════════════════════════════════════════════════════
-   TIMESHEET VIEW — inside CalendarPanel
-   Shows submitted timesheet with expected vs actual
-   + Approve / Reject for admin
+   TIMESHEET VIEW
+   Shows expected vs actual hours per shift.
+   Admin can Approve or Reject submitted timesheets.
    ════════════════════════════════════════════════════ */
 function TimesheetView({ clinicianId, month, year, canManage }) {
-  const qc              = useQueryClient();
   const { data, isLoading, isError } = useClinicianTimesheetAdmin(clinicianId, month, year);
-  const approveMut      = useApproveTimesheet();
-  const rejectMut       = useRejectTimesheet();
+  const approveMut   = useApproveTimesheet();
+  const rejectMut    = useRejectTimesheet();
   const [rejectModal, setRejectModal] = useState(false);
   const [reason, setReason]           = useState("");
   const [actionMsg, setActionMsg]     = useState("");
 
   const timesheet = data?.timesheet ?? data;
   const entries   = data?.entries   ?? [];
-  const summary   = data?.summary   ?? {};
 
   const status    = timesheet?.status || "draft";
   const statusCfg = TIMESHEET_STATUS[status] || TIMESHEET_STATUS.draft;
@@ -194,7 +190,7 @@ function TimesheetView({ clinicianId, month, year, canManage }) {
       await rejectMut.mutateAsync({ id: timesheet.id, reason });
       setRejectModal(false);
       setReason("");
-      setActionMsg("Timesheet rejected.");
+      setActionMsg("Timesheet rejected and clinician notified.");
     } catch {
       setActionMsg("❌ Rejection failed. Please try again.");
     }
@@ -214,7 +210,9 @@ function TimesheetView({ clinicianId, month, year, canManage }) {
       <div className="py-16 text-center text-slate-400 text-sm">
         <FileText size={32} className="mx-auto mb-2 opacity-30" />
         No timesheet found for {MONTHS[month - 1]} {year}.
-        <p className="text-xs mt-1 opacity-60">Clinician has not submitted a timesheet yet.</p>
+        <p className="text-xs mt-1 opacity-60">
+          Clinician hasn't submitted a timesheet yet, or no rota shifts exist this month.
+        </p>
       </div>
     );
   }
@@ -259,10 +257,10 @@ function TimesheetView({ clinicianId, month, year, canManage }) {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Expected", value: `${totalExpected.toFixed(2)}h`, icon: Clock        },
-          { label: "Total Actual",   value: `${totalActual.toFixed(2)}h`,   icon: CheckCircle2 },
-          { label: "Difference",     value: `${(totalActual - totalExpected).toFixed(2)}h`, icon: TrendingUp },
-          { label: "FTE",            value: fte,                             icon: BarChart2    },
+          { label: "Expected",   value: `${totalExpected.toFixed(2)}h`, icon: Clock        },
+          { label: "Actual",     value: `${totalActual.toFixed(2)}h`,   icon: CheckCircle2 },
+          { label: "Difference", value: `${(totalActual - totalExpected).toFixed(2)}h`, icon: TrendingUp },
+          { label: "FTE",        value: fte,                             icon: BarChart2    },
         ].map(({ label, value, icon: Icon }) => (
           <div key={label} className="bg-white rounded-xl border border-slate-200 p-3 text-center shadow-sm">
             <div className="flex items-center justify-center gap-1 mb-1">
@@ -290,7 +288,7 @@ function TimesheetView({ clinicianId, month, year, canManage }) {
             {entries.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-10 text-center text-slate-400 text-sm italic">
-                  No entries in this timesheet.
+                  No shift entries found. Make sure shifts are seeded and rota is set up for this month.
                 </td>
               </tr>
             )}
@@ -360,7 +358,7 @@ function TimesheetView({ clinicianId, month, year, canManage }) {
         </table>
       </div>
 
-      {/* Approve / Reject — only if admin + submitted */}
+      {/* Approve / Reject buttons */}
       {canAct && (
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
@@ -417,9 +415,7 @@ function TimesheetView({ clinicianId, month, year, canManage }) {
   );
 }
 
-/* ════════════════════════════════════════════════════
-   ACTIVE SHIFT CARD
-   ════════════════════════════════════════════════════ */
+/* ── ActiveShiftCard ────────────────────────────────── */
 function ActiveShiftCard({ clinicianId, isOwnDashboard }) {
   const intervalRef = useRef(null);
   const [liveDisplay, setLiveDisplay] = useState("00:00:00");
@@ -496,7 +492,9 @@ function ActiveShiftCard({ clinicianId, isOwnDashboard }) {
             <p className="font-mono text-4xl font-black text-slate-900 tracking-tight tabular-nums">{liveDisplay}</p>
             {activeSince && (
               <p className="text-xs text-slate-400 mt-2">
-                Started at <span className="font-bold text-slate-600">{new Date(activeSince).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                Started at <span className="font-bold text-slate-600">
+                  {new Date(activeSince).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                </span>
               </p>
             )}
           </div>
@@ -525,7 +523,7 @@ function ActiveShiftCard({ clinicianId, isOwnDashboard }) {
   );
 }
 
-/* ── Leave Card ──────────────────────────────────── */
+/* ── LeaveCard ──────────────────────────────────────── */
 function LeaveCard({ contract, data }) {
   const total     = Number(data?.total     ?? data?.totalDays     ?? 0);
   const used      = Number(data?.used      ?? data?.takenDays     ?? data?.taken ?? 0);
@@ -607,16 +605,14 @@ function DayCell({ day, isCurrentMonth, isToday, shifts = [], onClick }) {
 }
 
 /* ════════════════════════════════════════════════════
-   MAIN COMPONENT — CalendarPanel
+   MAIN — CalendarPanel
    Props: clinicianId, canManage, userRole
    ════════════════════════════════════════════════════ */
 export default function CalendarPanel({ clinicianId, canManage, userRole = "clinician" }) {
   const now      = useMemo(() => new Date(), []);
   const [month,  setMonth]   = useState(now.getMonth() + 1);
   const [year,   setYear]    = useState(now.getFullYear());
-  // ✅ Rota views only: calendar | list
-  // TimesheetView always shown at top — no toggle needed
-  const [view,   setView]    = useState("list");
+  const [view,   setView]    = useState("timesheet"); // default to timesheet tab
   const [selected, setSelected] = useState(null);
 
   const leaveQ      = useClinicianLeave(clinicianId);
@@ -685,9 +681,11 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   return (
     <div className="space-y-5">
 
-      <ActiveShiftCard clinicianId={clinicianId} isOwnDashboard={isOwnDashboard} />
+      {/* ✅ FIX: Only render for clinician's own dashboard.
+           Admin viewing someone else → skip (avoids 403 on /time-entries/active & /time-entries?limit=50) */}
+      {isOwnDashboard && <ActiveShiftCard clinicianId={clinicianId} isOwnDashboard={isOwnDashboard} />}
 
-      {/* Leave Balance Cards */}
+      {/* Leave Balance */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {["ARRS", "EA", "Direct"].map((c) => (
           <LeaveCard key={c} contract={c} data={byContract[c]} />
@@ -697,7 +695,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
       {/* Main panel */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
-        {/* Header with month nav + view toggle */}
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <button onClick={prevMonth} className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
@@ -716,15 +714,16 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Stats pills */}
-            <div className="hidden md:flex items-center gap-1.5">
-              {stats.working > 0    && <StatPill label="working" value={stats.working}    color="bg-blue-50 text-blue-700"     />}
-              {stats.leave > 0      && <StatPill label="leave"   value={stats.leave}      color="bg-yellow-50 text-yellow-700" />}
-              {stats.gaps > 0       && <StatPill label="gaps"    value={stats.gaps}       color="bg-red-50 text-red-700"       />}
-              {stats.totalHours > 0 && <StatPill label="hrs"     value={stats.totalHours} color="bg-slate-100 text-slate-700"  />}
-            </div>
+            {view !== "timesheet" && (
+              <div className="hidden md:flex items-center gap-1.5">
+                {stats.working > 0    && <StatPill label="working" value={stats.working}    color="bg-blue-50 text-blue-700"     />}
+                {stats.leave > 0      && <StatPill label="leave"   value={stats.leave}      color="bg-yellow-50 text-yellow-700" />}
+                {stats.gaps > 0       && <StatPill label="gaps"    value={stats.gaps}       color="bg-red-50 text-red-700"       />}
+                {stats.totalHours > 0 && <StatPill label="hrs"     value={stats.totalHours} color="bg-slate-100 text-slate-700"  />}
+              </div>
+            )}
 
-            {/* ✅ Only Calendar | List — no Timesheet button (TimesheetView is always shown above) */}
+            {/* View toggle — Calendar | List | Timesheet */}
             <div className="flex items-center rounded-xl border border-slate-200 overflow-hidden">
               <button
                 onClick={() => setView("calendar")}
@@ -734,26 +733,34 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
               </button>
               <button
                 onClick={() => setView("list")}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors border-l border-slate-200 ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors border-x border-slate-200 ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
               >
                 <List size={12} /> List
+              </button>
+              <button
+                onClick={() => setView("timesheet")}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${view === "timesheet" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+              >
+                <FileText size={12} /> Timesheet
               </button>
             </div>
           </div>
         </div>
 
-        {/* ✅ TIMESHEET APPROVAL — always visible at top, no toggle needed */}
-        <div className="p-5 border-b border-slate-100">
-          <TimesheetView
-            clinicianId={clinicianId}
-            month={month}
-            year={year}
-            canManage={canManage}
-          />
-        </div>
+        {/* ── TIMESHEET VIEW ── */}
+        {view === "timesheet" && (
+          <div className="p-5">
+            <TimesheetView
+              clinicianId={clinicianId}
+              month={month}
+              year={year}
+              canManage={canManage}
+            />
+          </div>
+        )}
 
-        {/* ── LOADING (rota views) ── */}
-        {isLoading && (
+        {/* ── LOADING (calendar/list) ── */}
+        {view !== "timesheet" && isLoading && (
           <div className="flex items-center justify-center h-32 gap-2 text-sm text-slate-400">
             <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
             Loading shifts…
@@ -815,7 +822,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                 )}
                 {shifts.map((s, i) => {
                   const cfg   = getStatus(s.status);
-                  const hours = fmtHours(s.start_time, s.end_time) ?? s.hours;
+                  const h     = fmtHours(s.start_time, s.end_time) ?? s.hours;
                   return (
                     <tr key={s.id || i} onClick={() => setSelected(s)} className="hover:bg-slate-50/70 cursor-pointer transition-colors">
                       <td className="px-5 py-3 text-xs font-bold text-slate-800">{String(s.date || "").slice(0, 10)}</td>
@@ -829,7 +836,7 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                           {s.start_time ? `${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}` : "—"}
                         </div>
                       </td>
-                      <td className="px-5 py-3">{hours ? <span className="text-xs font-bold text-slate-700">{hours}h</span> : <span className="text-xs text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3">{h ? <span className="text-xs font-bold text-slate-700">{h}h</span> : <span className="text-xs text-slate-300">—</span>}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-1.5 max-w-[180px]">
                           <MapPin size={11} className="text-slate-400 shrink-0" />
