@@ -26,15 +26,15 @@ import ScopePanel         from "./panels/ScopePanel.jsx";
 import { Spinner, fmtDate } from "./panels/shared.jsx";
 
 const TABS = [
-  { id: "basic",       label: "Basic Info",      icon: User          },
-  { id: "skills",      label: "Skills",          icon: Sparkles      },
-  { id: "compliance",  label: "Compliance",      icon: ShieldIcon    },
-  { id: "history",     label: "Client History",  icon: Building2     },
-  { id: "calendar",    label: "TimeSheet",        icon: CalendarDays  },
-  { id: "supervision", label: "Supervision",     icon: UsersIcon     },
-  { id: "cppe",        label: "CPPE",            icon: GraduationCap },
-  { id: "onboarding",  label: "Onboarding",      icon: Rocket        },
-  { id: "scope",       label: "Scope",           icon: ScopeIcon     },
+  { id: "basic",       label: "Basic Info",     icon: User          },
+  { id: "skills",      label: "Skills",         icon: Sparkles      },
+  { id: "compliance",  label: "Compliance",     icon: ShieldIcon    },
+  { id: "history",     label: "Client History", icon: Building2     },
+  { id: "calendar",    label: "Timesheet",      icon: CalendarDays  },
+  { id: "supervision", label: "Supervision",    icon: UsersIcon     },
+  { id: "cppe",        label: "CPPE",           icon: GraduationCap },
+  { id: "onboarding",  label: "Onboarding",     icon: Rocket        },
+  { id: "scope",       label: "Scope",          icon: ScopeIcon     },
 ];
 
 const TYPE_COLORS = {
@@ -51,10 +51,12 @@ const CONTRACT_COLORS = {
 };
 
 export default function CliniciansDetailPage() {
-  const { id }    = useParams();
-  const navigate  = useNavigate();
-  const dispatch  = useAppDispatch();
-  const activeTab = useAppSelector((s) => s.clinician?.activeDetailTab || "basic");
+  const { id }   = useParams();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+
+  const activeTab      = useAppSelector((s) => s.clinician?.activeDetailTab || "basic");
+  const role           = useAppSelector((s) => s.auth?.user?.role) || "";
   const [mobileTabOpen, setMobileTabOpen] = useState(false);
 
   const { data, isLoading, isError } = useClinician(id);
@@ -63,7 +65,6 @@ export default function CliniciansDetailPage() {
   const practicesQ = usePractices();
   const updateM    = useUpdateClinician();
 
-  const role        = useAppSelector((s) => s.auth?.user?.role) || "";
   const canManage   = ["super_admin", "director", "ops_manager"].includes(role);
   const canRestrict = ["super_admin", "ops_manager"].includes(role);
 
@@ -72,6 +73,7 @@ export default function CliniciansDetailPage() {
     setMobileTabOpen(false);
   };
 
+  /* ── Loading ── */
   if (isLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -80,12 +82,16 @@ export default function CliniciansDetailPage() {
     );
   }
 
+  /* ── Error ── */
   if (isError || !data?.clinician) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+        <Stethoscope size={32} className="mx-auto mb-3 text-slate-300" />
         <p className="text-sm font-bold text-slate-700">Clinician not found.</p>
-        <button onClick={() => navigate("/dashboard/clinicians")}
-          className="mt-3 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center gap-1.5">
+        <button
+          onClick={() => navigate("/dashboard/clinicians")}
+          className="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center gap-1.5"
+        >
           <ArrowLeft size={13} /> Back to list
         </button>
       </div>
@@ -93,25 +99,43 @@ export default function CliniciansDetailPage() {
   }
 
   const clinician     = data.clinician;
-  const users         = usersQ.data?.users         || usersQ.data        || [];
-  const pcns          = pcnsQ.data?.pcns            || pcnsQ.data         || [];
-  const practices     = practicesQ.data?.practices  || practicesQ.data    || [];
+  const users         = usersQ.data?.users        || usersQ.data       || [];
+  const pcns          = pcnsQ.data?.pcns           || pcnsQ.data        || [];
+  const practices     = practicesQ.data?.practices || practicesQ.data   || [];
   const activeTabMeta = TABS.find((t) => t.id === activeTab) || TABS[0];
 
   const handlePatch = async (patch) => updateM.mutateAsync({ id, data: patch });
 
+  /* ── Render active panel ── */
   const renderActive = () => {
     switch (activeTab) {
-      case "basic":       return <BasicInfoPanel    clinician={clinician} onPatch={handlePatch} users={users} />;
-      case "skills":      return <SkillsPanel       clinician={clinician} onPatch={handlePatch} />;
-      case "compliance":  return <CompliancePanel   clinicianId={id} canManage={canManage} />;
-      case "history":     return <ClientHistoryPanel clinicianId={id} canManage={canManage} pcns={pcns} practices={practices} />;
-      case "calendar":    return <CalendarPanel     clinicianId={id} clinician={clinician} canManage={canManage} />;
-      case "supervision": return <SupervisionPanel  clinicianId={id} canManage={canManage} users={users} />;
-      case "cppe":        return <CPPEPanel         clinicianId={id} canManage={canManage} />;
-      case "onboarding":  return <OnboardingPanel   clinicianId={id} clinician={clinician} canManage={canManage} />;
-      case "scope":       return <ScopePanel        clinician={clinician} canRestrict={canRestrict} />;
-      default:            return null;
+      case "basic":
+        return <BasicInfoPanel clinician={clinician} onPatch={handlePatch} users={users} />;
+      case "skills":
+        return <SkillsPanel clinician={clinician} onPatch={handlePatch} />;
+      case "compliance":
+        return <CompliancePanel clinicianId={id} canManage={canManage} />;
+      case "history":
+        return <ClientHistoryPanel clinicianId={id} canManage={canManage} pcns={pcns} practices={practices} />;
+      case "calendar":
+        return (
+          <CalendarPanel
+            clinicianId={id}
+            clinician={clinician}
+            canManage={canManage}
+            userRole={role}          // ← FIX: pass role so admin can approve/reject
+          />
+        );
+      case "supervision":
+        return <SupervisionPanel clinicianId={id} canManage={canManage} users={users} />;
+      case "cppe":
+        return <CPPEPanel clinicianId={id} canManage={canManage} />;
+      case "onboarding":
+        return <OnboardingPanel clinicianId={id} clinician={clinician} canManage={canManage} />;
+      case "scope":
+        return <ScopePanel clinician={clinician} canRestrict={canRestrict} />;
+      default:
+        return null;
     }
   };
 
@@ -131,16 +155,15 @@ export default function CliniciansDetailPage() {
         <div className="flex items-center gap-2 text-xs lg:text-sm text-slate-400 bg-white border border-slate-200 rounded-xl px-3 lg:px-4 py-2 shadow-sm">
           <Eye size={12} />
           <span>Viewing as</span>
-          <span className="font-bold text-slate-600">{role || "user"}</span>
+          <span className="font-bold text-slate-600 capitalize">{role || "user"}</span>
         </div>
       </div>
 
       {/* ── Header card ── */}
       <div className="relative bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        {/* Decorative background */}
+        {/* Decorative */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 via-white to-indigo-50/40 pointer-events-none" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-indigo-100/30 to-transparent rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-
         {/* Top accent line */}
         <div className="relative h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
 
@@ -149,12 +172,10 @@ export default function CliniciansDetailPage() {
 
             {/* Left — avatar + info */}
             <div className="flex items-start gap-4 lg:gap-5 min-w-0">
-              {/* Avatar */}
               <div className="relative shrink-0">
                 <div className="w-14 h-14 sm:w-[68px] sm:h-[68px] lg:w-20 lg:h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-200/60">
                   <Stethoscope size={24} className="text-white sm:w-7 sm:h-7 lg:w-9 lg:h-9" />
                 </div>
-                {/* Online dot */}
                 <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 lg:w-4 lg:h-4 rounded-full border-2 border-white bg-emerald-400" />
               </div>
 
@@ -182,7 +203,7 @@ export default function CliniciansDetailPage() {
                   )}
                 </div>
 
-                {/* Contact row */}
+                {/* Contact */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3">
                   {clinician.email && (
                     <a href={`mailto:${clinician.email}`}
@@ -217,13 +238,13 @@ export default function CliniciansDetailPage() {
                 {
                   icon: Clock,
                   label: "Hrs / wk",
-                  value: clinician.workingHours || 0,
+                  value: clinician.workingHours || "—",
                   big: true,
                 },
                 {
                   icon: CalendarCheck,
                   label: "Started",
-                  value: fmtDate(clinician.startDate),
+                  value: fmtDate(clinician.startDate) || "—",
                   big: false,
                 },
                 {
@@ -232,8 +253,8 @@ export default function CliniciansDetailPage() {
                   value: (
                     <span>
                       {clinician?.leaveBalances?.annual?.taken ?? 0}
-                      <span className="text-slate-400 font-normal text-[10px] lg:text-xs"> /&nbsp;
-                        {clinician?.leaveBalances?.annual?.allowance ?? clinician?.annualLeaveAllowance ?? 28}
+                      <span className="text-slate-400 font-normal text-[10px] lg:text-xs">
+                        {" "}/{" "}{clinician?.leaveBalances?.annual?.allowance ?? clinician?.annualLeaveAllowance ?? 28}
                       </span>
                     </span>
                   ),
@@ -267,7 +288,10 @@ export default function CliniciansDetailPage() {
             </div>
             <span className="text-sm font-bold text-slate-800">{activeTabMeta.label}</span>
           </div>
-          <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${mobileTabOpen ? "rotate-180" : ""}`} />
+          <ChevronDown
+            size={16}
+            className={`text-slate-400 transition-transform duration-200 ${mobileTabOpen ? "rotate-180" : ""}`}
+          />
         </button>
 
         {mobileTabOpen && (
@@ -321,7 +345,10 @@ export default function CliniciansDetailPage() {
       </div>
 
       {/* ── Active Panel ── */}
-      <div>{renderActive()}</div>
+      <div className="pb-8">
+        {renderActive()}
+      </div>
+
     </div>
   );
 }

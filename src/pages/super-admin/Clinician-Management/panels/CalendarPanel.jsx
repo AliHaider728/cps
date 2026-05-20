@@ -614,8 +614,9 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   const now      = useMemo(() => new Date(), []);
   const [month,  setMonth]   = useState(now.getMonth() + 1);
   const [year,   setYear]    = useState(now.getFullYear());
-  // ✅ 3 views: calendar | list | timesheet
-  const [view,   setView]    = useState("timesheet");
+  // ✅ Rota views only: calendar | list
+  // TimesheetView always shown at top — no toggle needed
+  const [view,   setView]    = useState("list");
   const [selected, setSelected] = useState(null);
 
   const leaveQ      = useClinicianLeave(clinicianId);
@@ -715,17 +716,15 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Stats pills — only for rota views */}
-            {view !== "timesheet" && (
-              <div className="hidden md:flex items-center gap-1.5">
-                {stats.working > 0    && <StatPill label="working" value={stats.working}    color="bg-blue-50 text-blue-700"     />}
-                {stats.leave > 0      && <StatPill label="leave"   value={stats.leave}      color="bg-yellow-50 text-yellow-700" />}
-                {stats.gaps > 0       && <StatPill label="gaps"    value={stats.gaps}       color="bg-red-50 text-red-700"       />}
-                {stats.totalHours > 0 && <StatPill label="hrs"     value={stats.totalHours} color="bg-slate-100 text-slate-700"  />}
-              </div>
-            )}
+            {/* Stats pills */}
+            <div className="hidden md:flex items-center gap-1.5">
+              {stats.working > 0    && <StatPill label="working" value={stats.working}    color="bg-blue-50 text-blue-700"     />}
+              {stats.leave > 0      && <StatPill label="leave"   value={stats.leave}      color="bg-yellow-50 text-yellow-700" />}
+              {stats.gaps > 0       && <StatPill label="gaps"    value={stats.gaps}       color="bg-red-50 text-red-700"       />}
+              {stats.totalHours > 0 && <StatPill label="hrs"     value={stats.totalHours} color="bg-slate-100 text-slate-700"  />}
+            </div>
 
-            {/* ✅ 3 view buttons: Calendar | List | Timesheet */}
+            {/* ✅ Only Calendar | List — no Timesheet button (TimesheetView is always shown above) */}
             <div className="flex items-center rounded-xl border border-slate-200 overflow-hidden">
               <button
                 onClick={() => setView("calendar")}
@@ -735,34 +734,26 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
               </button>
               <button
                 onClick={() => setView("list")}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors border-x border-slate-200 ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors border-l border-slate-200 ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
               >
                 <List size={12} /> List
-              </button>
-              <button
-                onClick={() => setView("timesheet")}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${view === "timesheet" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
-              >
-                <FileText size={12} /> Timesheet
               </button>
             </div>
           </div>
         </div>
 
-        {/* ── TIMESHEET VIEW ── */}
-        {view === "timesheet" && (
-          <div className="p-5">
-            <TimesheetView
-              clinicianId={clinicianId}
-              month={month}
-              year={year}
-              canManage={canManage}
-            />
-          </div>
-        )}
+        {/* ✅ TIMESHEET APPROVAL — always visible at top, no toggle needed */}
+        <div className="p-5 border-b border-slate-100">
+          <TimesheetView
+            clinicianId={clinicianId}
+            month={month}
+            year={year}
+            canManage={canManage}
+          />
+        </div>
 
-        {/* ── LOADING (calendar/list only) ── */}
-        {view !== "timesheet" && isLoading && (
+        {/* ── LOADING (rota views) ── */}
+        {isLoading && (
           <div className="flex items-center justify-center h-32 gap-2 text-sm text-slate-400">
             <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
             Loading shifts…

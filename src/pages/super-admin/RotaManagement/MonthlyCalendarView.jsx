@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRotaList } from "../../../hooks/useRota";
 import ShiftDetailModal from "./ShiftDetailModal";
-import AddShiftModal from "./AddShiftModal";
 import CoverBookingModal from "./CoverBookingModal";
 import {
   Briefcase,
@@ -13,7 +12,6 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
-  Plus,
   Calendar,
   Loader2,
 } from "lucide-react";
@@ -24,21 +22,21 @@ const monthName = (m, fmt = "long") =>
 
 const daysInMonth = (m, y) => new Date(y, m, 0).getDate();
 
-/* ── Status config — lucide icons only ──────────────────────────────── */
+/* ── Status config ───────────────────────────────────────────────────── */
 const STATUS_CONFIG = {
-  working:      { bg: "bg-blue-100",   text: "text-blue-800",   border: "border-blue-200",   label: "Working",      Icon: Briefcase    },
-  annual_leave: { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-200",  label: "Annual Leave", Icon: Umbrella     },
-  sick:         { bg: "bg-red-100",    text: "text-red-800",    border: "border-red-200",    label: "Sick",         Icon: Thermometer  },
-  cppe:         { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200", label: "CPPE",         Icon: BookOpen     },
-  cover:        { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-200", label: "Cover",        Icon: UserPlus     },
-  gap:          { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200", label: "Gap",          Icon: AlertTriangle},
-  cancelled:    { bg: "bg-slate-100",  text: "text-slate-600",  border: "border-slate-200",  label: "Cancelled",    Icon: XCircle      },
+  working:      { bg: "bg-blue-100",   text: "text-blue-800",   border: "border-blue-200",   label: "Working",      Icon: Briefcase     },
+  annual_leave: { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-200",  label: "Annual Leave", Icon: Umbrella      },
+  sick:         { bg: "bg-red-100",    text: "text-red-800",    border: "border-red-200",    label: "Sick",         Icon: Thermometer   },
+  cppe:         { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200", label: "CPPE",         Icon: BookOpen      },
+  cover:        { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-200", label: "Cover",        Icon: UserPlus      },
+  gap:          { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200", label: "Gap",          Icon: AlertTriangle },
+  cancelled:    { bg: "bg-slate-100",  text: "text-slate-600",  border: "border-slate-200",  label: "Cancelled",    Icon: XCircle       },
 };
 
 const getStatus = (s) =>
   STATUS_CONFIG[s] ?? { bg: "bg-gray-100", text: "text-gray-600", border: "border-gray-200", label: "??", Icon: AlertTriangle };
 
-/* ── Legend ─────────────────────────────────────────────────────────── */
+/* ── Legend ──────────────────────────────────────────────────────────── */
 function Legend() {
   return (
     <div className="flex flex-wrap gap-3 px-4 py-3 bg-slate-50 border-b border-slate-200">
@@ -57,15 +55,8 @@ function Legend() {
   );
 }
 
-/* ── Calendar Grid ──────────────────────────────────────────────────── */
-function CalendarGrid({
-  month,
-  year,
-  clinicians,
-  onDayClick,
-  onEventClick,
-  onGapClick,           // ← fix: passed from parent
-}) {
+/* ── Calendar Grid ───────────────────────────────────────────────────── */
+function CalendarGrid({ month, year, clinicians, onEventClick, onGapClick }) {
   const firstDay = new Date(year, month - 1, 1).getDay();
   const adjustedFirstDay = firstDay === 0 ? 6 : firstDay - 1;
   const daysInCurrentMonth = daysInMonth(month, year);
@@ -77,7 +68,6 @@ function CalendarGrid({
 
   const weekDays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
-  // Build calendar days array
   const calendarDays = [];
   for (let i = adjustedFirstDay - 1; i >= 0; i--)
     calendarDays.push({ day: daysInPrevMonth - i, isCurrentMonth: false, date: new Date(year, month - 2, daysInPrevMonth - i) });
@@ -90,7 +80,6 @@ function CalendarGrid({
   const getEventsForDay = (date) => {
     const dateStr = date.toISOString().slice(0, 10);
     const events  = [];
-
     clinicians.forEach((row) => {
       const clinician = row?.clinician ?? {};
       const shift     = row?.shifts?.[dateStr];
@@ -107,7 +96,6 @@ function CalendarGrid({
         isGap:       shift.status === "gap",
       });
     });
-
     return events;
   };
 
@@ -132,21 +120,19 @@ function CalendarGrid({
           return (
             <div
               key={idx}
-              onClick={() => onDayClick(dayInfo.date)}
               className={[
-                "min-h-[80px] sm:min-h-[110px] p-1 sm:p-2 border-r border-b border-slate-100 cursor-pointer transition-colors",
-                !dayInfo.isCurrentMonth             ? "bg-slate-50/70 text-slate-400"      : "bg-white",
-                isWeekend && dayInfo.isCurrentMonth ? "bg-blue-50/20"                      : "",
-                dayInfo.isToday                     ? "bg-blue-50/50 ring-1 ring-inset ring-blue-200" : "",
-                idx % 7 === 6                       ? "border-r-0"                          : "",
-                "hover:bg-slate-50",
+                "min-h-[80px] sm:min-h-[110px] p-1 sm:p-2 border-r border-b border-slate-100 transition-colors",
+                !dayInfo.isCurrentMonth             ? "bg-slate-50/70 text-slate-400"                  : "bg-white",
+                isWeekend && dayInfo.isCurrentMonth ? "bg-blue-50/20"                                  : "",
+                dayInfo.isToday                     ? "bg-blue-50/50 ring-1 ring-inset ring-blue-200"  : "",
+                idx % 7 === 6                       ? "border-r-0"                                     : "",
               ].filter(Boolean).join(" ")}
             >
               {/* Day number */}
               <div className={[
                 "text-xs sm:text-sm font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full",
-                dayInfo.isToday          ? "bg-blue-600 text-white"  : "",
-                !dayInfo.isCurrentMonth  ? "text-slate-400"          : "text-slate-700",
+                dayInfo.isToday         ? "bg-blue-600 text-white" : "",
+                !dayInfo.isCurrentMonth ? "text-slate-400"         : "text-slate-700",
               ].filter(Boolean).join(" ")}>
                 {dayInfo.day}
               </div>
@@ -158,11 +144,7 @@ function CalendarGrid({
                   return (
                     <div
                       key={event.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (event.isGap) onGapClick(event.shift);
-                        else             onEventClick(event.shift);
-                      }}
+                      onClick={() => event.isGap ? onGapClick(event.shift) : onEventClick(event.shift)}
                       title={`${event.clinician} — ${event.config.label}${event.isGap ? " (click to assign cover)" : ""}`}
                       className={[
                         "text-xs px-1 py-0.5 rounded-md truncate cursor-pointer",
@@ -196,8 +178,8 @@ function CalendarGrid({
 
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
 function Sidebar({ month, year, clinicians, onNavigate }) {
-  const today   = new Date();
-  const isoFn   = (d) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0, 10);
+  const today    = new Date();
+  const isoFn    = (d) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0, 10);
   const todayISO = isoFn(today);
 
   const collect = (key) =>
@@ -218,7 +200,7 @@ function Sidebar({ month, year, clinicians, onNavigate }) {
         <p className="text-[10px] text-slate-400 italic pl-3">None recorded</p>
       ) : (
         list.map((item, i) => {
-          const cfg  = getStatus(item.shift.status);
+          const cfg = getStatus(item.shift.status);
           const { Icon } = cfg;
           return (
             <div key={i} className="flex items-center gap-2 py-1.5 border-b border-slate-100 last:border-0">
@@ -279,45 +261,29 @@ export default function MonthlyCalendarView({
   const [month, setMonth] = useState(initMonth);
   const [year,  setYear]  = useState(initYear);
 
-  useEffect(() => {
-    setMonth(initMonth);
-  }, [initMonth]);
-
-  useEffect(() => {
-    setYear(initYear);
-  }, [initYear]);
+  useEffect(() => { setMonth(initMonth); }, [initMonth]);
+  useEffect(() => { setYear(initYear);   }, [initYear]);
 
   const { data, isLoading, isError, error } = useRotaList({ month, year });
 
-  const [detailOpen,     setDetailOpen]     = useState(false);
-  const [detailShift,    setDetailShift]    = useState(null);
-  const [addOpen,        setAddOpen]        = useState(false);
-  const [addDate,        setAddDate]        = useState(null);
-  const [addClinicianId, setAddClinicianId] = useState(null);
-  const [coverOpen,      setCoverOpen]      = useState(false);
-  const [gapShift,       setGapShift]       = useState(null);
+  const [detailOpen,  setDetailOpen]  = useState(false);
+  const [detailShift, setDetailShift] = useState(null);
+  const [coverOpen,   setCoverOpen]   = useState(false);
+  const [gapShift,    setGapShift]    = useState(null);
 
   const clinicians = data?.data?.clinicians ?? data?.clinicians ?? [];
   const today      = new Date();
-  const todayISO   = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().slice(0, 10);
 
   const navigate = (delta) => {
     let m = month + delta, y = year;
-    if (m > 12) { m = 1; y++; }
+    if (m > 12) { m = 1;  y++; }
     if (m < 1)  { m = 12; y--; }
     setMonth(m); setYear(y);
   };
 
-  /* ── Event handlers passed down to CalendarGrid ── */
   const handleEventClick = (shift) => { setDetailShift(shift); setDetailOpen(true); };
   const handleGapClick   = (shift) => { setGapShift(shift);    setCoverOpen(true);  };
-  const handleDayClick   = (date)  => {
-    setAddDate(date.toISOString().slice(0, 10));
-    setAddClinicianId(null);
-    setAddOpen(true);
-  };
 
-  /* ── Loading / Error states ── */
   if (isLoading) return (
     <div className="flex items-center justify-center h-64 rounded-2xl border border-slate-200 bg-white">
       <div className="flex items-center gap-3 text-slate-400 text-sm">
@@ -350,14 +316,14 @@ export default function MonthlyCalendarView({
               <button onClick={() => navigate(-1)} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
                 <ChevronLeft size={16} />
               </button>
-              <button onClick={() => navigate(1)}  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+              <button onClick={() => navigate(1)} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
                 <ChevronRight size={16} />
               </button>
             </div>
             <h2 className="text-lg font-bold text-slate-800">{monthName(month)} {year}</h2>
           </div>
 
-          {/* View switcher + Add Shift */}
+          {/* View switcher only — no Add Shift */}
           <div className="flex items-center gap-2">
             {["Day", "Week", "Month"].map((v) => (
               <button
@@ -371,13 +337,6 @@ export default function MonthlyCalendarView({
                 {v}
               </button>
             ))}
-            <button
-              onClick={() => { setAddDate(todayISO); setAddClinicianId(null); setAddOpen(true); }}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <Plus size={15} />
-              Add Shift
-            </button>
           </div>
         </div>
       </div>
@@ -387,7 +346,6 @@ export default function MonthlyCalendarView({
 
       {/* ── Main content ── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Calendar */}
         <div className="flex-1 p-4 overflow-auto">
           {clinicians.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl border border-slate-200 gap-3">
@@ -402,7 +360,6 @@ export default function MonthlyCalendarView({
               month={month}
               year={year}
               clinicians={clinicians}
-              onDayClick={handleDayClick}
               onEventClick={handleEventClick}
               onGapClick={handleGapClick}
             />
@@ -417,7 +374,6 @@ export default function MonthlyCalendarView({
 
       {/* ── Modals ── */}
       <ShiftDetailModal open={detailOpen} onClose={() => setDetailOpen(false)} shift={detailShift} />
-      <AddShiftModal    open={addOpen}    onClose={() => setAddOpen(false)}    clinicianId={addClinicianId} date={addDate} />
       <CoverBookingModal
         open={coverOpen}
         onClose={() => { setCoverOpen(false); setGapShift(null); }}

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Stethoscope, Plus, Eye, Edit2, Trash2, X, Check,
   Search, SlidersHorizontal, ShieldAlert, RefreshCw,
   AlertCircle, ChevronDown, ShieldCheck, UserPlus, KeyRound,
+  Calendar,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useClinicians, useCreateClinician, useDeleteClinician } from "../../../hooks/useClinicians";
@@ -11,11 +12,11 @@ import { useAllUsers, useCreateUser } from "../../../hooks/useAuth";
 import DataTable from "../../../components/ui/DataTable";
 import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
 import { resetListFilters, setListFilter } from "../../../slices/clinicianSlice";
+import AddShiftModal from "../RotaManagement/AddShiftModal";
 
 const TYPE_OPTS     = ["Pharmacist", "Technician", "IP"];
 const CONTRACT_OPTS = ["ARRS", "EA", "Direct", "Mixed"];
 
-/* ── Small reusable label wrapper ── */
 const F = ({ label, children }) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
@@ -23,7 +24,6 @@ const F = ({ label, children }) => (
   </div>
 );
 
-/* ── Select with chevron ── */
 const Select = ({ value, onChange, children, className = "" }) => (
   <div className="relative">
     <select
@@ -37,7 +37,6 @@ const Select = ({ value, onChange, children, className = "" }) => (
   </div>
 );
 
-/* ── Input field ── */
 const Input = ({ className = "", ...props }) => (
   <input
     {...props}
@@ -45,6 +44,8 @@ const Input = ({ className = "", ...props }) => (
   />
 );
 
+// ── Only core identity fields — working hours / start date removed
+// (those belong in shifts / rota, not clinician profile)
 const buildForm = (existing) => ({
   fullName:      existing?.fullName      || "",
   clinicianType: existing?.clinicianType || "Pharmacist",
@@ -52,36 +53,27 @@ const buildForm = (existing) => ({
   phone:         existing?.phone         || "",
   gphcNumber:    existing?.gphcNumber    || "",
   contractType:  existing?.contractType  || "ARRS",
-  workingHours:  existing?.workingHours  || 0,
-  startDate:     existing?.startDate ? new Date(existing.startDate).toISOString().split("T")[0] : "",
   opsLead:       existing?.opsLead?._id    || existing?.opsLead    || "",
   supervisor:    existing?.supervisor?._id || existing?.supervisor || "",
 });
 
-/* ══════════════ MODAL ══════════════ */
+/* ══════════ MODAL ══════════ */
 const ClinicianModal = ({ existing, users, onClose, onSave }) => {
-  const [form, setForm]         = useState(() => buildForm(existing));
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
-
-  /* Login account fields — only shown when creating a new clinician */
+  const [form, setForm]     = useState(() => buildForm(existing));
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState("");
   const [createLogin, setCreateLogin] = useState(true);
   const [loginPassword, setLoginPassword] = useState("");
 
-  useEffect(() => { setForm(buildForm(existing)); }, [existing]);
-
-  const set    = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-  const setNum = (key) => (e) => setForm((f) => ({ ...f, [key]: Number(e.target.value) || 0 }));
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handle = async () => {
     if (!form.fullName.trim()) { setError("Full name is required"); return; }
     if (!existing && createLogin && !loginPassword.trim()) {
-      setError("Password is required to create a login account");
-      return;
+      setError("Password is required to create a login account"); return;
     }
     if (!existing && createLogin && loginPassword.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
+      setError("Password must be at least 6 characters"); return;
     }
     setSaving(true); setError("");
     try {
@@ -96,9 +88,8 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-slate-200 max-h-[95vh] flex flex-col">
+      <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-slate-200 max-h-[92vh] flex flex-col">
 
-        {/* Header */}
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100">
           <div>
             <h3 className="text-base font-bold text-slate-800">
@@ -112,7 +103,6 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
           {error && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
@@ -143,12 +133,6 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
                 {CONTRACT_OPTS.map((t) => <option key={t}>{t}</option>)}
               </Select>
             </F>
-            <F label="Working Hours / Week">
-              <Input type="number" value={form.workingHours} onChange={setNum("workingHours")} placeholder="37.5" />
-            </F>
-            <F label="Start Date">
-              <Input type="date" value={form.startDate} onChange={set("startDate")} />
-            </F>
             <F label="Ops Lead">
               <Select value={form.opsLead} onChange={set("opsLead")}>
                 <option value="">— None —</option>
@@ -163,7 +147,7 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
             </F>
           </div>
 
-          {/* ── Login Account Section (only when creating) ── */}
+          {/* Login Account — only on create */}
           {!existing && (
             <div className="rounded-2xl border border-slate-200 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
@@ -179,36 +163,29 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
                   <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${createLogin ? "translate-x-5" : ""}`} />
                 </button>
               </div>
-
-              {createLogin && (
+              {createLogin ? (
                 <div className="p-4 space-y-3">
                   <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
                     <KeyRound size={13} className="text-blue-600 mt-0.5 shrink-0" />
                     <p className="text-xs text-blue-700">
-                      A system login will be created using the email above. The clinician can log in at <strong>/portal/clinician</strong>.
+                      Login will be created using the email above. Clinician logs in at <strong>/portal/clinician</strong>.
                     </p>
                   </div>
                   <F label="Password">
-                    <Input
-                      type="password"
-                      value={loginPassword}
+                    <Input type="password" value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Min 6 characters"
-                    />
+                      placeholder="Min 6 characters" />
                   </F>
                 </div>
-              )}
-
-              {!createLogin && (
+              ) : (
                 <div className="px-4 py-3">
-                  <p className="text-xs text-slate-400">No login account will be created. You can add one later from Manage Users.</p>
+                  <p className="text-xs text-slate-400">No login now. Add later from Manage Users.</p>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex gap-3 px-5 sm:px-6 py-4 border-t border-slate-100">
           <button onClick={onClose}
             className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
@@ -227,26 +204,29 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
   );
 };
 
-/* ══════════════ MAIN PAGE ══════════════ */
+/* ══════════ MAIN PAGE ══════════ */
 export default function CliniciansListPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const filters  = useAppSelector((s) => s.clinician?.listFilters || {});
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const { data, isLoading, refetch, isFetching } = useClinicians(filters);
-  const usersQ   = useAllUsers();
-  const createM  = useCreateClinician();
-  const createUserM = useCreateUser();
-  const updateM  = useUpdateClinician();
-  const deleteM  = useDeleteClinician();
+  // Add Shift modal state — clinicianId set when clicking "Add Shift" on a row
+  const [shiftModal, setShiftModal] = useState({ open: false, clinicianId: null });
 
-  const [modal, setModal]     = useState(null);
+  const { data, isLoading, refetch, isFetching } = useClinicians(filters);
+  const usersQ      = useAllUsers();
+  const createM     = useCreateClinician();
+  const createUserM = useCreateUser();
+  const updateM     = useUpdateClinician();
+  const deleteM     = useDeleteClinician();
+
+  const [modal,     setModal]     = useState(null);
   const [userError, setUserError] = useState(null);
 
   const items = (data?.clinicians || []).map((c) => ({
     ...(c.data || c),
-    _id: c._id || c.id,
+    _id:        c._id || c.id,
     restricted: c.data?.isRestricted ?? c.data?.restricted ?? c.isRestricted ?? c.restricted ?? false,
   }));
 
@@ -261,13 +241,9 @@ export default function CliniciansListPage() {
   const handleSave = async (form, loginInfo) => {
     setUserError(null);
     if (modal?.clinician) {
-      // Edit existing clinician
       await updateM.mutateAsync({ id: modal.clinician._id, data: form });
     } else {
-      // Create clinician
-      const created = await createM.mutateAsync(form);
-
-      // Optionally create login account
+      await createM.mutateAsync(form);
       if (loginInfo?.email && loginInfo?.password) {
         try {
           await createUserM.mutateAsync({
@@ -277,7 +253,6 @@ export default function CliniciansListPage() {
             role:     "clinician",
           });
         } catch (userErr) {
-          // Clinician created but user creation failed — warn but don't fail the whole flow
           setUserError(
             userErr?.response?.data?.message ||
             "Clinician saved, but login account creation failed. Create it manually in Manage Users."
@@ -341,15 +316,6 @@ export default function CliniciansListPage() {
       },
     },
     {
-      header: "Hours / wk",
-      render: (c) => (
-        <span className="text-sm font-semibold text-slate-700 tabular-nums">
-          {c.workingHours || 0}
-          <span className="text-xs font-normal text-slate-400 ml-0.5">h</span>
-        </span>
-      ),
-    },
-    {
       header: "Status",
       render: (c) => (
         c.restricted ? (
@@ -367,16 +333,29 @@ export default function CliniciansListPage() {
       header: "",
       render: (c) => (
         <div className="flex items-center gap-1.5 justify-end">
-          <button onClick={() => navigate(`/dashboard/clinicians/${c._id}`)}
-            className="h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap">
+          {/* ── Add Shift button — moved from RotaPage ── */}
+          <button
+            onClick={() => setShiftModal({ open: true, clinicianId: c._id })}
+            className="h-8 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
+          >
+            <Calendar size={12} /> Add Shift
+          </button>
+          <button
+            onClick={() => navigate(`/dashboard/clinicians/${c._id}`)}
+            className="h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
+          >
             <Eye size={12} /> View
           </button>
-          <button onClick={() => setModal({ mode: "edit", clinician: c })}
-            className="h-8 w-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 inline-flex items-center justify-center transition-all">
+          <button
+            onClick={() => setModal({ mode: "edit", clinician: c })}
+            className="h-8 w-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 inline-flex items-center justify-center transition-all"
+          >
             <Edit2 size={13} />
           </button>
-          <button onClick={() => handleDelete(c)}
-            className="h-8 w-8 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 hover:text-red-700 inline-flex items-center justify-center transition-all">
+          <button
+            onClick={() => handleDelete(c)}
+            className="h-8 w-8 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 hover:text-red-700 inline-flex items-center justify-center transition-all"
+          >
             <Trash2 size={13} />
           </button>
         </div>
@@ -388,7 +367,7 @@ export default function CliniciansListPage() {
   return (
     <div className="space-y-5">
 
-      {/* ── Page Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
@@ -401,22 +380,26 @@ export default function CliniciansListPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => setFiltersOpen(!filtersOpen)}
-            className={`lg:hidden h-9 w-9 rounded-xl border flex items-center justify-center transition-all relative ${filtersOpen ? "bg-blue-600 border-blue-600 text-white" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+          <button
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className={`lg:hidden h-9 w-9 rounded-xl border flex items-center justify-center transition-all relative ${filtersOpen ? "bg-blue-600 border-blue-600 text-white" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}
+          >
             <SlidersHorizontal size={15} />
             {hasActiveFilters && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white" />
             )}
           </button>
-
-          <button onClick={() => refetch()}
-            className="h-9 px-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 inline-flex items-center gap-1.5 transition-all">
+          <button
+            onClick={() => refetch()}
+            className="h-9 px-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 inline-flex items-center gap-1.5 transition-all"
+          >
             <RefreshCw size={13} className={isFetching ? "animate-spin" : ""} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
-
-          <button onClick={() => setModal({ mode: "create" })}
-            className="h-9 px-3 sm:px-4 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 inline-flex items-center gap-1.5 shadow-sm shadow-blue-200 transition-all">
+          <button
+            onClick={() => setModal({ mode: "create" })}
+            className="h-9 px-3 sm:px-4 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 inline-flex items-center gap-1.5 shadow-sm shadow-blue-200 transition-all"
+          >
             <Plus size={15} />
             <span className="hidden sm:inline">Add clinician</span>
             <span className="sm:hidden">Add</span>
@@ -424,12 +407,11 @@ export default function CliniciansListPage() {
         </div>
       </div>
 
-      {/* ── User creation error banner ── */}
+      {/* User creation error */}
       {userError && (
         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2 text-sm text-amber-700">
           <div className="flex items-center gap-2">
-            <AlertCircle size={14} className="shrink-0" />
-            {userError}
+            <AlertCircle size={14} className="shrink-0" /> {userError}
           </div>
           <button onClick={() => setUserError(null)} className="shrink-0 text-amber-500 hover:text-amber-700">
             <X size={14} />
@@ -437,7 +419,7 @@ export default function CliniciansListPage() {
         </div>
       )}
 
-      {/* ── Filters — Desktop always visible, Mobile toggle ── */}
+      {/* Filters */}
       <div className={`${filtersOpen ? "block" : "hidden"} lg:block`}>
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -450,32 +432,27 @@ export default function CliniciansListPage() {
                 className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
               />
             </div>
-            <div className="relative">
-              <Select value={filters.type || ""} onChange={(e) => setFilter({ type: e.target.value })}>
-                <option value="">All types</option>
-                {TYPE_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </Select>
-            </div>
-            <div className="relative">
-              <Select value={filters.contract || ""} onChange={(e) => setFilter({ contract: e.target.value })}>
-                <option value="">All contracts</option>
-                {CONTRACT_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </Select>
-            </div>
-            <div className="relative">
-              <Select value={filters.restricted || ""} onChange={(e) => setFilter({ restricted: e.target.value })}>
-                <option value="">Any status</option>
-                <option value="false">Active only</option>
-                <option value="true">Restricted only</option>
-              </Select>
-            </div>
+            <Select value={filters.type || ""} onChange={(e) => setFilter({ type: e.target.value })}>
+              <option value="">All types</option>
+              {TYPE_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </Select>
+            <Select value={filters.contract || ""} onChange={(e) => setFilter({ contract: e.target.value })}>
+              <option value="">All contracts</option>
+              {CONTRACT_OPTS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </Select>
+            <Select value={filters.restricted || ""} onChange={(e) => setFilter({ restricted: e.target.value })}>
+              <option value="">Any status</option>
+              <option value="false">Active only</option>
+              <option value="true">Restricted only</option>
+            </Select>
           </div>
-
           {hasActiveFilters && (
             <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
               <p className="text-xs text-slate-400">Filters applied</p>
-              <button onClick={() => dispatch(resetListFilters())}
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
+              <button
+                onClick={() => dispatch(resetListFilters())}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+              >
                 <X size={11} /> Clear all
               </button>
             </div>
@@ -483,7 +460,7 @@ export default function CliniciansListPage() {
         </div>
       </div>
 
-      {/* ── Stats bar ── */}
+      {/* Stats */}
       {!isLoading && items.length > 0 && (
         <div className="flex items-center gap-4 text-sm text-slate-500">
           <span><span className="font-bold text-slate-800">{items.length}</span> clinicians</span>
@@ -498,7 +475,7 @@ export default function CliniciansListPage() {
         </div>
       )}
 
-      {/* ── Table ── */}
+      {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <DataTable
           columns={columns}
@@ -509,7 +486,7 @@ export default function CliniciansListPage() {
         />
       </div>
 
-      {/* ── Modal ── */}
+      {/* Clinician add/edit modal */}
       {modal && (
         <ClinicianModal
           existing={modal.clinician}
@@ -518,6 +495,13 @@ export default function CliniciansListPage() {
           onSave={handleSave}
         />
       )}
+
+      {/* Add Shift modal — opened from row action button */}
+      <AddShiftModal
+        open={shiftModal.open}
+        onClose={() => setShiftModal({ open: false, clinicianId: null })}
+        clinicianId={shiftModal.clinicianId}
+      />
     </div>
   );
 }
