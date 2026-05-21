@@ -8,9 +8,11 @@ import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import {
   useMyTimesheet,
+  useMyRota,
   useSubmitTimesheet,
   useUpdateTimesheetEntry,
 } from "../../hooks/useRota";
+import { useTimeEntries } from "../../hooks/useTimeEntry";
 
 /* ─────────────────────────────────────────────────────
    HELPERS
@@ -91,26 +93,87 @@ export default function MyTimesheetPage() {
   const [confirming, setConfirming] = useState(false);
 
   /* ── Data fetching ──────────────────────────────── */
-  // ✅ Single source of truth — controller seeds entries from rota_shifts automatically
-  const { data, isLoading, error, refetch } = useMyTimesheet(cursor.month, cursor.year);
+  // ROTA SHIFTS are PRIMARY source — always query them
+  const rotaQuery      = useMyRota(cursor.month, cursor.year);
+  
+  // Timesheet metadata (status, approval info)
+  const timesheetMetaQuery = useMyTimesheet(cursor.month, cursor.year);
+  
+  // Time entries (clock-in/clock-out) — OPTIONAL overlay
+  const timeEntriesQuery = useTimeEntries({
+    month: cursor.month,
+    year: cursor.year,
+  });
 
   const updateEntry = useUpdateTimesheetEntry();
   const submit      = useSubmitTimesheet();
 
-  /* ── Derive timesheet + entries ─────────────────── */
-  const timesheet  = data?.timesheet ?? null;
-  const baseEntries = data?.entries ?? [];
+  /* ── Combined loading / error state ────────────── */
+  const isLoading = rotaQuery.isLoading || timesheetMetaQuery.isLoading;
+  const error     = rotaQuery.error || timesheetMetaQuery.error;
 
-  /* Merge local draft edits */
-  const rows = useMemo(
-    () => baseEntries.map((e) => ({ ...e, ...(drafts[e.id] || {}) })),
-    [baseEntries, drafts],
-  );
+  /* ── Derive timesheet metadata (status, approval info) ── */
+  const timesheet = useMemo(() => {
+    const payload = timesheetMetaQuery.data;
+    if (!payload) return null;
+    if (payload.timesheet) return payload.timesheet;
+    const { entries: _e, shifts: _s, ...meta } = payload;
+    return payload.id ? meta : null;
+  }, [timesheetMetaQuery.data]);
+
+  /* ── Normalise rows: ROTA SHIFTS are primary, time_entries are overlay ── */
+  const rows = useMemo(() => {
+    // STEP 1: Extract rota shifts (primary source of truth)
+    const rotaRaw =
+      rotaQuery.data?.shifts ??
+      timesheetMetaQuery.data?.shifts ??
+      rotaQuery.data?.rota ??
+      rotaQuery.data ??
+      [];
+    const rotaArray = Array.isArray(rotaRaw) ? rotaRaw : [];
+
+    // If no rota shifts exist at all → return empty
+    if (rotaArray.length === 0) {
+      return [];
+    }
+
+    // STEP 2: Extract time entries (optional overlay for clock-in/clock-out)
+    // Filter to only entries for the current month/year if needed
+    const timeEntries = Array.isArray(timeEntriesQuery.data) ? timeEntriesQuery.data : [];
+    
+    // Build a map of time_entries by shiftId for quick lookup
+    const timeEntryMap = {};
+    timeEntries.forEach((entry) => {
+      const shiftId = entry.shiftId ?? entry.shift_id ?? entry.shift?.id;
+      if (shiftId) {
+        timeEntryMap[shiftId] = entry;
+      }
+    });
+
+    // STEP 3: Merge rota shifts with time_entries (where available)
+    return rotaArray.map((shift) => {
+      const timeEntry = timeEntryMap[shift.id] || {};
+      
+      return {
+        id:              shift.id,
+        shift_date:      shift.shift_date || shift.date,
+        surgery_name:    shift.surgery_name || shift.practice_name || shift.practice?.name || "—",
+        expected_hours:  Number(shift.expected_hours ?? shift.hours ?? shift.total_hours ?? 0),
+        start_time:      timeEntry.start_time || shift.start_time || "",
+        end_time:        timeEntry.end_time || shift.end_time || "",
+        notes:           timeEntry.notes || shift.notes || "",
+        actual_hours:    timeEntry.actual_hours ?? null,
+        is_cover:        !!shift.is_cover,
+        is_seeded_from_rota: true, // All rows from rota are seeded (never save to API without explicit entry)
+        ...(drafts[shift.id] || {}), // Apply local draft edits on top
+      };
+    });
+  }, [rotaQuery.data, timeEntriesQuery.data, drafts]);
 
   /* ── Derived flags ──────────────────────────────── */
   const isDraft     = !timesheet || timesheet.status === "draft" || timesheet.status === "rejected";
   const canSubmit   = isDraft && !!timesheet;
-  const missingRows = rows.filter((r) => !r.start_time || !r.end_time);
+  const missingRows = rows.filter((r) => !r.is_seeded_from_rota && (!r.start_time || !r.end_time));
 
   /* ── Stats ──────────────────────────────────────── */
   const totalExpected = rows.reduce((s, r) => s + Number(r.expected_hours || 0), 0);
@@ -140,6 +203,9 @@ export default function MyTimesheetPage() {
     setDrafts((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [key]: val } }));
 
   const saveRow = (entry) => {
+    // Seeded-from-rota rows don't exist in timesheet_entries yet — skip API call
+    if (entry.is_seeded_from_rota) return;
+
     updateEntry.mutate({
       entryId: entry.id,
       data: {
@@ -156,6 +222,9 @@ export default function MyTimesheetPage() {
       onSuccess: () => setConfirming(false),
     });
   };
+
+  /* ── Seeded-row notice ──────────────────────────── */
+  const isSeededView = rows.length > 0 && rows.every((r) => r.is_seeded_from_rota);
 
   /* ════════════════════════════════════════════════ */
   return (
@@ -174,12 +243,14 @@ export default function MyTimesheetPage() {
                 {timesheet.status.charAt(0).toUpperCase() + timesheet.status.slice(1)}
               </Badge>
             )}
+            {isSeededView && (
+              <Badge color="default">Rota Preview</Badge>
+            )}
           </div>
         </div>
 
         {/* Month controls + submit */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Month navigation */}
           <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <button
               onClick={() => moveMonth(-1)}
@@ -210,19 +281,20 @@ export default function MyTimesheetPage() {
           )}
 
           <button
-            onClick={() => refetch()}
+            onClick={() => { rotaQuery.refetch(); timesheetMetaQuery.refetch(); timeEntriesQuery.refetch(); }}
             className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm"
             title="Refresh"
           >
             <RefreshCw size={14} className="text-slate-500" />
           </button>
 
-          {/* Submit button */}
           <Button
             disabled={!canSubmit || missingRows.length > 0 || submit.isLoading}
             onClick={() => setConfirming(true)}
             title={
-              !timesheet
+              isSeededView
+                ? "Fill in start / end times before submitting"
+                : !timesheet
                 ? "No timesheet found for this month"
                 : missingRows.length > 0
                 ? `${missingRows.length} rows missing start/end times`
@@ -234,6 +306,20 @@ export default function MyTimesheetPage() {
           </Button>
         </div>
       </div>
+
+      {/* ── Seeded-view info banner ── */}
+      {isSeededView && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          <Calendar size={15} className="shrink-0 mt-0.5" />
+          <div>
+            <strong>Rota Preview</strong>
+            <p className="mt-0.5 font-normal opacity-80">
+              Your assigned shifts for {monthLabel} are shown below.
+              Add start / end times and submit once your hours are confirmed.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Alerts ── */}
       {timesheet?.status === "rejected" && (
@@ -259,27 +345,21 @@ export default function MyTimesheetPage() {
       {rows.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard
+            label="Working Days"
+            value={rows.length}
+            sub="assigned shifts"
+            Icon={Calendar}
+          />
+          <StatCard
             label="Expected"
             value={`${totalExpected.toFixed(2)}h`}
             Icon={Clock}
           />
           <StatCard
             label="Actual"
-            value={`${totalActual.toFixed(2)}h`}
+            value={totalActual > 0 ? `${totalActual.toFixed(2)}h` : "—"}
             Icon={CheckCircle2}
-            color={totalActual >= totalExpected ? "text-emerald-700" : "text-rose-600"}
-          />
-          <StatCard
-            label="Difference"
-            value={`${diffTotal >= 0 ? "+" : ""}${diffTotal.toFixed(2)}h`}
-            Icon={TrendingUp}
-            color={
-              Math.abs(diffTotal) < 0.01
-                ? "text-emerald-700"
-                : diffTotal > 0
-                ? "text-blue-700"
-                : "text-rose-600"
-            }
+            color={totalActual > 0 ? (totalActual >= totalExpected ? "text-emerald-700" : "text-rose-600") : "text-slate-400"}
           />
           <StatCard
             label="FTE"
@@ -293,7 +373,6 @@ export default function MyTimesheetPage() {
       {/* ── Table ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
-        {/* Table header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50">
           <div className="flex items-center gap-2">
             <FileText size={14} className="text-slate-400" />
@@ -345,7 +424,7 @@ export default function MyTimesheetPage() {
                 </tr>
               )}
 
-              {/* Empty state */}
+              {/* Empty — only shown when BOTH timesheet AND rota are empty */}
               {!isLoading && rows.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-16 text-center">
@@ -364,14 +443,17 @@ export default function MyTimesheetPage() {
 
               {/* Data rows */}
               {!isLoading && rows.map((entry) => {
-                const actual = entry.actual_hours ?? calcHours(entry.start_time, entry.end_time);
-                const editable = isDraft;
+                const actual   = entry.actual_hours ?? calcHours(entry.start_time, entry.end_time);
+                const editable = isDraft && !entry.is_seeded_from_rota
+                              || (isDraft && entry.is_seeded_from_rota); // seeded rows: allow editing times locally
 
                 return (
                   <tr
                     key={entry.id}
                     className={`transition-colors ${
-                      entry.is_cover
+                      entry.is_seeded_from_rota
+                        ? "bg-slate-50/50"
+                        : entry.is_cover
                         ? "bg-amber-50/60"
                         : "hover:bg-slate-50/30"
                     }`}
@@ -459,13 +541,17 @@ export default function MyTimesheetPage() {
                       )}
                     </td>
 
-                    {/* Cover badge */}
+                    {/* Cover / seeded badge */}
                     <td className="px-4 py-3">
-                      {entry.is_cover && (
+                      {entry.is_seeded_from_rota ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-slate-100 text-slate-500 border-slate-200">
+                          Rota
+                        </span>
+                      ) : entry.is_cover ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
                           Cover
                         </span>
-                      )}
+                      ) : null}
                     </td>
                   </tr>
                 );
@@ -484,7 +570,9 @@ export default function MyTimesheetPage() {
                   </td>
                   <td colSpan={2} />
                   <td className="px-4 py-3 text-sm font-black text-slate-900">
-                    {totalActual > 0 ? `${totalActual.toFixed(2)}h` : <span className="text-slate-300 font-normal text-xs">—</span>}
+                    {totalActual > 0
+                      ? `${totalActual.toFixed(2)}h`
+                      : <span className="text-slate-300 font-normal text-xs">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     {totalActual > 0 && (
@@ -530,10 +618,12 @@ export default function MyTimesheetPage() {
               You won't be able to edit it until it's reviewed.
             </p>
             <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 grid grid-cols-2 gap-2 text-sm">
+              <span className="text-slate-500">Working days:</span>
+              <span className="font-bold text-slate-800">{rows.length}</span>
               <span className="text-slate-500">Total expected:</span>
               <span className="font-bold text-slate-800">{totalExpected.toFixed(2)}h</span>
               <span className="text-slate-500">Total actual:</span>
-              <span className="font-bold text-slate-800">{totalActual.toFixed(2)}h</span>
+              <span className="font-bold text-slate-800">{totalActual > 0 ? `${totalActual.toFixed(2)}h` : "—"}</span>
             </div>
             <div className="mt-5 flex justify-end gap-3">
               <Button variant="outline" onClick={() => setConfirming(false)}>
