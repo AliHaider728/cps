@@ -8,8 +8,10 @@ export const rotaService = {
   getRotaGaps: () => apiClient.get(`${base}/gaps`),
   sendRotaToClients: (month, year) => apiClient.post(`${base}/send-to-clients`, { month, year }),
 
-  getMyRota: (month, year) => apiClient.get(`${base}/my`, { params: { month, year } }),
-  getMyTimesheet: (month, year) => apiClient.get(`${base}/timesheet/my`, { params: { month, year } }),
+  getMyRota: (params = {}) => apiClient.get(`${base}/my`, { params }),
+  getMyRotaAll: () => apiClient.get(`${base}/my`, { params: { scope: "all" } }),
+  getMyTimesheet: (params = {}) => apiClient.get(`${base}/timesheet/my`, { params }),
+  getMyTimesheetAll: () => apiClient.get(`${base}/timesheet/my`, { params: { scope: "all" } }),
   updateTimesheetEntry: (entryId, data) => apiClient.put(`${base}/timesheet/entry/${entryId}`, data),
   submitTimesheet: (timesheetId) => apiClient.post(`${base}/timesheet/${timesheetId}/submit`),
 

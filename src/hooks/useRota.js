@@ -33,19 +33,45 @@ export const useRotaGaps = () =>
     queryFn: () => rotaService.getRotaGaps().then(unwrap),
   });
 
-export const useMyRota = (month, year) =>
+export const useMyRotaAll = () =>
   useQuery({
-    queryKey: ["myRota", month, year],
-    queryFn: () => rotaService.getMyRota(month, year).then(unwrap),
-    enabled: !!month && !!year,
+    queryKey: ["myRota", "all"],
+    queryFn: () => rotaService.getMyRotaAll().then(unwrap),
+    staleTime: 1000 * 60 * 2,
   });
 
-export const useMyTimesheet = (month, year) =>
-  useQuery({
-    queryKey: ["myTimesheet", month, year],
-    queryFn: () => rotaService.getMyTimesheet(month, year).then(unwrap),
-    enabled: !!month && !!year,
+export const useMyRota = (month, year, options = {}) => {
+  const scopeAll = options.scope === "all" || month == null || year == null;
+  return useQuery({
+    queryKey: scopeAll ? ["myRota", "all"] : ["myRota", month, year],
+    queryFn: () =>
+      scopeAll
+        ? rotaService.getMyRotaAll().then(unwrap)
+        : rotaService.getMyRota({ month, year }).then(unwrap),
+    enabled: scopeAll ? true : !!month && !!year,
+    ...options,
   });
+};
+
+export const useMyTimesheetAll = () =>
+  useQuery({
+    queryKey: ["myTimesheet", "all"],
+    queryFn: () => rotaService.getMyTimesheetAll().then(unwrap),
+    staleTime: 1000 * 60 * 2,
+  });
+
+export const useMyTimesheet = (month, year, options = {}) => {
+  const scopeAll = options.scope === "all" || month == null || year == null;
+  return useQuery({
+    queryKey: scopeAll ? ["myTimesheet", "all"] : ["myTimesheet", month, year],
+    queryFn: () =>
+      scopeAll
+        ? rotaService.getMyTimesheetAll().then(unwrap)
+        : rotaService.getMyTimesheet({ month, year }).then(unwrap),
+    enabled: scopeAll ? true : !!month && !!year,
+    ...options,
+  });
+};
 
 export const usePendingTimesheets = () =>
   useQuery({

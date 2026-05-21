@@ -6,6 +6,7 @@ import {
   useUpdateUser,
   useDeleteUser,
 } from "../../hooks/useAuth";
+import { useClinicians } from "../../hooks/useClinicians";
 import DataTable from "../../components/ui/DataTable";
 
 const ROLES = [
@@ -19,7 +20,14 @@ const ROLES = [
 ];
 
 const roleMeta = Object.fromEntries(ROLES.map((role) => [role.value, role]));
-const EMPTY = { name: "", email: "", password: "", role: "clinician", isActive: true };
+const EMPTY = {
+  name: "",
+  email: "",
+  password: "",
+  role: "clinician",
+  isActive: true,
+  linkedClinicianId: "",
+};
 
 export default function ManageUsers() {
   const [search, setSearch] = useState("");
@@ -30,11 +38,16 @@ export default function ManageUsers() {
   const [editId, setEditId] = useState(null);
 
   const { data, isLoading } = useAllUsers();
+  const { data: cliniciansRes } = useClinicians({ active: true });
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
   const deleteUserMutation = useDeleteUser();
 
   const users = data?.users || [];
+  const clinicians = useMemo(() => {
+    const list = cliniciansRes?.clinicians ?? cliniciansRes?.data ?? cliniciansRes ?? [];
+    return Array.isArray(list) ? list : [];
+  }, [cliniciansRes]);
 
   const openAdd = () => {
     setForm(EMPTY);
@@ -44,7 +57,14 @@ export default function ManageUsers() {
   };
 
   const openEdit = (user) => {
-    setForm({ name: user.name, email: user.email, password: "", role: user.role, isActive: user.isActive });
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role,
+      isActive: user.isActive,
+      linkedClinicianId: user.clinicianId || user.clinician_id || "",
+    });
     setEditId(user._id);
     setError("");
     setModal("edit");
@@ -65,6 +85,7 @@ export default function ManageUsers() {
     try {
       const payload = { ...form };
       if (editId && !payload.password) delete payload.password;
+      if (!payload.linkedClinicianId) payload.linkedClinicianId = null;
       if (editId) {
         await updateUserMutation.mutateAsync({ id: editId, data: payload });
       } else {
@@ -256,6 +277,32 @@ export default function ManageUsers() {
                   {ROLES.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
                 </select>
               </div>
+
+              {form.role === "clinician" && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Linked Clinician Profile
+                  </label>
+                  <select
+                    value={form.linkedClinicianId}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, linkedClinicianId: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 transition-all focus:border-blue-500 focus:bg-white focus:outline-none"
+                  >
+                    <option value="">— Not linked —</option>
+                    {clinicians.map((c) => (
+                      <option key={c.id || c._id} value={c.id || c._id}>
+                        {(c.fullName || c.name || c.email || "Clinician") +
+                          (c.email ? ` (${c.email})` : "")}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Required for rota, dashboard, and timesheet visibility. Super admin can change this mapping safely.
+                  </p>
+                </div>
+              )}
 
               {modal === "edit" && (
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">

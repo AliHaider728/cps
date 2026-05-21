@@ -129,22 +129,22 @@ export default function ClinicianDashboard() {
 
   /* ── Fetch rota shifts — single source of truth ─────────── */
   const { data: rota, isLoading: rotaLoading, isError: rotaError, error: rotaErr } =
-    useMyRota(cursor.month, cursor.year);
+    useMyRota(null, null);
 
-  /**
-   * Backend getMyRota returns: { success, data: { month, year, shifts }, message }
-   * After unwrap: { month, year, shifts }
-   * Guard all possible shapes just in case.
-   */
-  const shifts = useMemo(() => {
-    const raw =
-      rota?.shifts       ||   // ← normal path after unwrap
-      rota?.data?.shifts ||   // ← if double-wrapped
-      rota?.rota         ||   // ← legacy alias
-      rota               ||   // ← bare array fallback
-      [];
+  const allShifts = useMemo(() => {
+    const raw = rota?.shifts || rota?.data?.shifts || rota?.rota || [];
     return Array.isArray(raw) ? raw : [];
   }, [rota]);
+
+  /** Calendar month filter — navigation only; data is all-time from API */
+  const shifts = useMemo(() => {
+    return allShifts.filter((s) => {
+      const d = String(s.shift_date || s.date || "").slice(0, 10);
+      if (!d) return false;
+      const [y, m] = d.split("-").map(Number);
+      return m === cursor.month && y === cursor.year;
+    });
+  }, [allShifts, cursor.month, cursor.year]);
 
   /* ── Month navigation ───────────────────────────────────── */
   const moveMonth = useCallback((delta) => {
@@ -331,9 +331,9 @@ export default function ClinicianDashboard() {
           <h2 className="text-lg font-bold text-slate-900">
             My Shifts — {monthLabel}
           </h2>
-          {!rotaLoading && shifts.length > 0 && (
+          {!rotaLoading && (
             <span className="ml-auto text-xs text-slate-400 font-medium">
-              {shifts.length} shift{shifts.length !== 1 ? "s" : ""}
+              {shifts.length} this month · {allShifts.length} total
             </span>
           )}
         </div>

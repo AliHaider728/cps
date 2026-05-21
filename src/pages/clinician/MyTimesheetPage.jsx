@@ -85,6 +85,7 @@ function StatCard({ label, value, sub, Icon, color = "text-slate-900" }) {
 ───────────────────────────────────────────────────── */
 export default function MyTimesheetPage() {
   const today = new Date();
+  const [viewMode, setViewMode] = useState("all"); // "all" | "month"
   const [cursor, setCursor] = useState({
     month: today.getMonth() + 1,
     year:  today.getFullYear(),
@@ -92,18 +93,25 @@ export default function MyTimesheetPage() {
   const [drafts,     setDrafts]     = useState({});
   const [confirming, setConfirming] = useState(false);
 
-  /* ── Data fetching ──────────────────────────────── */
-  // ROTA SHIFTS are PRIMARY source — always query them
-  const rotaQuery      = useMyRota(cursor.month, cursor.year);
-  
-  // Timesheet metadata (status, approval info)
-  const timesheetMetaQuery = useMyTimesheet(cursor.month, cursor.year);
-  
-  // Time entries (clock-in/clock-out) — OPTIONAL overlay
-  const timeEntriesQuery = useTimeEntries({
-    month: cursor.month,
-    year: cursor.year,
+  /* ── Data fetching — all time by default ───────── */
+  const rotaQuery = useMyRota(
+    viewMode === "month" ? cursor.month : null,
+    viewMode === "month" ? cursor.year : null
+  );
+
+  const timesheetAllQuery = useMyTimesheet(
+    viewMode === "month" ? cursor.month : null,
+    viewMode === "month" ? cursor.year : null
+  );
+
+  const timesheetMonthQuery = useMyTimesheet(cursor.month, cursor.year, {
+    enabled: viewMode === "month" || confirming,
   });
+
+  const timesheetMetaQuery =
+    viewMode === "month" ? timesheetMonthQuery : timesheetAllQuery;
+
+  const timeEntriesQuery = useTimeEntries({ limit: 200 });
 
   const updateEntry = useUpdateTimesheetEntry();
   const submit      = useSubmitTimesheet();
@@ -112,30 +120,45 @@ export default function MyTimesheetPage() {
   const isLoading = rotaQuery.isLoading || timesheetMetaQuery.isLoading;
   const error     = rotaQuery.error || timesheetMetaQuery.error;
 
-  /* ── Derive timesheet metadata (status, approval info) ── */
-  const timesheet = useMemo(() => {
-    const payload = timesheetMetaQuery.data;
-    if (!payload) return null;
-    if (payload.timesheet) return payload.timesheet;
-    const { entries: _e, shifts: _s, ...meta } = payload;
-    return payload.id ? meta : null;
-  }, [timesheetMetaQuery.data]);
-
-  /* ── Normalise rows: ROTA SHIFTS are primary, time_entries are overlay ── */
-  const rows = useMemo(() => {
-    // STEP 1: Extract rota shifts (primary source of truth)
-    const rotaRaw =
+  const allShifts = useMemo(() => {
+    const raw =
       rotaQuery.data?.shifts ??
       timesheetMetaQuery.data?.shifts ??
       rotaQuery.data?.rota ??
-      rotaQuery.data ??
       [];
-    const rotaArray = Array.isArray(rotaRaw) ? rotaRaw : [];
+    return Array.isArray(raw) ? raw : [];
+  }, [rotaQuery.data, timesheetMetaQuery.data]);
 
-    // If no rota shifts exist at all → return empty
-    if (rotaArray.length === 0) {
-      return [];
+  const filteredShifts = useMemo(() => {
+    if (viewMode !== "month") return allShifts;
+    return allShifts.filter((s) => {
+      const d = String(s.shift_date || s.date || "").slice(0, 10);
+      if (!d) return false;
+      const [y, m] = d.split("-").map(Number);
+      return m === cursor.month && y === cursor.year;
+    });
+  }, [allShifts, viewMode, cursor.month, cursor.year]);
+
+  /* ── Timesheet record for submit (selected month) ── */
+  const timesheet = useMemo(() => {
+    if (viewMode === "month") {
+      const payload = timesheetMonthQuery.data;
+      if (!payload) return null;
+      if (payload.timesheet) return payload.timesheet;
+      const { entries: _e, shifts: _s, ...meta } = payload;
+      return payload.id ? meta : null;
     }
+    const list = timesheetAllQuery.data?.timesheets;
+    if (!Array.isArray(list)) return null;
+    return (
+      list.find((t) => t.month === cursor.month && t.year === cursor.year) || null
+    );
+  }, [viewMode, timesheetMonthQuery.data, timesheetAllQuery.data, cursor.month, cursor.year]);
+
+  /* ── Normalise rows: ROTA SHIFTS are primary, time_entries are overlay ── */
+  const rows = useMemo(() => {
+    const rotaArray = filteredShifts;
+    if (rotaArray.length === 0) return [];
 
     // STEP 2: Extract time entries (optional overlay for clock-in/clock-out)
     // Filter to only entries for the current month/year if needed
@@ -168,7 +191,7 @@ export default function MyTimesheetPage() {
         ...(drafts[shift.id] || {}), // Apply local draft edits on top
       };
     });
-  }, [rotaQuery.data, timeEntriesQuery.data, drafts]);
+  }, [filteredShifts, timeEntriesQuery.data, drafts]);
 
   /* ── Derived flags ──────────────────────────────── */
   const isDraft     = !timesheet || timesheet.status === "draft" || timesheet.status === "rejected";
@@ -194,7 +217,10 @@ export default function MyTimesheetPage() {
     setDrafts({});
   };
 
-  const monthLabel = `${MONTHS[cursor.month - 1]} ${cursor.year}`;
+  const monthLabel =
+    viewMode === "all"
+      ? "All time"
+      : `${MONTHS[cursor.month - 1]} ${cursor.year}`;
   const isCurrentMonth =
     cursor.month === today.getMonth() + 1 && cursor.year === today.getFullYear();
 
@@ -249,35 +275,66 @@ export default function MyTimesheetPage() {
           </div>
         </div>
 
-        {/* Month controls + submit */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
             <button
-              onClick={() => moveMonth(-1)}
-              className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 transition-colors border-r border-slate-200"
-              title="Previous month"
+              type="button"
+              onClick={() => setViewMode("all")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                viewMode === "all" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
             >
-              <ChevronLeft size={15} className="text-slate-600" />
+              All time
             </button>
-            <span className="px-4 text-sm font-bold text-slate-800 min-w-[140px] text-center select-none">
-              {monthLabel}
-            </span>
             <button
-              onClick={() => moveMonth(1)}
-              className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 transition-colors border-l border-slate-200"
-              title="Next month"
+              type="button"
+              onClick={() => setViewMode("month")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                viewMode === "month" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
             >
-              <ChevronRight size={15} className="text-slate-600" />
+              By month
             </button>
           </div>
 
-          {!isCurrentMonth && (
-            <button
-              onClick={goToday}
-              className="text-xs font-semibold text-blue-600 px-3 py-2 rounded-xl hover:bg-blue-50 border border-blue-200 transition-colors"
-            >
-              Today
-            </button>
+          {viewMode === "month" && (
+            <>
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                <button
+                  onClick={() => moveMonth(-1)}
+                  className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 transition-colors border-r border-slate-200"
+                  title="Previous month"
+                >
+                  <ChevronLeft size={15} className="text-slate-600" />
+                </button>
+                <span className="px-4 text-sm font-bold text-slate-800 min-w-[140px] text-center select-none">
+                  {monthLabel}
+                </span>
+                <button
+                  onClick={() => moveMonth(1)}
+                  className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 transition-colors border-l border-slate-200"
+                  title="Next month"
+                >
+                  <ChevronRight size={15} className="text-slate-600" />
+                </button>
+              </div>
+
+              {!isCurrentMonth && (
+                <button
+                  type="button"
+                  onClick={goToday}
+                  className="text-xs font-semibold text-blue-600 px-3 py-2 rounded-xl hover:bg-blue-50 border border-blue-200 transition-colors"
+                >
+                  Today
+                </button>
+              )}
+            </>
+          )}
+
+          {viewMode === "all" && (
+            <span className="text-xs font-semibold text-slate-500 px-2">
+              {allShifts.length} shift{allShifts.length !== 1 ? "s" : ""} total
+            </span>
           )}
 
           <button
@@ -289,10 +346,17 @@ export default function MyTimesheetPage() {
           </button>
 
           <Button
-            disabled={!canSubmit || missingRows.length > 0 || submit.isLoading}
+            disabled={
+              viewMode === "all" ||
+              !canSubmit ||
+              missingRows.length > 0 ||
+              submit.isLoading
+            }
             onClick={() => setConfirming(true)}
             title={
-              isSeededView
+              viewMode === "all"
+                ? "Switch to By month to submit a monthly timesheet"
+                : isSeededView
                 ? "Fill in start / end times before submitting"
                 : !timesheet
                 ? "No timesheet found for this month"
@@ -314,8 +378,9 @@ export default function MyTimesheetPage() {
           <div>
             <strong>Rota Preview</strong>
             <p className="mt-0.5 font-normal opacity-80">
-              Your assigned shifts for {monthLabel} are shown below.
-              Add start / end times and submit once your hours are confirmed.
+              Your assigned shifts are shown below ({monthLabel}).
+              Switch to &quot;By month&quot; to submit a specific monthly timesheet.
+              Add start / end times before submitting.
             </p>
           </div>
         </div>
@@ -434,7 +499,7 @@ export default function MyTimesheetPage() {
                         No shifts found for {monthLabel}
                       </p>
                       <p className="text-slate-400 text-xs max-w-sm">
-                        No rota has been assigned for this month yet. Contact your administrator if you believe this is incorrect.
+                        No assigned shifts found{viewMode === "month" ? ` for ${monthLabel}` : ""}. Contact your administrator if you believe this is incorrect.
                       </p>
                     </div>
                   </td>
