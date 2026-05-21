@@ -1,369 +1,348 @@
-/**
- * @file useRota.js
- * @description Complete hooks for Clinician Rota Management
- *
- * Fixed (May 2026):
- *   - Safe apiClient import with fallback
- *   - Proper error handling
- *   - Production-ready build
- */
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { rotaService } from "../services/api/rotaService";
+import { QK } from "../lib/queryKeys";
 
-// Safely import API client
-let apiClient = null;
-try {
-  const { apiClient: client } = require("../services/api/client");
-  apiClient = client;
-} catch (e) {
-  // Fallback: create minimal API client
-  apiClient = {
-    get: (url, config) => {
-      const fullUrl = `${process.env.REACT_APP_API_BASE || ""}/api${url}`;
-      return fetch(fullUrl, { ...config, method: "GET" })
-        .then(r => r.json())
-        .catch(err => { throw new Error(`GET ${url} failed: ${err.message}`); });
+/* ─── Query Key Helpers ──────────────────────────────────────────────────── */
+const keyRotaList  = (params) => (QK.ROTA_LIST  ? QK.ROTA_LIST(params)  : ["rota", "list",  params]);
+const keyRota      = (id)     => (QK.ROTA       ? QK.ROTA(id)            : ["rota", "shift", id]);
+const keyCompliance = (id)    => ["rota", "compliance", id];
+const keyRestricted = (clinicianId, practiceId) => ["rota", "restricted", clinicianId, practiceId];
+const unwrap = (response) => response.data?.data ?? response.data;
+
+/* ─── Queries ────────────────────────────────────────────────────────────── */
+
+export const useRotaList = (params = {}) =>
+  useQuery({
+    queryKey: keyRotaList(params),
+    queryFn:  () => {
+      const { month, year, ...rest } = params || {};
+      return rotaService.getRotaGrid(month, year, rest).then((r) => r.data);
     },
-    post: (url, data, config) => {
-      const fullUrl = `${process.env.REACT_APP_API_BASE || ""}/api${url}`;
-      return fetch(fullUrl, { 
-        ...config, 
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...config?.headers },
-        body: JSON.stringify(data)
-      })
-        .then(r => r.json())
-        .catch(err => { throw new Error(`POST ${url} failed: ${err.message}`); });
-    },
-    patch: (url, data, config) => {
-      const fullUrl = `${process.env.REACT_APP_API_BASE || ""}/api${url}`;
-      return fetch(fullUrl, { 
-        ...config, 
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...config?.headers },
-        body: JSON.stringify(data)
-      })
-        .then(r => r.json())
-        .catch(err => { throw new Error(`PATCH ${url} failed: ${err.message}`); });
-    },
-  };
-}
+  });
 
-/* ─────────────────────────────────────────────────────────────────────────
-   QUERY KEY FACTORY
-───────────────────────────────────────────────────────────────────────── */
+export const useMonthlyRota = (month, year) =>
+  useQuery({
+    queryKey: ["rota", "monthly", month, year],
+    queryFn: () => rotaService.getMonthlyRota(month, year).then(unwrap),
+    enabled: !!month && !!year,
+  });
 
-export const QK = {
-  // Shifts/Rota
-  rota: ["rota"],
-  myRota: (month, year) => ["rota", "my", month, year],
-  clinicianRota: (clinicianId, month, year) => ["rota", "clinician", clinicianId, month, year],
+export const useRotaGaps = () =>
+  useQuery({
+    queryKey: ["rota", "gaps"],
+    queryFn: () => rotaService.getRotaGaps().then(unwrap),
+  });
 
-  // Timesheets
-  timesheets: ["timesheets"],
-  myTimesheet: (month, year) => ["timesheet", "my", month, year],
-  timesheetDetail: (id) => ["timesheet", id],
+export const useMyRota = (month, year) =>
+  useQuery({
+    queryKey: ["myRota", month, year],
+    queryFn: () => rotaService.getMyRota(month, year).then(unwrap),
+    enabled: !!month && !!year,
+  });
 
-  // Timesheet Entries
-  entries: ["timesheet-entries"],
-  entryDetail: (id) => ["timesheet-entry", id],
-};
+export const useMyTimesheet = (month, year) =>
+  useQuery({
+    queryKey: ["myTimesheet", month, year],
+    queryFn: () => rotaService.getMyTimesheet(month, year).then(unwrap),
+    enabled: !!month && !!year,
+  });
 
-/* ─────────────────────────────────────────────────────────────────────────
-   ROTA HOOKS — Shift Management
-───────────────────────────────────────────────────────────────────────── */
+export const usePendingTimesheets = () =>
+  useQuery({
+    queryKey: ["pendingTimesheets"],
+    queryFn: () => rotaService.getPendingTimesheets().then(unwrap),
+  });
 
-/**
- * useMyRota: Fetch current clinician's shifts for a given month/year
- * Used by: ClinicianDashboard
- */
-export const useMyRota = (month, year, options = {}) => {
-  const currentMonth = month || new Date().getMonth() + 1;
-  const currentYear = year || new Date().getFullYear();
+export const useTimesheetDetail = (id) =>
+  useQuery({
+    queryKey: ["timesheetDetail", id],
+    queryFn: () => rotaService.getTimesheetDetail(id).then(unwrap),
+    enabled: !!id,
+  });
 
-  return useQuery({
-    queryKey: QK.myRota(currentMonth, currentYear),
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get("/rota/clinician", {
-          params: { month: currentMonth, year: currentYear },
-        });
+export const useClinicianTimesheet = (clinicianId, month, year) =>
+  useQuery({
+    queryKey: ["clinicianTimesheet", clinicianId, month, year],
+    queryFn: () => rotaService.getClinicianTimesheet(clinicianId, month, year).then(unwrap),
+    enabled: !!clinicianId && !!month && !!year,
+  });
 
-        const data = response?.data?.data ?? response?.data ?? response;
-        return {
-          shifts: data?.shifts ?? data?.data?.shifts ?? data ?? [],
-          data: data,
-        };
-      } catch (error) {
-        console.error("useMyRota error:", error);
-        throw error;
-      }
-    },
-    retry: 2,
-    staleTime: 5 * 60 * 1000,
+export const useRota = (id) =>
+  useQuery({
+    queryKey: keyRota(id),
+    queryFn:  () => rotaService.getRotaById(id).then((r) => r.data),
+    enabled:  !!id,
+  });
+
+export const useClinicianRota = (clinicianId, month, year, params = {}) =>
+  useQuery({
+    queryKey: ["rota", "clinician", clinicianId, { month, year, ...params }],
+    queryFn:  () =>
+      rotaService.getClinicianRota(clinicianId, month, year, params).then((r) => r.data),
+    enabled: !!clinicianId && !!month && !!year,
+  });
+
+export const useGapReport = (days = 14) =>
+  useQuery({
+    queryKey: QK.ROTA_GAPS ? QK.ROTA_GAPS({ days }) : ["rota", "gaps", { days }],
+    queryFn:  () => rotaService.getGapReport(days).then((r) => r.data),
+  });
+
+export const useCoverRequests = (params = {}) =>
+  useQuery({
+    queryKey: QK.ROTA_COVER_REQUESTS
+      ? QK.ROTA_COVER_REQUESTS(params)
+      : ["rota", "cover-requests", params],
+    queryFn: () => rotaService.getCoverRequests(params).then((r) => r.data),
+  });
+
+// ── BR-R3: Compliance pre-check before booking (lazy — call manually) ──────
+// Usage: const { data, refetch } = useComplianceCheck(clinicianId, { enabled: false })
+//        then call refetch() on demand, or pass enabled: !!clinicianId
+export const useComplianceCheck = (clinicianId, options = {}) =>
+  useQuery({
+    queryKey: keyCompliance(clinicianId),
+    queryFn:  () =>
+      rotaService.checkMandatoryCompliance(clinicianId).then((r) => r.data),
+    enabled: !!clinicianId && (options.enabled ?? false),
+    staleTime: 1000 * 60 * 2, // 2 min — compliance status changes infrequently
     ...options,
+  });
+
+// ── BR-R2: Restricted clinician check for a given practice ────────────────
+export const useRestrictedClinicianCheck = (clinicianId, practiceId, options = {}) =>
+  useQuery({
+    queryKey: keyRestricted(clinicianId, practiceId),
+    queryFn:  () =>
+      rotaService.checkRestrictedClinician(clinicianId, practiceId).then((r) => r.data),
+    enabled: !!clinicianId && !!practiceId && (options.enabled ?? false),
+    staleTime: 1000 * 60 * 5, // 5 min
+    ...options,
+  });
+
+/* ─── Mutations ──────────────────────────────────────────────────────────── */
+
+// ── Create shift (POST /api/rota/shift) ───────────────────────────────────
+export const useCreateRota = (options = {}) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data) => rotaService.createShift(data).then((r) => r.data),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: (err, vars, ctx) => {
+      // 403 → restricted clinician  |  409 → compliance incomplete
+      options.onError?.(err, vars, ctx);
+    },
   });
 };
 
-/**
- * useClinicianRota: Fetch any clinician's shifts (admin use)
- */
-export const useClinicianRota = (clinicianId, month, year, options = {}) => {
-  const currentMonth = month || new Date().getMonth() + 1;
-  const currentYear = year || new Date().getFullYear();
+export const useCreateBulkRota = (options = {}) => {
+  const qc = useQueryClient();
 
-  return useQuery({
-    queryKey: QK.clinicianRota(clinicianId, currentMonth, currentYear),
-    queryFn: async () => {
-      if (!clinicianId) throw new Error("clinicianId is required");
-
-      try {
-        const response = await apiClient.get(`/rota/clinician/${clinicianId}`, {
-          params: { month: currentMonth, year: currentYear },
-        });
-
-        const data = response?.data?.data ?? response?.data ?? response;
-        return {
-          shifts: data?.shifts ?? data?.data?.shifts ?? data ?? [],
-          data: data,
-        };
-      } catch (error) {
-        console.error("useClinicianRota error:", error);
-        throw error;
-      }
+  return useMutation({
+    mutationFn: (data) => rotaService.createBulkShifts(data).then((r) => r.data),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, vars, ctx);
     },
-    enabled: !!clinicianId,
-    retry: 2,
-    staleTime: 5 * 60 * 1000,
-    ...options,
+    onError: (err, vars, ctx) => {
+      options.onError?.(err, vars, ctx);
+    },
   });
 };
 
-/* ─────────────────────────────────────────────────────────────────────────
-   TIMESHEET HOOKS — Entry Management
-───────────────────────────────────────────────────────────────────────── */
+// ── Update shift (PUT /api/rota/shift/:id) ────────────────────────────────
+export const useUpdateRota = (options = {}) => {
+  const qc = useQueryClient();
 
-/**
- * useMyTimesheet: Fetch current clinician's timesheet + entries
- * Used by: MyTimesheetPage
- */
-export const useMyTimesheet = (month, year, options = {}) => {
-  const currentMonth = month || new Date().getMonth() + 1;
-  const currentYear = year || new Date().getFullYear();
-
-  return useQuery({
-    queryKey: QK.myTimesheet(currentMonth, currentYear),
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get("/timesheets", {
-          params: { month: currentMonth, year: currentYear },
-        });
-
-        const data = response?.data?.data ?? response?.data ?? response;
-        return {
-          timesheet: data?.timesheet ?? null,
-          entries: data?.entries ?? data?.data?.entries ?? [],
-          data: data,
-        };
-      } catch (error) {
-        console.error("useMyTimesheet error:", error);
-        throw error;
-      }
+  return useMutation({
+    mutationFn: ({ id, data }) =>
+      rotaService.updateShift(id, data).then((r) => r.data),
+    onSuccess: (result, { id }, ctx) => {
+      qc.setQueryData(keyRota(id), result);
+      qc.invalidateQueries({ queryKey: keyRota(id) });
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, { id }, ctx);
     },
-    retry: 2,
-    staleTime: 2 * 60 * 1000,
-    ...options,
+    onError: (err, vars, ctx) => {
+      options.onError?.(err, vars, ctx);
+    },
   });
 };
 
-/**
- * useUpdateTimesheetEntry: Mutate a single timesheet entry
- * Used by: MyTimesheetPage (inline editing)
- */
+// ── Patch shift status only (PATCH /api/rota/shift/:id/status) ───────────
+// Supports: "working" | "absent" | "cancelled" | "pending" etc.
+export const useUpdateShiftStatus = (options = {}) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }) =>
+      rotaService.updateShiftStatus(id, { status }).then((r) => r.data),
+    onSuccess: (result, { id }, ctx) => {
+      qc.setQueryData(keyRota(id), result);
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, { id }, ctx);
+    },
+    onError: (err, vars, ctx) => {
+      options.onError?.(err, vars, ctx);
+    },
+  });
+};
+
+// ── Delete shift ──────────────────────────────────────────────────────────
+export const useDeleteRota = (options = {}) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id) => rotaService.deleteShift(id).then((r) => r.data),
+    onSuccess: (_result, id, ctx) => {
+      qc.removeQueries({ queryKey: keyRota(id) });
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(_result, id, ctx);
+    },
+    onError: (err, vars, ctx) => {
+      options.onError?.(err, vars, ctx);
+    },
+  });
+};
+
+// ── Assign cover (cover entry — is_cover: true, original_gap_id required) ─
+export const useAssignCover = (options = {}) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data) => rotaService.assignCover(data).then((r) => r.data),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: (err, vars, ctx) => {
+      options.onError?.(err, vars, ctx);
+    },
+  });
+};
+
+// ── Assign cover to a specific gap shift (wraps assignCover with gap context)
+// Automatically sets is_cover: true and original_gap_id from the gap shift
+export const useAssignCoverToShift = (options = {}) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ gapShiftId, clinicianId, ...rest }) =>
+      rotaService
+        .assignCover({ original_gap_id: gapShiftId, clinician_id: clinicianId, is_cover: true, ...rest })
+        .then((r) => r.data),
+    onSuccess: (result, { gapShiftId }, ctx) => {
+      qc.invalidateQueries({ queryKey: keyRota(gapShiftId) });
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, { gapShiftId }, ctx);
+    },
+    onError: (err, vars, ctx) => {
+      options.onError?.(err, vars, ctx);
+    },
+  });
+};
+
+// ── Send rota to client ───────────────────────────────────────────────────
+export const useSendRotaToClient = (options = {}) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientId, data }) =>
+      rotaService.sendRotaToClient(clientId, data).then((r) => r.data),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: (err, vars, ctx) => {
+      options.onError?.(err, vars, ctx);
+    },
+  });
+};
+
+// ── Generate monthly rota ─────────────────────────────────────────────────
+export const useGenerateRota = (options = {}) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ month, year }) =>
+      rotaService.generateMonthlyRota(month, year).then((r) => r.data),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: (err, vars, ctx) => {
+      options.onError?.(err, vars, ctx);
+    },
+  });
+};
+
+export const useSendRotaToClients = (options = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ month, year }) => rotaService.sendRotaToClients(month, year).then(unwrap),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["rota"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: options.onError,
+  });
+};
+
 export const useUpdateTimesheetEntry = (options = {}) => {
   const qc = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ entryId, data }) => {
-      if (!entryId) throw new Error("entryId is required");
-
-      try {
-        const response = await apiClient.patch(`/timesheet-entries/${entryId}`, data);
-        return response?.data?.data ?? response?.data ?? response;
-      } catch (error) {
-        console.error("useUpdateTimesheetEntry error:", error);
-        throw error;
-      }
+    mutationFn: ({ entryId, data }) => rotaService.updateTimesheetEntry(entryId, data).then(unwrap),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["myTimesheet"] });
+      options.onSuccess?.(result, vars, ctx);
     },
-
-    onSuccess: (data, variables) => {
-      qc.invalidateQueries({ queryKey: QK.entryDetail(variables.entryId) });
-      qc.invalidateQueries({ queryKey: QK.timesheets });
-      qc.invalidateQueries({ queryKey: ["timesheet"] });
-
-      options.onSuccess?.(data, variables);
-    },
-
-    onError: (error) => {
-      console.error("Failed to update timesheet entry:", error);
-      options.onError?.(error);
-    },
+    onError: options.onError,
   });
 };
 
-/**
- * useSubmitTimesheet: Submit entire timesheet for approval
- * Used by: MyTimesheetPage (submit button)
- */
 export const useSubmitTimesheet = (options = {}) => {
   const qc = useQueryClient();
-
   return useMutation({
-    mutationFn: async (timesheetId) => {
-      if (!timesheetId) throw new Error("timesheetId is required");
-
-      try {
-        const response = await apiClient.post(`/timesheets/${timesheetId}/submit`, {});
-        return response?.data?.data ?? response?.data ?? response;
-      } catch (error) {
-        console.error("useSubmitTimesheet error:", error);
-        throw error;
-      }
+    mutationFn: (timesheetId) => rotaService.submitTimesheet(timesheetId).then(unwrap),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["myTimesheet"] });
+      qc.invalidateQueries({ queryKey: ["pendingTimesheets"] });
+      options.onSuccess?.(result, vars, ctx);
     },
-
-    onSuccess: (data, timesheetId) => {
-      qc.invalidateQueries({ queryKey: QK.timesheetDetail(timesheetId) });
-      qc.invalidateQueries({ queryKey: QK.timesheets });
-
-      options.onSuccess?.(data);
-    },
-
-    onError: (error) => {
-      console.error("Failed to submit timesheet:", error);
-      options.onError?.(error);
-    },
+    onError: options.onError,
   });
 };
 
-/**
- * useApproveTimesheet: Approve a submitted timesheet (admin only)
- */
-export const useApproveTimesheet = (options = {}) => {
+export const useApproveTimesheetRota = (options = {}) => {
   const qc = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ timesheetId, notes = "" }) => {
-      if (!timesheetId) throw new Error("timesheetId is required");
-
-      try {
-        const response = await apiClient.post(`/timesheets/${timesheetId}/approve`, { notes });
-        return response?.data?.data ?? response?.data ?? response;
-      } catch (error) {
-        console.error("useApproveTimesheet error:", error);
-        throw error;
-      }
+    mutationFn: (id) => rotaService.approveTimesheet(id).then(unwrap),
+    onSuccess: (result, id, ctx) => {
+      qc.invalidateQueries({ queryKey: ["pendingTimesheets"] });
+      qc.invalidateQueries({ queryKey: ["timesheetDetail", id] });
+      qc.invalidateQueries({ queryKey: ["clinicianTimesheet"] });
+      options.onSuccess?.(result, id, ctx);
     },
-
-    onSuccess: (data, variables) => {
-      qc.invalidateQueries({ queryKey: QK.timesheetDetail(variables.timesheetId) });
-      qc.invalidateQueries({ queryKey: QK.timesheets });
-
-      options.onSuccess?.(data);
-    },
-
-    onError: (error) => {
-      console.error("Failed to approve timesheet:", error);
-      options.onError?.(error);
-    },
+    onError: options.onError,
   });
 };
 
-/**
- * useRejectTimesheet: Reject a submitted timesheet (admin only)
- */
-export const useRejectTimesheet = (options = {}) => {
+export const useRejectTimesheetRota = (options = {}) => {
   const qc = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ timesheetId, reason = "" }) => {
-      if (!timesheetId) throw new Error("timesheetId is required");
-      if (!reason) throw new Error("rejection reason is required");
-
-      try {
-        const response = await apiClient.post(`/timesheets/${timesheetId}/reject`, { reason });
-        return response?.data?.data ?? response?.data ?? response;
-      } catch (error) {
-        console.error("useRejectTimesheet error:", error);
-        throw error;
-      }
+    mutationFn: ({ id, reason }) => rotaService.rejectTimesheet(id, reason).then(unwrap),
+    onSuccess: (result, { id }, ctx) => {
+      qc.invalidateQueries({ queryKey: ["pendingTimesheets"] });
+      qc.invalidateQueries({ queryKey: ["timesheetDetail", id] });
+      qc.invalidateQueries({ queryKey: ["clinicianTimesheet"] });
+      options.onSuccess?.(result, { id }, ctx);
     },
-
-    onSuccess: (data, variables) => {
-      qc.invalidateQueries({ queryKey: QK.timesheetDetail(variables.timesheetId) });
-      qc.invalidateQueries({ queryKey: QK.timesheets });
-
-      options.onSuccess?.(data);
-    },
-
-    onError: (error) => {
-      console.error("Failed to reject timesheet:", error);
-      options.onError?.(error);
-    },
+    onError: options.onError,
   });
 };
 
-/**
- * useTimesheetAdminSummary: Fetch admin dashboard summary
- */
-export const useTimesheetAdminSummary = (options = {}) => {
-  return useQuery({
-    queryKey: ["timesheet", "admin-summary"],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get("/timesheets/admin/summary");
-        return response?.data?.data ?? response?.data ?? response ?? {};
-      } catch (error) {
-        console.error("useTimesheetAdminSummary error:", error);
-        throw error;
-      }
-    },
-    retry: 1,
-    staleTime: 10 * 60 * 1000,
-    ...options,
-  });
-};
-
-/**
- * useUpdateMultipleEntries: Batch update timesheet entries
- */
-export const useUpdateMultipleEntries = (options = {}) => {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (entries) => {
-      if (!Array.isArray(entries) || entries.length === 0) {
-        throw new Error("entries array is required");
-      }
-
-      try {
-        const response = await apiClient.post("/timesheet-entries/bulk-update", { entries });
-        return response?.data?.data ?? response?.data ?? response;
-      } catch (error) {
-        console.error("useUpdateMultipleEntries error:", error);
-        throw error;
-      }
-    },
-
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: QK.entries });
-      qc.invalidateQueries({ queryKey: QK.timesheets });
-
-      options.onSuccess?.(data);
-    },
-
-    onError: (error) => {
-      console.error("Failed to update entries:", error);
-      options.onError?.(error);
-    },
-  });
-};
+export { useApproveTimesheetRota as useApproveTimesheet, useRejectTimesheetRota as useRejectTimesheet };
