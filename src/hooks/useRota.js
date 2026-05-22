@@ -318,6 +318,20 @@ export const useSendRotaToClients = (options = {}) => {
   });
 };
 
+export const useUpsertTimesheetEntryForShift = (options = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ shiftId, data }) =>
+      rotaService.upsertTimesheetEntryForShift(shiftId, data).then(unwrap),
+    onSuccess: (result, vars, ctx) => {
+      qc.invalidateQueries({ queryKey: ["myTimesheet"] });
+      qc.invalidateQueries({ queryKey: ["myRota"] });
+      options.onSuccess?.(result, vars, ctx);
+    },
+    onError: options.onError,
+  });
+};
+
 export const useUpdateTimesheetEntry = (options = {}) => {
   const qc = useQueryClient();
   return useMutation({

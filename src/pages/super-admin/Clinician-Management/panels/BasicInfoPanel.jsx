@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
-import { Edit2, Save, X, User } from "lucide-react";
+import { Edit2, Save, X, User, Link2 } from "lucide-react";
 import { Btn, FormField, DetailRow, Spinner, fmtDate } from "./shared.jsx";
 
 const TYPE_OPTS     = ["Pharmacist", "Technician", "IP"];
 const CONTRACT_OPTS = ["ARRS", "EA", "Direct", "Mixed"];
 
-export default function BasicInfoPanel({ clinician, onPatch, users = [] }) {
+export default function BasicInfoPanel({
+  clinician,
+  onPatch,
+  onLinkUser,
+  users = [],
+  canManage = false,
+}) {
   const [editing, setEditing] = useState(false);
   const [saving,  setSaving]  = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [form,    setForm]    = useState({});
+  const [linkUserId, setLinkUserId] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [linkMsg, setLinkMsg] = useState("");
 
   const build = () => ({
     fullName:      clinician?.fullName      || "",
@@ -30,31 +40,84 @@ export default function BasicInfoPanel({ clinician, onPatch, users = [] }) {
     supervisor:    clinician?.supervisor?._id || clinician?.supervisor || "",
   });
 
-  useEffect(() => { setForm(build()); /* eslint-disable-next-line */ }, [clinician]);
+  useEffect(() => {
+    setForm(build());
+    setLinkUserId(
+      clinician?.user?._id || clinician?.user?.id || clinician?.user || clinician?.userId || ""
+    );
+    /* eslint-disable-next-line */
+  }, [clinician]);
 
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError("");
     try {
       await onPatch(form);
       setEditing(false);
+    } catch (err) {
+      setSaveError(err?.response?.data?.message || err?.message || "Save failed.");
     } finally {
       setSaving(false);
     }
   };
 
-  const userOpts = (users || []).map((u) => [u._id, `${u.fullName || u.email} (${u.role || "user"})`]);
+  const handleLinkUser = async () => {
+    if (!onLinkUser) return;
+    const label = linkUserId
+      ? userOpts.find(([id]) => String(id) === String(linkUserId))?.[1]
+      : "none";
+    if (
+      linkUserId &&
+      !window.confirm(`Link this clinician profile to ${label || "selected user"}?`)
+    ) {
+      return;
+    }
+    if (!linkUserId && !window.confirm("Remove login link from this clinician profile?")) {
+      return;
+    }
+    setLinking(true);
+    setLinkMsg("");
+    try {
+      await onLinkUser(linkUserId || null);
+      setLinkMsg(linkUserId ? "Login mapping updated." : "Login link removed.");
+    } catch (err) {
+      setLinkMsg(err?.response?.data?.message || err?.message || "Could not update login mapping.");
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const userLabel = (u) =>
+    u?.fullName || u?.name || u?.email || "User";
+
+  const userOpts = (users || []).map((u) => [
+    u._id || u.id,
+    `${userLabel(u)} (${u.role || "user"})`,
+  ]);
+
   const opsLeadName = (() => {
-    const u = users.find((x) => String(x._id) === String(form.opsLead || clinician?.opsLead?._id || clinician?.opsLead));
-    return u?.fullName || clinician?.opsLead?.fullName || "";
+    const u = users.find((x) => String(x._id || x.id) === String(form.opsLead || clinician?.opsLead?._id || clinician?.opsLead));
+    return userLabel(u) || userLabel(clinician?.opsLead) || "";
   })();
   const supervisorName = (() => {
-    const u = users.find((x) => String(x._id) === String(form.supervisor || clinician?.supervisor?._id || clinician?.supervisor));
-    return u?.fullName || clinician?.supervisor?.fullName || "";
+    const u = users.find((x) => String(x._id || x.id) === String(form.supervisor || clinician?.supervisor?._id || clinician?.supervisor));
+    return userLabel(u) || userLabel(clinician?.supervisor) || "";
+  })();
+
+  const clinicianUserOpts = (users || [])
+    .filter((u) => String(u.role || "").toLowerCase() === "clinician")
+    .map((u) => [u._id || u.id, `${userLabel(u)} (${u.email || ""})`]);
+
+  const linkedUserLabel = (() => {
+    const uid = clinician?.user?._id || clinician?.user?.id || clinician?.user || clinician?.userId;
+    const u = users.find((x) => String(x._id || x.id) === String(uid));
+    return u ? `${userLabel(u)} (${u.email || ""})` : "Not linked";
   })();
 
   return (
+    <div className="space-y-4">
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
@@ -126,6 +189,44 @@ export default function BasicInfoPanel({ clinician, onPatch, users = [] }) {
           <FormField label="Supervisor"     value={form.supervisor}    onChange={set("supervisor")} options={userOpts} />
         </div>
       )}
+
+      {saveError && (
+        <p className="mt-4 text-sm font-medium text-red-600">{saveError}</p>
+      )}
+    </div>
+
+    {canManage && onLinkUser && (
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Link2 size={16} className="text-blue-600" />
+          <h3 className="text-base font-bold text-slate-800">Login mapping</h3>
+        </div>
+        <p className="text-sm text-slate-500 mb-3">
+          Current: <strong className="text-slate-800">{linkedUserLabel}</strong>
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+          <div className="flex-1 w-full">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Clinician user account
+            </label>
+            <select
+              value={linkUserId}
+              onChange={(e) => setLinkUserId(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            >
+              <option value="">— No linked user —</option>
+              {clinicianUserOpts.map(([id, label]) => (
+                <option key={id} value={id}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <Btn size="sm" onClick={handleLinkUser} disabled={linking}>
+            {linking ? <Spinner /> : <Save size={13} />} Save mapping
+          </Btn>
+        </div>
+        {linkMsg && <p className="mt-3 text-sm text-slate-600">{linkMsg}</p>}
+      </div>
+    )}
     </div>
   );
 }

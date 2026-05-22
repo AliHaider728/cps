@@ -7,7 +7,10 @@ import {
   Eye, ChevronDown, Clock, CalendarCheck,
 } from "lucide-react";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useClinician, useUpdateClinician } from "../../../hooks/useClinician";
+import { clinicianService } from "../../../services/api/clinicianService";
+import { QK } from "../../../lib/queryKeys";
 import { useAllUsers } from "../../../hooks/useAuth";
 import { usePCNs } from "../../../hooks/usePCN";
 import { usePractices } from "../../../hooks/usePractice";
@@ -64,6 +67,7 @@ export default function CliniciansDetailPage() {
   const pcnsQ      = usePCNs();
   const practicesQ = usePractices();
   const updateM    = useUpdateClinician();
+  const qc         = useQueryClient();
 
   const canManage   = ["super_admin", "director", "ops_manager"].includes(role);
   const canRestrict = ["super_admin", "ops_manager"].includes(role);
@@ -106,11 +110,24 @@ export default function CliniciansDetailPage() {
 
   const handlePatch = async (patch) => updateM.mutateAsync({ id, data: patch });
 
+  const handleLinkUser = async (userId) => {
+    await clinicianService.linkUser(id, userId);
+    await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
+  };
+
   /* ── Render active panel ── */
   const renderActive = () => {
     switch (activeTab) {
       case "basic":
-        return <BasicInfoPanel clinician={clinician} onPatch={handlePatch} users={users} />;
+        return (
+          <BasicInfoPanel
+            clinician={clinician}
+            onPatch={handlePatch}
+            onLinkUser={role === "super_admin" ? handleLinkUser : undefined}
+            canManage={role === "super_admin"}
+            users={users}
+          />
+        );
       case "skills":
         return <SkillsPanel clinician={clinician} onPatch={handlePatch} />;
       case "compliance":

@@ -1,7 +1,11 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { useClinicianLeave } from "../../../../hooks/useClinicianLeave";
 import { useClinicianRota } from "../../../../hooks/useRota";
 import { usePractices } from "../../../../hooks/usePractice";
+import {
+  buildPracticeNameMap,
+  resolvePracticeName,
+  isWorkingShift,
+} from "../../../../lib/practiceNames";
 import { useTimeEntries, useActiveTimeEntry } from "../../../../hooks/useTimeEntry";
 import { apiClient } from "../../../../services/api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -69,26 +73,8 @@ const deriveStats = (shifts) => {
 };
 
 const usePracticeMap = () => {
-  const { data } = usePractices?.() ?? {};
-  return useMemo(() => {
-    const list = data?.data || data?.practices || data || [];
-    const map  = new Map();
-    if (Array.isArray(list)) {
-      list.forEach((p) => {
-        if (p?.id)       map.set(String(p.id),       p.name || p.practiceName || p.practice_name || "");
-        if (p?._id)      map.set(String(p._id),      p.name || p.practiceName || p.practice_name || "");
-        if (p?.ods_code) map.set(String(p.ods_code), p.name || "");
-      });
-    }
-    return map;
-  }, [data]);
-};
-
-const shortId = (id) => {
-  if (!id) return "—";
-  const s = String(id);
-  if (/^[A-Z][0-9]{5}$/.test(s)) return s;
-  return s.length > 12 ? `…${s.slice(-8)}` : s;
+  const { data } = usePractices();
+  return useMemo(() => buildPracticeNameMap(data), [data]);
 };
 
 /* ── Hooks ─────────────────────────────────────────── */
@@ -523,47 +509,6 @@ function ActiveShiftCard({ clinicianId, isOwnDashboard }) {
   );
 }
 
-/* ── LeaveCard ──────────────────────────────────────── */
-function LeaveCard({ contract, data }) {
-  const total     = Number(data?.total     ?? data?.totalDays     ?? 0);
-  const used      = Number(data?.used      ?? data?.takenDays     ?? data?.taken ?? 0);
-  const remaining = Number(data?.remaining ?? data?.remainingDays ?? (total - used));
-  const pct       = total > 0 ? Math.min((used / total) * 100, 100) : 0;
-  const isLow     = remaining <= 5 && total > 0;
-  const COLORS    = {
-    ARRS:   { bar: "bg-blue-500",    ring: "ring-blue-200",    accent: "text-blue-600"    },
-    EA:     { bar: "bg-violet-500",  ring: "ring-violet-200",  accent: "text-violet-600"  },
-    Direct: { bar: "bg-emerald-500", ring: "ring-emerald-200", accent: "text-emerald-600" },
-  };
-  const c = COLORS[contract] || COLORS.ARRS;
-  return (
-    <div className={`rounded-2xl border bg-white p-4 ring-1 ${c.ring} shadow-sm`}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{contract}</p>
-          <p className="text-xs font-semibold text-slate-600 mt-0.5">Annual Leave</p>
-        </div>
-        {isLow && (
-          <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-            <AlertTriangle size={9} /> Low
-          </span>
-        )}
-      </div>
-      <div className="flex items-end gap-1 mb-2">
-        <span className={`text-3xl font-black ${c.accent}`}>{remaining}</span>
-        <span className="text-sm text-slate-400 mb-1">/ {total} days</span>
-      </div>
-      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2">
-        <div className={`h-full rounded-full transition-all duration-700 ${c.bar}`} style={{ width: `${pct}%` }} />
-      </div>
-      <div className="flex justify-between text-[10px] text-slate-400">
-        <span>Taken <strong className="text-slate-600">{used}d</strong></span>
-        <span>Remaining <strong className="text-slate-600">{remaining}d</strong></span>
-      </div>
-    </div>
-  );
-}
-
 function StatPill({ label, value, color = "bg-slate-100 text-slate-700" }) {
   return (
     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold ${color}`}>
@@ -615,25 +560,15 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   const [view,   setView]    = useState("timesheet"); // default to timesheet tab
   const [selected, setSelected] = useState(null);
 
-  const leaveQ      = useClinicianLeave(clinicianId);
   const rotaQ       = useClinicianRota(clinicianId, month, year);
   const practiceMap = usePracticeMap();
 
   const shifts    = rotaQ?.data?.data?.shifts ?? rotaQ?.data?.shifts ?? [];
-  const balances  = leaveQ?.data?.balances    ?? leaveQ?.data?.data?.balances ?? [];
-  const isLoading = rotaQ?.isLoading || leaveQ?.isLoading;
+  const listShifts = useMemo(() => shifts.filter(isWorkingShift), [shifts]);
+  const isLoading = rotaQ?.isLoading;
 
   const isOwnDashboard = userRole === "clinician";
   const readOnly       = isOwnDashboard || !canManage;
-
-  const byContract = useMemo(() => {
-    const map = { ARRS: {}, EA: {}, Direct: {} };
-    (Array.isArray(balances) ? balances : []).forEach((b) => {
-      const key = b?.contract || b?.contract_type;
-      if (map[key]) map[key] = b;
-    });
-    return map;
-  }, [balances]);
 
   const stats = useMemo(() => deriveStats(shifts), [shifts]);
 
@@ -660,14 +595,10 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
     return days;
   }, [month, year]);
 
-  const getPracticeName = useCallback((shift) => {
-    const id = shift?.practice_id;
-    if (!id) return "—";
-    const fromMap = practiceMap.get(String(id));
-    if (fromMap) return fromMap;
-    if (shift?.practice_name) return shift.practice_name;
-    return shortId(id);
-  }, [practiceMap]);
+  const getPracticeName = useCallback(
+    (shift) => resolvePracticeName(shift, practiceMap),
+    [practiceMap]
+  );
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
@@ -684,13 +615,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
       {/* ✅ FIX: Only render for clinician's own dashboard.
            Admin viewing someone else → skip (avoids 403 on /time-entries/active & /time-entries?limit=50) */}
       {isOwnDashboard && <ActiveShiftCard clinicianId={clinicianId} isOwnDashboard={isOwnDashboard} />}
-
-      {/* Leave Balance */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {["ARRS", "EA", "Direct"].map((c) => (
-          <LeaveCard key={c} contract={c} data={byContract[c]} />
-        ))}
-      </div>
 
       {/* Main panel */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -814,13 +738,13 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {shifts.length === 0 && (
+                {listShifts.length === 0 && (
                   <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">
                     <Calendar size={28} className="mx-auto mb-2 opacity-30" />
-                    No shifts found for {monthLabel}
+                    No working shifts found for {monthLabel}
                   </td></tr>
                 )}
-                {shifts.map((s, i) => {
+                {listShifts.map((s, i) => {
                   const cfg   = getStatus(s.status);
                   const h     = fmtHours(s.start_time, s.end_time) ?? s.hours;
                   return (
@@ -854,9 +778,9 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
                 })}
               </tbody>
             </table>
-            {shifts.length > 0 && (
+            {listShifts.length > 0 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50">
-                <span className="text-xs text-slate-500">{shifts.length} shift{shifts.length !== 1 ? "s" : ""} · {monthLabel}</span>
+                <span className="text-xs text-slate-500">{listShifts.length} shift{listShifts.length !== 1 ? "s" : ""} · {monthLabel}</span>
                 <div className="flex items-center gap-3 text-xs text-slate-500">
                   {stats.totalHours > 0 && <span className="flex items-center gap-1"><BarChart2 size={11} /><strong className="text-slate-700">{stats.totalHours}h</strong> total</span>}
                   {stats.gaps > 0 && <span className="flex items-center gap-1 text-red-600 font-semibold"><AlertTriangle size={11} />{stats.gaps} gap{stats.gaps !== 1 ? "s" : ""}</span>}

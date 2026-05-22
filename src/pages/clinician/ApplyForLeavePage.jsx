@@ -37,7 +37,12 @@ export default function ApplyForLeavePage() {
       setMessage("Leave request submitted.");
       refetch();
     } catch (err) {
-      setMessage(err.message || "Unable to submit leave request.");
+      const data = err?.response?.data;
+      if (data?.code === "HARD_BLOCK") {
+        setMessage(data.message || "Insufficient leave balance for this contract type.");
+      } else {
+        setMessage(data?.message || err.message || "Unable to submit leave request.");
+      }
     } finally {
       setLoading(false);
     }
@@ -59,7 +64,11 @@ export default function ApplyForLeavePage() {
               </select>
             </label>
             <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
-              Current balance: <span className="font-bold text-slate-900">{balance?.used || 0} used / {balance?.total || 0} total hours</span>
+              <span className="font-bold text-slate-900">{form.contract} balance</span>
+              <div className="mt-1">
+                {balance?.remaining ?? (balance?.total || 0) - (balance?.used || 0)} days remaining
+                <span className="text-slate-400"> · {balance?.used || 0} taken / {balance?.total || 0} total</span>
+              </div>
             </div>
             <label className="text-sm font-semibold text-slate-700">Start date
               <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2" />
@@ -71,7 +80,11 @@ export default function ApplyForLeavePage() {
           <label className="mt-4 block text-sm font-semibold text-slate-700">Reason
             <textarea rows={4} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2" />
           </label>
-          {message && <p className="mt-4 text-sm font-medium text-slate-700">{message}</p>}
+          {message && (
+            <p className={`mt-4 text-sm font-medium ${message.includes("enough") || message.includes("balance") ? "text-red-700" : "text-slate-700"}`}>
+              {message}
+            </p>
+          )}
           <Button className="mt-5" isLoading={loading} onClick={submit}><Send size={16} /> Submit</Button>
         </div>
 

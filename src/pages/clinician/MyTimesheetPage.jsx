@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import {
-  ChevronLeft, ChevronRight, Send, FileText,
+  ChevronLeft, ChevronRight, Send, FileText, Save,
   Clock, CheckCircle2, TrendingUp, BarChart2,
-  AlertTriangle, Calendar, MapPin, RefreshCw,
+  AlertTriangle, Calendar, MapPin, RefreshCw, Hourglass,
 } from "lucide-react";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
@@ -11,12 +11,16 @@ import {
   useMyRota,
   useSubmitTimesheet,
   useUpdateTimesheetEntry,
+  useUpsertTimesheetEntryForShift,
 } from "../../hooks/useRota";
 import { useTimeEntries } from "../../hooks/useTimeEntry";
+import { usePractices } from "../../hooks/usePractice";
+import {
+  buildPracticeNameMap,
+  resolvePracticeName,
+  isWorkingShift,
+} from "../../lib/practiceNames";
 
-/* ─────────────────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────────────────── */
 const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
@@ -27,6 +31,33 @@ const statusColor = {
   submitted: "warning",
   approved:  "success",
   rejected:  "danger",
+};
+
+const MONTHLY_STATUS = {
+  draft: {
+    label: "Draft — not submitted",
+    desc: "Enter your actual start/end times for each shift, save, then submit the whole month.",
+    cls: "border-slate-200 bg-slate-50 text-slate-700",
+    icon: Clock,
+  },
+  submitted: {
+    label: "Under review",
+    desc: "Your hours are with Super Admin. You cannot edit until they approve or reject.",
+    cls: "border-blue-200 bg-blue-50 text-blue-800",
+    icon: Hourglass,
+  },
+  approved: {
+    label: "Approved",
+    desc: "This month’s working hours are confirmed. Totals below match what Finance will use.",
+    cls: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    icon: CheckCircle2,
+  },
+  rejected: {
+    label: "Rejected — please fix and resubmit",
+    desc: "Update the rows below, save, then submit again.",
+    cls: "border-rose-200 bg-rose-50 text-rose-800",
+    icon: AlertTriangle,
+  },
 };
 
 function calcHours(start, end) {
@@ -44,27 +75,19 @@ function fmtDate(dateStr) {
   });
 }
 
-function DiffBadge({ expected, actual }) {
-  if (actual == null || expected == null)
-    return <span className="text-slate-300 text-xs">—</span>;
-  const diff = Math.round((Number(actual) - Number(expected)) * 100) / 100;
-  const abs  = Math.abs(diff);
-  const cls  =
-    abs < 0.01
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : abs <= 1
-      ? "bg-amber-50 text-amber-700 border-amber-200"
-      : "bg-rose-50 text-rose-700 border-rose-200";
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg border text-[11px] font-bold ${cls}`}>
-      {diff >= 0 ? "+" : ""}{diff.toFixed(2)}h
-    </span>
-  );
+function fmtTime(t) {
+  if (!t) return "";
+  return String(t).slice(0, 5);
 }
 
-/* ─────────────────────────────────────────────────────
-   STAT CARD
-───────────────────────────────────────────────────── */
+function weekKey(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const mon = new Date(d.setDate(diff));
+  return mon.toISOString().slice(0, 10);
+}
+
 function StatCard({ label, value, sub, Icon, color = "text-slate-900" }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3 shadow-sm">
@@ -80,29 +103,63 @@ function StatCard({ label, value, sub, Icon, color = "text-slate-900" }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────
-   MAIN PAGE
-───────────────────────────────────────────────────── */
+function RowStatusBadge({ entry, monthlyStatus, editable }) {
+  if (monthlyStatus === "submitted") {
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border bg-blue-50 text-blue-700 border-blue-200">
+        Under review
+      </span>
+    );
+  }
+  if (monthlyStatus === "approved") {
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
+        Approved
+      </span>
+    );
+  }
+  if (!entry.start_time || !entry.end_time) {
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
+        Incomplete
+      </span>
+    );
+  }
+  if (entry.entry_id) {
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
+        Saved
+      </span>
+    );
+  }
+  if (editable) {
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border bg-slate-100 text-slate-600 border-slate-200">
+        Ready to save
+      </span>
+    );
+  }
+  return <span className="text-slate-300 text-xs">—</span>;
+}
+
 export default function MyTimesheetPage() {
   const today = new Date();
-  const [viewMode, setViewMode] = useState("all"); // "all" | "month"
+  const [viewMode, setViewMode] = useState("all");
   const [cursor, setCursor] = useState({
     month: today.getMonth() + 1,
     year:  today.getFullYear(),
   });
-  const [drafts,     setDrafts]     = useState({});
+  const [drafts, setDrafts] = useState({});
   const [confirming, setConfirming] = useState(false);
+  const [savingId, setSavingId] = useState(null);
+  const [submitError, setSubmitError] = useState("");
 
-  /* ── Data fetching — all time by default ───────── */
   const rotaQuery = useMyRota(
     viewMode === "month" ? cursor.month : null,
     viewMode === "month" ? cursor.year : null
   );
 
-  const timesheetAllQuery = useMyTimesheet(
-    viewMode === "month" ? cursor.month : null,
-    viewMode === "month" ? cursor.year : null
-  );
+  const timesheetAllQuery = useMyTimesheet(null, null);
 
   const timesheetMonthQuery = useMyTimesheet(cursor.month, cursor.year, {
     enabled: viewMode === "month" || confirming,
@@ -113,12 +170,18 @@ export default function MyTimesheetPage() {
 
   const timeEntriesQuery = useTimeEntries({ limit: 200 });
 
-  const updateEntry = useUpdateTimesheetEntry();
-  const submit      = useSubmitTimesheet();
+  const { data: practicesData } = usePractices();
+  const practiceMap = useMemo(
+    () => buildPracticeNameMap(practicesData),
+    [practicesData]
+  );
 
-  /* ── Combined loading / error state ────────────── */
+  const updateEntry = useUpdateTimesheetEntry();
+  const upsertShift = useUpsertTimesheetEntryForShift();
+  const submit = useSubmitTimesheet();
+
   const isLoading = rotaQuery.isLoading || timesheetMetaQuery.isLoading;
-  const error     = rotaQuery.error || timesheetMetaQuery.error;
+  const error = rotaQuery.error || timesheetMetaQuery.error;
 
   const allShifts = useMemo(() => {
     const raw =
@@ -130,8 +193,9 @@ export default function MyTimesheetPage() {
   }, [rotaQuery.data, timesheetMetaQuery.data]);
 
   const filteredShifts = useMemo(() => {
-    if (viewMode !== "month") return allShifts;
+    if (viewMode !== "month") return allShifts.filter(isWorkingShift);
     return allShifts.filter((s) => {
+      if (!isWorkingShift(s)) return false;
       const d = String(s.shift_date || s.date || "").slice(0, 10);
       if (!d) return false;
       const [y, m] = d.split("-").map(Number);
@@ -139,7 +203,6 @@ export default function MyTimesheetPage() {
     });
   }, [allShifts, viewMode, cursor.month, cursor.year]);
 
-  /* ── Timesheet record for submit (selected month) ── */
   const timesheet = useMemo(() => {
     if (viewMode === "month") {
       const payload = timesheetMonthQuery.data;
@@ -148,144 +211,235 @@ export default function MyTimesheetPage() {
       const { entries: _e, shifts: _s, ...meta } = payload;
       return payload.id ? meta : null;
     }
-    const list = timesheetAllQuery.data?.timesheets;
-    if (!Array.isArray(list)) return null;
-    return (
-      list.find((t) => t.month === cursor.month && t.year === cursor.year) || null
-    );
-  }, [viewMode, timesheetMonthQuery.data, timesheetAllQuery.data, cursor.month, cursor.year]);
+    return null;
+  }, [viewMode, timesheetMonthQuery.data]);
 
-  /* ── Normalise rows: ROTA SHIFTS are primary, time_entries are overlay ── */
+  const monthlyStatus = timesheet?.status || "draft";
+
+  const monthEntries = useMemo(() => {
+    if (viewMode !== "month") return [];
+    return timesheetMonthQuery.data?.entries ?? [];
+  }, [viewMode, timesheetMonthQuery.data]);
+
+  const entryByKey = useMemo(() => {
+    const m = new Map();
+    monthEntries.forEach((e) => {
+      const key = `${String(e.shift_date).slice(0, 10)}|${String(e.surgery_id || "")}`;
+      m.set(key, e);
+    });
+    return m;
+  }, [monthEntries]);
+
   const rows = useMemo(() => {
-    const rotaArray = filteredShifts;
-    if (rotaArray.length === 0) return [];
+    if (viewMode !== "month") {
+      return allShifts
+        .filter(isWorkingShift)
+        .map((shift) => {
+          const dateStr = String(shift.shift_date || shift.date || "").slice(0, 10);
+          return {
+            id: shift.id,
+            shift_date: dateStr,
+            surgery_name: resolvePracticeName(shift, practiceMap),
+            expected_hours: Number(shift.expected_hours ?? shift.hours ?? 0),
+            start_time: shift.start_time || "",
+            end_time: shift.end_time || "",
+            hourly_rate: shift.hourly_rate,
+            clinical_system: shift.clinical_system,
+            is_cover: !!shift.is_cover,
+          };
+        })
+        .sort((a, b) => String(b.shift_date).localeCompare(String(a.shift_date)));
+    }
 
-    // STEP 2: Extract time entries (optional overlay for clock-in/clock-out)
-    // Filter to only entries for the current month/year if needed
     const timeEntries = Array.isArray(timeEntriesQuery.data) ? timeEntriesQuery.data : [];
-    
-    // Build a map of time_entries by shiftId for quick lookup
     const timeEntryMap = {};
     timeEntries.forEach((entry) => {
       const shiftId = entry.shiftId ?? entry.shift_id ?? entry.shift?.id;
-      if (shiftId) {
-        timeEntryMap[shiftId] = entry;
-      }
+      if (shiftId) timeEntryMap[shiftId] = entry;
     });
 
-    // STEP 3: Merge rota shifts with time_entries (where available)
-    return rotaArray.map((shift) => {
-      const timeEntry = timeEntryMap[shift.id] || {};
-      
+    return filteredShifts.map((shift) => {
+      const dateStr = String(shift.shift_date || shift.date || "").slice(0, 10);
+      const surgeryId = shift.surgery_id || shift.practice_id || "";
+      const te = entryByKey.get(`${dateStr}|${String(surgeryId)}`);
+      const clock = timeEntryMap[shift.id] || {};
+      const draft = drafts[shift.id] || {};
+
       return {
-        id:              shift.id,
-        shift_date:      shift.shift_date || shift.date,
-        surgery_name:    shift.surgery_name || shift.practice_name || shift.practice?.name || "—",
-        expected_hours:  Number(shift.expected_hours ?? shift.hours ?? shift.total_hours ?? 0),
-        start_time:      timeEntry.start_time || shift.start_time || "",
-        end_time:        timeEntry.end_time || shift.end_time || "",
-        notes:           timeEntry.notes || shift.notes || "",
-        actual_hours:    timeEntry.actual_hours ?? null,
-        is_cover:        !!shift.is_cover,
-        is_seeded_from_rota: true, // All rows from rota are seeded (never save to API without explicit entry)
-        ...(drafts[shift.id] || {}), // Apply local draft edits on top
+        id: shift.id,
+        shift_id: shift.id,
+        entry_id: te?.id || null,
+        shift_date: dateStr,
+        surgery_name: resolvePracticeName(shift, practiceMap),
+        expected_hours: Number(
+          te?.expected_hours ?? shift.expected_hours ?? shift.hours ?? shift.total_hours ?? 0
+        ),
+        start_time: draft.start_time ?? te?.start_time ?? clock.start_time ?? shift.start_time ?? "",
+        end_time: draft.end_time ?? te?.end_time ?? clock.end_time ?? shift.end_time ?? "",
+        notes: draft.notes ?? te?.notes ?? clock.notes ?? shift.notes ?? "",
+        actual_hours: te?.actual_hours ?? clock.actual_hours ?? null,
+        hourly_rate: shift.hourly_rate,
+        clinical_system: shift.clinical_system || shift.service_code,
+        is_cover: !!shift.is_cover || te?.is_cover,
+        ...(draft),
       };
     });
-  }, [filteredShifts, timeEntriesQuery.data, drafts]);
+  }, [
+    viewMode,
+    allShifts,
+    filteredShifts,
+    timeEntriesQuery.data,
+    drafts,
+    practiceMap,
+    entryByKey,
+  ]);
 
-  /* ── Derived flags ──────────────────────────────── */
-  const isDraft     = !timesheet || timesheet.status === "draft" || timesheet.status === "rejected";
-  const canSubmit   = isDraft && !!timesheet;
-  const missingRows = rows.filter((r) => !r.is_seeded_from_rota && (!r.start_time || !r.end_time));
+  const timesheetHistory = useMemo(() => {
+    const list = timesheetAllQuery.data?.timesheets;
+    return Array.isArray(list) ? list : [];
+  }, [timesheetAllQuery.data]);
 
-  /* ── Stats ──────────────────────────────────────── */
+  const isDraft = monthlyStatus === "draft" || monthlyStatus === "rejected";
+  const isApproved = monthlyStatus === "approved";
+  const isSubmitted = monthlyStatus === "submitted";
+  const hoursLocked = isApproved || isSubmitted;
+
+  const missingRows = viewMode === "month"
+    ? rows.filter((r) => !r.start_time || !r.end_time)
+    : [];
+
+  const canSubmit =
+    viewMode === "month" && isDraft && rows.length > 0 && missingRows.length === 0;
+
   const totalExpected = rows.reduce((s, r) => s + Number(r.expected_hours || 0), 0);
-  const totalActual   = rows.reduce((s, r) => {
-    return s + Number(r.actual_hours ?? calcHours(r.start_time, r.end_time) ?? 0);
-  }, 0);
-  const fte       = totalExpected > 0 ? (totalActual / 37.5).toFixed(2) : "—";
-  const diffTotal = totalActual - totalExpected;
+  const totalActual = rows.reduce(
+    (s, r) => s + Number(r.actual_hours ?? calcHours(r.start_time, r.end_time) ?? 0),
+    0
+  );
+  const fte = totalExpected > 0 ? (totalActual / 37.5).toFixed(2) : "—";
 
-  /* ── Month nav ──────────────────────────────────── */
+  const weeklyBreakdown = useMemo(() => {
+    if (!isApproved && !isSubmitted) return [];
+    const map = new Map();
+    rows.forEach((r) => {
+      const wk = weekKey(r.shift_date);
+      const prev = map.get(wk) || { shifts: 0, hours: 0 };
+      map.set(wk, {
+        shifts: prev.shifts + 1,
+        hours: prev.hours + Number(r.actual_hours ?? calcHours(r.start_time, r.end_time) ?? 0),
+      });
+    });
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [rows, isApproved, isSubmitted]);
+
+  const statusCfg = MONTHLY_STATUS[monthlyStatus] || MONTHLY_STATUS.draft;
+  const StatusIcon = statusCfg.icon;
+
   const moveMonth = (delta) => {
     const next = new Date(cursor.year, cursor.month - 1 + delta, 1);
     setCursor({ month: next.getMonth() + 1, year: next.getFullYear() });
     setDrafts({});
+    setSubmitError("");
   };
+
   const goToday = () => {
     setCursor({ month: today.getMonth() + 1, year: today.getFullYear() });
     setDrafts({});
+    setSubmitError("");
   };
 
   const monthLabel =
     viewMode === "all"
       ? "All time"
       : `${MONTHS[cursor.month - 1]} ${cursor.year}`;
+
   const isCurrentMonth =
     cursor.month === today.getMonth() + 1 && cursor.year === today.getFullYear();
 
-  /* ── Row handlers ───────────────────────────────── */
   const setRow = (id, key, val) =>
     setDrafts((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [key]: val } }));
 
-  const saveRow = (entry) => {
-    // Seeded-from-rota rows don't exist in timesheet_entries yet — skip API call
-    if (entry.is_seeded_from_rota) return;
-
-    updateEntry.mutate({
-      entryId: entry.id,
-      data: {
-        start_time: entry.start_time,
-        end_time:   entry.end_time,
-        notes:      entry.notes || "",
-      },
-    });
+  const persistRow = async (entry) => {
+    const payload = {
+      start_time: entry.start_time,
+      end_time: entry.end_time,
+      notes: entry.notes || "",
+      month: cursor.month,
+      year: cursor.year,
+    };
+    if (entry.entry_id) {
+      await updateEntry.mutateAsync({ entryId: entry.entry_id, data: payload });
+    } else {
+      await upsertShift.mutateAsync({
+        shiftId: entry.shift_id || entry.id,
+        data: payload,
+      });
+    }
+    await timesheetMonthQuery.refetch();
   };
 
-  const handleSubmit = () => {
-    if (!timesheet?.id) return;
-    submit.mutate(timesheet.id, {
-      onSuccess: () => setConfirming(false),
-    });
+  const saveRow = async (entry) => {
+    if (viewMode !== "month" || hoursLocked) return;
+    if (!entry.start_time || !entry.end_time) return;
+    setSavingId(entry.id);
+    try {
+      await persistRow(entry);
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[entry.id];
+        return next;
+      });
+    } finally {
+      setSavingId(null);
+    }
   };
 
-  /* ── Seeded-row notice ──────────────────────────── */
-  const isSeededView = rows.length > 0 && rows.every((r) => r.is_seeded_from_rota);
+  const handleSubmit = async () => {
+    setSubmitError("");
+    try {
+      for (const row of rows) {
+        if (row.start_time && row.end_time) {
+          await persistRow(row);
+        }
+      }
+      const refreshed = await timesheetMonthQuery.refetch();
+      const payload = refreshed.data;
+      const tsId =
+        payload?.timesheet?.id ??
+        timesheet?.id ??
+        (payload?.id && !payload?.entries ? payload.id : null);
+      if (!tsId) {
+        setSubmitError("Could not find timesheet for this month. Please refresh and try again.");
+        return;
+      }
+      await submit.mutateAsync(tsId);
+      setConfirming(false);
+      setDrafts({});
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Submit failed. Ensure every shift has start and end times saved.";
+      setSubmitError(msg);
+    }
+  };
 
-  /* ════════════════════════════════════════════════ */
   return (
     <div className="space-y-5 pb-10 max-w-7xl mx-auto px-1">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             My Timesheet
           </h1>
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <span className="text-slate-500 text-sm font-medium">{monthLabel}</span>
-            {timesheet?.status && (
-              <Badge color={statusColor[timesheet.status] || "default"}>
-                {timesheet.status.charAt(0).toUpperCase() + timesheet.status.slice(1)}
-              </Badge>
-            )}
-            {isSeededView && (
-              <Badge color="default">Rota Preview</Badge>
-            )}
-          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            Enter your <strong>actual working hours</strong> per shift → submit month → Super Admin approves or rejects.
+          </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setViewMode("all")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-                viewMode === "all" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              All time
-            </button>
             <button
               type="button"
               onClick={() => setViewMode("month")}
@@ -293,7 +447,16 @@ export default function MyTimesheetPage() {
                 viewMode === "month" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"
               }`}
             >
-              By month
+              Enter &amp; submit hours
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("all")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                viewMode === "all" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              All shifts (history)
             </button>
           </div>
 
@@ -302,172 +465,227 @@ export default function MyTimesheetPage() {
               <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                 <button
                   onClick={() => moveMonth(-1)}
-                  className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 transition-colors border-r border-slate-200"
-                  title="Previous month"
+                  className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 border-r border-slate-200"
                 >
                   <ChevronLeft size={15} className="text-slate-600" />
                 </button>
-                <span className="px-4 text-sm font-bold text-slate-800 min-w-[140px] text-center select-none">
+                <span className="px-4 text-sm font-bold text-slate-800 min-w-[140px] text-center">
                   {monthLabel}
                 </span>
                 <button
                   onClick={() => moveMonth(1)}
-                  className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 transition-colors border-l border-slate-200"
-                  title="Next month"
+                  className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 border-l border-slate-200"
                 >
                   <ChevronRight size={15} className="text-slate-600" />
                 </button>
               </div>
-
               {!isCurrentMonth && (
                 <button
                   type="button"
                   onClick={goToday}
-                  className="text-xs font-semibold text-blue-600 px-3 py-2 rounded-xl hover:bg-blue-50 border border-blue-200 transition-colors"
+                  className="text-xs font-semibold text-blue-600 px-3 py-2 rounded-xl hover:bg-blue-50 border border-blue-200"
                 >
-                  Today
+                  This month
                 </button>
               )}
             </>
           )}
 
-          {viewMode === "all" && (
-            <span className="text-xs font-semibold text-slate-500 px-2">
-              {allShifts.length} shift{allShifts.length !== 1 ? "s" : ""} total
-            </span>
-          )}
-
           <button
-            onClick={() => { rotaQuery.refetch(); timesheetMetaQuery.refetch(); timeEntriesQuery.refetch(); }}
-            className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm"
+            onClick={() => {
+              rotaQuery.refetch();
+              timesheetMetaQuery.refetch();
+              timeEntriesQuery.refetch();
+            }}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-sm"
             title="Refresh"
           >
             <RefreshCw size={14} className="text-slate-500" />
           </button>
 
-          <Button
-            disabled={
-              viewMode === "all" ||
-              !canSubmit ||
-              missingRows.length > 0 ||
-              submit.isLoading
-            }
-            onClick={() => setConfirming(true)}
-            title={
-              viewMode === "all"
-                ? "Switch to By month to submit a monthly timesheet"
-                : isSeededView
-                ? "Fill in start / end times before submitting"
-                : !timesheet
-                ? "No timesheet found for this month"
-                : missingRows.length > 0
-                ? `${missingRows.length} rows missing start/end times`
-                : "Submit timesheet for approval"
-            }
-          >
-            <Send size={14} />
-            {submit.isLoading ? "Submitting…" : "Submit"}
-          </Button>
+          {viewMode === "month" && (
+            <Button
+              disabled={!canSubmit || submit.isLoading}
+              onClick={() => setConfirming(true)}
+              title={
+                missingRows.length > 0
+                  ? `Complete ${missingRows.length} shift(s) first (start + end time)`
+                  : "Send this month to Super Admin for approval"
+              }
+            >
+              <Send size={14} />
+              {submit.isLoading ? "Submitting…" : "Submit to Admin"}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* ── Seeded-view info banner ── */}
-      {isSeededView && (
-        <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-          <Calendar size={15} className="shrink-0 mt-0.5" />
-          <div>
-            <strong>Rota Preview</strong>
-            <p className="mt-0.5 font-normal opacity-80">
-              Your assigned shifts are shown below ({monthLabel}).
-              Switch to &quot;By month&quot; to submit a specific monthly timesheet.
-              Add start / end times before submitting.
-            </p>
+      {/* How it works — month view only */}
+      {viewMode === "month" && isDraft && (
+        <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4">
+          <p className="text-xs font-black uppercase tracking-widest text-blue-600 mb-3">
+            How to submit your hours
+          </p>
+          <ol className="grid sm:grid-cols-3 gap-3 text-sm text-slate-700">
+            <li className="flex gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">1</span>
+              <span>For each shift, enter <strong>Start</strong> and <strong>End</strong> time (your real worked hours).</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">2</span>
+              <span>Click <strong>Save</strong> on each row (or they save when you leave the field).</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">3</span>
+              <span>Click <strong>Submit to Admin</strong> — status becomes <em>Under review</em> until approved.</span>
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {/* Monthly status banner */}
+      {viewMode === "month" && (
+        <div className={`flex items-start gap-3 rounded-2xl border px-5 py-4 ${statusCfg.cls}`}>
+          <StatusIcon size={20} className="shrink-0 mt-0.5 opacity-80" />
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-bold">{statusCfg.label}</span>
+              {timesheet?.status && (
+                <Badge color={statusColor[timesheet.status] || "default"}>
+                  {timesheet.status}
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm mt-1 opacity-90">{statusCfg.desc}</p>
+            {isApproved && (
+              <p className="text-sm font-semibold mt-2">
+                {rows.length} shift{rows.length !== 1 ? "s" : ""} approved · {totalActual.toFixed(2)}h actual · {totalExpected.toFixed(2)}h expected
+              </p>
+            )}
+            {timesheet?.submitted_at && isSubmitted && (
+              <p className="text-xs mt-1 opacity-75">
+                Submitted {new Date(timesheet.submitted_at).toLocaleString("en-GB")}
+              </p>
+            )}
+            {timesheet?.approved_at && isApproved && (
+              <p className="text-xs mt-1 opacity-75">
+                Approved {new Date(timesheet.approved_at).toLocaleString("en-GB")}
+              </p>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── Alerts ── */}
-      {timesheet?.status === "rejected" && (
+      {monthlyStatus === "rejected" && timesheet?.rejection_reason && (
         <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <AlertTriangle size={15} className="shrink-0 mt-0.5" />
           <div>
-            <strong>Timesheet Rejected</strong>
-            <p className="mt-0.5 font-normal opacity-80">
-              {timesheet.rejection_reason || "Please update your entries and resubmit."}
-            </p>
+            <strong>Rejection reason:</strong> {timesheet.rejection_reason}
           </div>
+        </div>
+      )}
+
+      {submitError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {submitError}
         </div>
       )}
 
       {error && (
-        <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error.message || "Failed to load timesheet data."}
         </div>
       )}
 
-      {/* ── Stats row ── */}
-      {rows.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard
-            label="Working Days"
-            value={rows.length}
-            sub="assigned shifts"
-            Icon={Calendar}
-          />
-          <StatCard
-            label="Expected"
-            value={`${totalExpected.toFixed(2)}h`}
-            Icon={Clock}
-          />
-          <StatCard
-            label="Actual"
-            value={totalActual > 0 ? `${totalActual.toFixed(2)}h` : "—"}
-            Icon={CheckCircle2}
-            color={totalActual > 0 ? (totalActual >= totalExpected ? "text-emerald-700" : "text-rose-600") : "text-slate-400"}
-          />
-          <StatCard
-            label="FTE"
-            value={fte}
-            sub="based on 37.5h/wk"
-            Icon={BarChart2}
-          />
+      {/* Weekly breakdown when approved / under review */}
+      {viewMode === "month" && weeklyBreakdown.length > 0 && (isApproved || isSubmitted) && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-800 mb-3">
+            {isApproved ? "Approved hours by week" : "Submitted hours by week"}
+          </h3>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {weeklyBreakdown.map(([wk, data]) => (
+              <div key={wk} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-[10px] font-bold uppercase text-slate-400">Week from</p>
+                <p className="text-sm font-bold text-slate-800">{fmtDate(wk)}</p>
+                <p className="text-xs text-slate-600 mt-1">
+                  {data.shifts} shift{data.shifts !== 1 ? "s" : ""} · {data.hours.toFixed(2)}h
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* ── Table ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Submission history — all view */}
+      {viewMode === "all" && timesheetHistory.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 text-sm font-bold text-slate-700">
+            Monthly submission history
+          </div>
+          <div className="divide-y divide-slate-100">
+            {timesheetHistory.map((ts) => (
+              <button
+                key={ts.id}
+                type="button"
+                onClick={() => {
+                  setViewMode("month");
+                  setCursor({ month: ts.month, year: ts.year });
+                }}
+                className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-slate-50 transition-colors"
+              >
+                <span className="font-semibold text-slate-800">
+                  {MONTHS[ts.month - 1]} {ts.year}
+                </span>
+                <Badge color={statusColor[ts.status] || "default"}>
+                  {ts.status === "submitted" ? "Under review" : ts.status}
+                </Badge>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
+      {rows.length > 0 && viewMode === "month" && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label="Shifts" value={rows.length} sub="this month" Icon={Calendar} />
+          <StatCard label="Expected" value={`${totalExpected.toFixed(2)}h`} Icon={Clock} />
+          <StatCard
+            label="Your hours"
+            value={totalActual > 0 ? `${totalActual.toFixed(2)}h` : "—"}
+            Icon={CheckCircle2}
+            color={totalActual > 0 ? "text-emerald-700" : "text-slate-400"}
+          />
+          <StatCard label="FTE" value={fte} sub="37.5h/wk" Icon={BarChart2} />
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50">
           <div className="flex items-center gap-2">
             <FileText size={14} className="text-slate-400" />
             <span className="text-sm font-bold text-slate-700">
-              {monthLabel} Timesheet
+              {viewMode === "month" ? `${monthLabel} — enter your hours` : "All assigned shifts"}
             </span>
-            {rows.length > 0 && (
-              <span className="text-[11px] text-slate-400 font-medium">
-                · {rows.length} shift{rows.length !== 1 ? "s" : ""}
-              </span>
-            )}
           </div>
           {missingRows.length > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-              <AlertTriangle size={10} /> {missingRows.length} row{missingRows.length > 1 ? "s" : ""} incomplete
+            <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+              {missingRows.length} shift{missingRows.length > 1 ? "s" : ""} need times
             </span>
           )}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-sm">
+          <table className="w-full min-w-[1100px] text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {[
-                  "Date", "Surgery / Practice", "Expected",
-                  "Start Time", "End Time", "Actual Hours",
-                  "Difference", "Notes", "Cover",
-                ].map((h) => (
+                {(viewMode === "month"
+                  ? ["Date", "Practice", "Expected", "Start", "End", "Actual", "Rate", "Status", "Notes", ""]
+                  : ["Date", "Practice", "Expected", "Scheduled", "Rate", "System"]
+                ).map((h) => (
                   <th
-                    key={h}
+                    key={h || "actions"}
                     className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
                   >
                     {h}
@@ -476,175 +694,145 @@ export default function MyTimesheetPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-
-              {/* Loading */}
               {isLoading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center">
-                    <div className="flex items-center justify-center gap-2 text-slate-400 text-sm">
-                      <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
-                      Loading shifts…
-                    </div>
+                  <td colSpan={11} className="px-4 py-12 text-center text-slate-400 text-sm">
+                    Loading…
                   </td>
                 </tr>
               )}
 
-              {/* Empty — only shown when BOTH timesheet AND rota are empty */}
               {!isLoading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <Calendar size={32} className="text-slate-300" />
-                      <p className="text-slate-500 font-semibold text-sm">
-                        No shifts found for {monthLabel}
-                      </p>
-                      <p className="text-slate-400 text-xs max-w-sm">
-                        No assigned shifts found{viewMode === "month" ? ` for ${monthLabel}` : ""}. Contact your administrator if you believe this is incorrect.
-                      </p>
-                    </div>
+                  <td colSpan={11} className="px-4 py-16 text-center text-slate-500 text-sm">
+                    No working shifts found{viewMode === "month" ? ` for ${monthLabel}` : ""}.
                   </td>
                 </tr>
               )}
 
-              {/* Data rows */}
-              {!isLoading && rows.map((entry) => {
-                const actual   = entry.actual_hours ?? calcHours(entry.start_time, entry.end_time);
-                const editable = isDraft && !entry.is_seeded_from_rota
-                              || (isDraft && entry.is_seeded_from_rota); // seeded rows: allow editing times locally
+              {!isLoading &&
+                rows.map((entry) => {
+                  const actual =
+                    entry.actual_hours ?? calcHours(entry.start_time, entry.end_time);
+                  const editable = viewMode === "month" && isDraft && !hoursLocked;
+                  const complete = !!(entry.start_time && entry.end_time);
 
-                return (
-                  <tr
-                    key={entry.id}
-                    className={`transition-colors ${
-                      entry.is_seeded_from_rota
-                        ? "bg-slate-50/50"
-                        : entry.is_cover
-                        ? "bg-amber-50/60"
-                        : "hover:bg-slate-50/30"
-                    }`}
-                  >
-                    {/* Date */}
-                    <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap text-xs">
-                      {fmtDate(entry.shift_date)}
-                    </td>
+                  if (viewMode === "all") {
+                    return (
+                      <tr key={entry.id} className="hover:bg-slate-50/40">
+                        <td className="px-4 py-3 text-xs font-semibold">{fmtDate(entry.shift_date)}</td>
+                        <td className="px-4 py-3 text-xs">{entry.surgery_name}</td>
+                        <td className="px-4 py-3 text-xs">{Number(entry.expected_hours || 0).toFixed(2)}h</td>
+                        <td className="px-4 py-3 text-xs font-mono text-slate-600">
+                          {entry.start_time && entry.end_time
+                            ? `${fmtTime(entry.start_time)} – ${fmtTime(entry.end_time)}`
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          {entry.hourly_rate ? `£${entry.hourly_rate}/hr` : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-xs">{entry.clinical_system || "—"}</td>
+                      </tr>
+                    );
+                  }
 
-                    {/* Surgery */}
-                    <td className="px-4 py-3 text-xs text-slate-600">
-                      <div className="flex items-center gap-1.5">
-                        <MapPin size={11} className="text-slate-400 shrink-0" />
-                        <span className="truncate max-w-[160px]">
-                          {entry.surgery_name || "—"}
+                  return (
+                    <tr
+                      key={entry.id}
+                      className={entry.is_cover ? "bg-amber-50/50" : "hover:bg-slate-50/30"}
+                    >
+                      <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap">
+                        {fmtDate(entry.shift_date)}
+                      </td>
+                      <td className="px-4 py-3 text-xs max-w-[160px] truncate">
+                        <span className="flex items-center gap-1">
+                          <MapPin size={11} className="text-slate-400 shrink-0" />
+                          {entry.surgery_name}
                         </span>
-                      </div>
-                    </td>
-
-                    {/* Expected hours */}
-                    <td className="px-4 py-3 text-xs font-medium text-slate-600">
-                      {Number(entry.expected_hours || 0).toFixed(2)}h
-                    </td>
-
-                    {/* Start time */}
-                    <td className="px-4 py-3">
-                      {editable ? (
-                        <input
-                          type="time"
-                          value={entry.start_time || ""}
-                          onChange={(e) => setRow(entry.id, "start_time", e.target.value)}
-                          onBlur={() => saveRow(entry)}
-                          className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white"
+                      </td>
+                      <td className="px-4 py-3 text-xs">{Number(entry.expected_hours || 0).toFixed(2)}h</td>
+                      <td className="px-4 py-3">
+                        {editable ? (
+                          <input
+                            type="time"
+                            value={entry.start_time || ""}
+                            onChange={(e) => setRow(entry.id, "start_time", e.target.value)}
+                            onBlur={() => complete && saveRow(entry)}
+                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono w-[108px]"
+                          />
+                        ) : (
+                          <span className="text-xs font-mono">{fmtTime(entry.start_time) || "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {editable ? (
+                          <input
+                            type="time"
+                            value={entry.end_time || ""}
+                            onChange={(e) => setRow(entry.id, "end_time", e.target.value)}
+                            onBlur={() => complete && saveRow(entry)}
+                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono w-[108px]"
+                          />
+                        ) : (
+                          <span className="text-xs font-mono">{fmtTime(entry.end_time) || "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-bold">
+                        {actual != null ? `${Number(actual).toFixed(2)}h` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {entry.hourly_rate ? `£${entry.hourly_rate}/hr` : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <RowStatusBadge
+                          entry={entry}
+                          monthlyStatus={monthlyStatus}
+                          editable={editable}
                         />
-                      ) : (
-                        <span className={`text-xs font-mono ${entry.start_time ? "text-slate-700" : "text-slate-300"}`}>
-                          {entry.start_time ? entry.start_time.slice(0, 5) : "—"}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* End time */}
-                    <td className="px-4 py-3">
-                      {editable ? (
-                        <input
-                          type="time"
-                          value={entry.end_time || ""}
-                          onChange={(e) => setRow(entry.id, "end_time", e.target.value)}
-                          onBlur={() => saveRow(entry)}
-                          className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white"
-                        />
-                      ) : (
-                        <span className={`text-xs font-mono ${entry.end_time ? "text-slate-700" : "text-slate-300"}`}>
-                          {entry.end_time ? entry.end_time.slice(0, 5) : "—"}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actual hours */}
-                    <td className="px-4 py-3 text-sm font-black text-slate-900 whitespace-nowrap">
-                      {actual != null
-                        ? `${Number(actual).toFixed(2)}h`
-                        : <span className="text-slate-300 font-normal text-xs">—</span>}
-                    </td>
-
-                    {/* Diff badge */}
-                    <td className="px-4 py-3">
-                      <DiffBadge expected={entry.expected_hours} actual={actual} />
-                    </td>
-
-                    {/* Notes */}
-                    <td className="px-4 py-3">
-                      {editable ? (
-                        <input
-                          value={entry.notes || ""}
-                          onChange={(e) => setRow(entry.id, "notes", e.target.value)}
-                          onBlur={() => saveRow(entry)}
-                          placeholder="Optional note…"
-                          className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white min-w-[120px]"
-                        />
-                      ) : (
-                        <span className={`text-xs ${entry.notes ? "text-slate-600" : "text-slate-300"}`}>
-                          {entry.notes || "—"}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Cover / seeded badge */}
-                    <td className="px-4 py-3">
-                      {entry.is_seeded_from_rota ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-slate-100 text-slate-500 border-slate-200">
-                          Rota
-                        </span>
-                      ) : entry.is_cover ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
-                          Cover
-                        </span>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="px-4 py-3">
+                        {editable ? (
+                          <input
+                            value={entry.notes || ""}
+                            onChange={(e) => setRow(entry.id, "notes", e.target.value)}
+                            onBlur={() => complete && saveRow(entry)}
+                            placeholder="Note…"
+                            className="w-full min-w-[100px] rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                          />
+                        ) : (
+                          <span className="text-xs text-slate-500">{entry.notes || "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {editable && complete ? (
+                          <button
+                            type="button"
+                            onClick={() => saveRow(entry)}
+                            disabled={savingId === entry.id}
+                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                          >
+                            <Save size={11} />
+                            {savingId === entry.id ? "Saving…" : "Save"}
+                          </button>
+                        ) : entry.is_cover ? (
+                          <span className="text-[10px] font-bold text-amber-700">Cover</span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
 
-            {/* Footer totals */}
-            {!isLoading && rows.length > 0 && (
+            {viewMode === "month" && !isLoading && rows.length > 0 && (
               <tfoot>
                 <tr className="bg-slate-50 border-t-2 border-slate-200">
-                  <td colSpan={2} className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                    Monthly Total
+                  <td colSpan={2} className="px-4 py-3 text-right text-[10px] font-black uppercase text-slate-400">
+                    Month total
                   </td>
-                  <td className="px-4 py-3 text-xs font-bold text-slate-600">
-                    {totalExpected.toFixed(2)}h
-                  </td>
+                  <td className="px-4 py-3 font-bold text-xs">{totalExpected.toFixed(2)}h</td>
                   <td colSpan={2} />
-                  <td className="px-4 py-3 text-sm font-black text-slate-900">
-                    {totalActual > 0
-                      ? `${totalActual.toFixed(2)}h`
-                      : <span className="text-slate-300 font-normal text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {totalActual > 0 && (
-                      <DiffBadge expected={totalExpected} actual={totalActual} />
-                    )}
-                  </td>
-                  <td colSpan={2} />
+                  <td className="px-4 py-3 font-black">{totalActual.toFixed(2)}h</td>
+                  <td colSpan={4} />
                 </tr>
               </tfoot>
             )}
@@ -652,50 +840,24 @@ export default function MyTimesheetPage() {
         </div>
       </div>
 
-      {/* ── Submitted / approved notice ── */}
-      {timesheet?.status === "submitted" && (
-        <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 font-medium">
-          <CheckCircle2 size={15} />
-          Timesheet submitted on{" "}
-          {timesheet.submitted_at
-            ? new Date(timesheet.submitted_at).toLocaleDateString("en-GB")
-            : "—"}{" "}
-          — awaiting approval.
-        </div>
-      )}
-      {timesheet?.status === "approved" && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 font-medium">
-          <CheckCircle2 size={15} />
-          Timesheet approved on{" "}
-          {timesheet.approved_at
-            ? new Date(timesheet.approved_at).toLocaleDateString("en-GB")
-            : "—"}.
-        </div>
+      {viewMode === "all" && (
+        <p className="text-center text-sm text-slate-500">
+          To enter or submit hours, switch to <strong>Enter &amp; submit hours</strong> and pick the month.
+        </p>
       )}
 
-      {/* ── Submit confirmation modal ── */}
       {confirming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-slate-900">Submit Timesheet?</h2>
+            <h2 className="text-lg font-bold text-slate-900">Submit hours to Super Admin?</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Once submitted, your {monthLabel} timesheet will be sent to the approvals queue.
-              You won't be able to edit it until it's reviewed.
+              Your <strong>{monthLabel}</strong> timesheet ({rows.length} shifts, {totalActual.toFixed(2)}h actual)
+              will be sent for review. Status will show as <strong>Under review</strong> until approved or rejected.
             </p>
-            <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 grid grid-cols-2 gap-2 text-sm">
-              <span className="text-slate-500">Working days:</span>
-              <span className="font-bold text-slate-800">{rows.length}</span>
-              <span className="text-slate-500">Total expected:</span>
-              <span className="font-bold text-slate-800">{totalExpected.toFixed(2)}h</span>
-              <span className="text-slate-500">Total actual:</span>
-              <span className="font-bold text-slate-800">{totalActual > 0 ? `${totalActual.toFixed(2)}h` : "—"}</span>
-            </div>
-            <div className="mt-5 flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setConfirming(false)}>
-                Cancel
-              </Button>
+            <div className="mt-4 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setConfirming(false)}>Cancel</Button>
               <Button onClick={handleSubmit} isLoading={submit.isLoading}>
-                <Send size={14} /> Confirm Submit
+                <Send size={14} /> Confirm submit
               </Button>
             </div>
           </div>

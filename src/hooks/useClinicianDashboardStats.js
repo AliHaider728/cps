@@ -14,21 +14,27 @@
 
 import { useMemo } from "react";
 import { useMyRota, useMyTimesheet } from "./useRota";
+import { usePractices } from "./usePractice";
+import { buildPracticeNameMap, isWorkingShift } from "../lib/practiceNames";
 
 export function useClinicianDashboardStats(month, year) {
   const rotaQuery      = useMyRota(null, null);
   const timesheetQuery = useMyTimesheet(null, null);
+  const { data: practicesData } = usePractices();
+  const practiceMap = useMemo(
+    () => buildPracticeNameMap(practicesData),
+    [practicesData]
+  );
 
   const isLoading = rotaQuery.isLoading || timesheetQuery.isLoading;
 
-  // ── Shifts from rota (source of truth for planning stats) ──────────────
   const allShifts = useMemo(() => {
     const raw =
       rotaQuery.data?.shifts ||
       timesheetQuery.data?.shifts ||
       rotaQuery.data?.rota   ||
       [];
-    return Array.isArray(raw) ? raw : [];
+    return (Array.isArray(raw) ? raw : []).filter(isWorkingShift);
   }, [rotaQuery.data, timesheetQuery.data]);
 
   const shifts = useMemo(() => {
@@ -41,7 +47,6 @@ export function useClinicianDashboardStats(month, year) {
     });
   }, [allShifts, month, year]);
 
-  // ── Working days = number of assigned shifts ────────────────────────────
   const workingDays = shifts.length;
 
   // ── Expected hours = sum of each shift's expected_hours ─────────────────
@@ -71,14 +76,21 @@ export function useClinicianDashboardStats(month, year) {
     timesheetQuery.data?.status ??
     null;
 
+  const timesheets = useMemo(() => {
+    const list = timesheetQuery.data?.timesheets;
+    return Array.isArray(list) ? list : [];
+  }, [timesheetQuery.data]);
+
   return {
     isLoading,
     shifts,
+    practiceMap,
     workingDays,
     expectedHours: Math.round(expectedHours * 100) / 100,
     actualHours:   Math.round(actualHours   * 100) / 100,
     timesheetStatus,
-    hasRota:       allShifts.length > 0,
+    timesheets,
+    hasRota: allShifts.length > 0,
     totalShifts: allShifts.length,
   };
 }

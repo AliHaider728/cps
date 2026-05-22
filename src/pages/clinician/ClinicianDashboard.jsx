@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useMyRota } from "../../hooks/useRota";
+import { usePractices } from "../../hooks/usePractice";
+import { buildPracticeNameMap, resolvePracticeName } from "../../lib/practiceNames";
 
 /* ── Shift status styles ──────────────────────────────────── */
 const TYPE_STYLE = {
@@ -52,15 +54,6 @@ function resolveDate(shift) {
   return String(shift.shift_date || shift.date || "").slice(0, 10);
 }
 
-/** Practice/surgery name with full fallback chain */
-function resolveName(shift) {
-  return (
-    shift.surgery_name  ||
-    shift.practice_name ||
-    shift.surgery       ||
-    null
-  );
-}
 
 /**
  * Expected hours:
@@ -130,6 +123,12 @@ export default function ClinicianDashboard() {
   /* ── Fetch rota shifts — single source of truth ─────────── */
   const { data: rota, isLoading: rotaLoading, isError: rotaError, error: rotaErr } =
     useMyRota(null, null);
+
+  const { data: practicesData } = usePractices();
+  const practiceMap = useMemo(
+    () => buildPracticeNameMap(practicesData),
+    [practicesData]
+  );
 
   const allShifts = useMemo(() => {
     const raw = rota?.shifts || rota?.data?.shifts || rota?.rota || [];
@@ -391,7 +390,7 @@ export default function ClinicianDashboard() {
                         dayShifts.map((shift) => {
                           const status = resolveStatus(shift);
                           const style  = TYPE_STYLE[status] ?? DEFAULT_STYLE;
-                          const name   = resolveName(shift);
+                          const name   = resolvePracticeName(shift, practiceMap);
                           const hrs    = resolveHours(shift);
 
                           return (

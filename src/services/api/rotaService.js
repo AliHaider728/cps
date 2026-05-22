@@ -13,6 +13,8 @@ export const rotaService = {
   getMyTimesheet: (params = {}) => apiClient.get(`${base}/timesheet/my`, { params }),
   getMyTimesheetAll: () => apiClient.get(`${base}/timesheet/my`, { params: { scope: "all" } }),
   updateTimesheetEntry: (entryId, data) => apiClient.put(`${base}/timesheet/entry/${entryId}`, data),
+  upsertTimesheetEntryForShift: (shiftId, data) =>
+    apiClient.put(`${base}/timesheet/shift/${shiftId}`, data),
   submitTimesheet: (timesheetId) => apiClient.post(`${base}/timesheet/${timesheetId}/submit`),
 
   getPendingTimesheets: () => apiClient.get(`${base}/timesheets/pending`),

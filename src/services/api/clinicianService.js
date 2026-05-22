@@ -15,6 +15,7 @@ export const clinicianService = {
   getById:   (id)          => apiClient.get(`${base}/${id}`),
   create:    (data)        => apiClient.post(base, data),
   update:    (id, data)    => apiClient.put(`${base}/${id}`, data),
+  linkUser:  (id, userId)  => apiClient.patch(`${base}/${id}/link-user`, { userId: userId || null }),
   delete:    (id)          => apiClient.delete(`${base}/${id}`),
 
   /* ── Global restrict flag ───────────────────────────── */
