@@ -46,6 +46,11 @@ const ClinicianDashboard = lazy(() => import("../pages/clinician/ClinicianDashbo
 const MyTimesheetPage    = lazy(() => import("../pages/clinician/MyTimesheetPage.jsx"));
 const ApplyForLeavePage  = lazy(() => import("../pages/clinician/ApplyForLeavePage.jsx"));
 const MyLeaveBalancePage = lazy(() => import("../pages/clinician/MyLeaveBalancePage.jsx"));
+const LeaveManagementPage = lazy(() => import("../pages/super-admin/LeaveManagement/LeaveManagementPage.jsx"));
+const ClinicianSupervisionPage = lazy(() => import("../pages/clinician/ClinicianSupervisionPage.jsx"));
+const RemoteSupervisionPage = lazy(() => import("../pages/clinician/RemoteSupervisionPage.jsx"));
+const ClinicianCPPEPage = lazy(() => import("../pages/clinician/ClinicianCPPEPage.jsx"));
+const ClinicianCompliancePage = lazy(() => import("../pages/clinician/ClinicianCompliancePage.jsx"));
 
 // ── Module 5 — Rota Management
 const RotaPage     = lazy(() => import("../pages/super-admin/RotaManagement/RotaPage.jsx"));
@@ -77,6 +82,7 @@ const P = ({ roles, children }) => (
 );
 
 const CM_ROLES        = ["super_admin", "director", "ops_manager", "training", "workforce"];
+const LEAVE_ADMIN_ROLES = ["super_admin", "director", "ops_manager", "finance"];
 const CLINICIAN_ROLES = ["clinician", "super_admin"];
 const TS_ROLES        = ["super_admin", "ops_manager", "finance", "director"];
 
@@ -126,19 +132,26 @@ const AppRouter = () => (
       element={<P roles={CM_ROLES}><CliniciansListPage /></P>} />
     <Route path="/dashboard/clinicians/restricted"
       element={<P roles={["super_admin","ops_manager"]}><RestrictedCliniciansPage /></P>} />
+    {/* Static paths MUST be before :id — otherwise "projects" etc. match as clinician id */}
+    <Route path="/dashboard/clinicians/basic-info"       element={<Navigate to="/dashboard/clinicians?tab=basic-info"       replace />} />
+    <Route path="/dashboard/clinicians/skills"           element={<Navigate to="/dashboard/clinicians?tab=skills"           replace />} />
+    <Route path="/dashboard/clinicians/compliance"       element={<Navigate to="/dashboard/clinicians?tab=compliance"       replace />} />
+    <Route path="/dashboard/clinicians/client-history"   element={<Navigate to="/dashboard/clinicians?tab=client-history"   replace />} />
+    <Route path="/dashboard/clinicians/calendar"         element={<Navigate to="/dashboard/clinicians?tab=calendar"         replace />} />
+    <Route path="/dashboard/clinicians/projects"         element={<Navigate to="/dashboard/clinicians?tab=project-mapping"  replace />} />
+    <Route path="/dashboard/clinicians/project-mapping"  element={<Navigate to="/dashboard/clinicians?tab=project-mapping"  replace />} />
+    <Route path="/dashboard/clinicians/supervision-log"  element={<Navigate to="/dashboard/clinicians?tab=supervision-log"  replace />} />
+    <Route path="/dashboard/clinicians/cppe-status"      element={<Navigate to="/dashboard/clinicians?tab=cppe-status"      replace />} />
+    <Route path="/dashboard/clinicians/onboarding"       element={<Navigate to="/dashboard/clinicians?tab=onboarding"       replace />} />
+    <Route path="/dashboard/clinicians/scope"            element={<Navigate to="/dashboard/clinicians?tab=scope"            replace />} />
     <Route path="/dashboard/clinicians/:id"
       element={<P roles={CM_ROLES}><CliniciansDetailPage /></P>} />
+    <Route path="/dashboard/leave"
+      element={<P roles={LEAVE_ADMIN_ROLES}><LeaveManagementPage /></P>} />
 
-    {/* Sidebar tab shortcuts → redirect to list with ?tab= */}
-    <Route path="/dashboard/clinicians/basic-info"      element={<Navigate to="/dashboard/clinicians?tab=basic-info"      replace />} />
-    <Route path="/dashboard/clinicians/skills"          element={<Navigate to="/dashboard/clinicians?tab=skills"          replace />} />
-    <Route path="/dashboard/clinicians/compliance"      element={<Navigate to="/dashboard/clinicians?tab=compliance"      replace />} />
-    <Route path="/dashboard/clinicians/client-history"  element={<Navigate to="/dashboard/clinicians?tab=client-history"  replace />} />
-    <Route path="/dashboard/clinicians/calendar"        element={<Navigate to="/dashboard/clinicians?tab=calendar"        replace />} />
-    <Route path="/dashboard/clinicians/supervision-log" element={<Navigate to="/dashboard/clinicians?tab=supervision-log" replace />} />
-    <Route path="/dashboard/clinicians/cppe-status"     element={<Navigate to="/dashboard/clinicians?tab=cppe-status"     replace />} />
-    <Route path="/dashboard/clinicians/onboarding"      element={<Navigate to="/dashboard/clinicians?tab=onboarding"      replace />} />
-    <Route path="/dashboard/clinicians/scope"           element={<Navigate to="/dashboard/clinicians?tab=scope"           replace />} />
+    {/* Legacy sidebar aliases → working routes */}
+    <Route path="/dashboard/timesheets" element={<Navigate to="/dashboard/super-admin/timesheets" replace />} />
+    <Route path="/dashboard/cover"      element={<Navigate to="/dashboard/rota-gaps" replace />} />
 
     {/* ── Module 5 — Rota Management ───────────────────── */}
     <Route path="/dashboard/rota"
@@ -162,8 +175,13 @@ const AppRouter = () => (
     {/* ── Clinician Portal ──────────────────────────────── */}
     <Route path="/portal/clinician"              element={<P roles={CLINICIAN_ROLES}><ClinicianDashboard /></P>} />
     <Route path="/portal/clinician/my-timesheet" element={<P roles={CLINICIAN_ROLES}><MyTimesheetPage /></P>} />
+    <Route path="/portal/clinician/timesheet" element={<Navigate to="/portal/clinician/my-timesheet" replace />} />
     <Route path="/portal/clinician/apply-leave"  element={<P roles={CLINICIAN_ROLES}><ApplyForLeavePage /></P>} />
     <Route path="/portal/clinician/leave-balance" element={<P roles={CLINICIAN_ROLES}><MyLeaveBalancePage /></P>} />
+    <Route path="/portal/clinician/supervision" element={<P roles={CLINICIAN_ROLES}><ClinicianSupervisionPage /></P>} />
+    <Route path="/portal/clinician/remote-supervision" element={<P roles={CLINICIAN_ROLES}><RemoteSupervisionPage /></P>} />
+    <Route path="/portal/clinician/cppe" element={<P roles={CLINICIAN_ROLES}><ClinicianCPPEPage /></P>} />
+    <Route path="/portal/clinician/compliance" element={<P roles={CLINICIAN_ROLES}><ClinicianCompliancePage /></P>} />
 
     {/* ── 404 ───────────────────────────────────────────── */}
     <Route path="*" element={<NotFound />} />

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Menu, Bell, Sun, Moon, Search, LogOut, User,
-  Calendar, ShieldCheck, Settings, BarChart2,
+  Calendar, ShieldCheck, BarChart2,
   AlertTriangle, GraduationCap, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -84,10 +84,10 @@ const Header = ({ onMenuClick, onThemeToggle, isDark, isCollapsed, setIsCollapse
   };
 
   const QUICK_LINKS = [
-    { label: "Rota management", sub: "View & manage staff schedules", icon: <Calendar size={14} />, color: "#1d4ed8", bg: "#eff6ff", path: "/rota" },
-    { label: "Compliance tracker", sub: "DBS, training & certifications", icon: <ShieldCheck size={14} />, color: "#15803d", bg: "#f0fdf4", path: "/compliance" },
-    { label: "PCN dashboard", sub: "Performance metrics & KPIs", icon: <BarChart2 size={14} />, color: "#6d28d9", bg: "#faf5ff", path: "/pcn" },
-    { label: "Staff records", sub: "Employee profiles & documents", icon: <User size={14} />, color: "#c2410c", bg: "#fff7ed", path: "/staff" },
+    { label: "Rota management", sub: "View & manage staff schedules", icon: <Calendar size={14} />, color: "#1d4ed8", bg: "#eff6ff", path: "/dashboard/rota" },
+    { label: "Clinician management", sub: "Profiles, compliance & timesheets", icon: <User size={14} />, color: "#c2410c", bg: "#fff7ed", path: "/dashboard/clinicians" },
+    { label: "Client hierarchy", sub: "PCNs, practices & compliance", icon: <BarChart2 size={14} />, color: "#6d28d9", bg: "#faf5ff", path: "/dashboard/super-admin/clients" },
+    { label: "Leave management", sub: "Approve and track leave requests", icon: <ShieldCheck size={14} />, color: "#15803d", bg: "#f0fdf4", path: "/dashboard/leave" },
   ].filter((l) => !query || l.label.toLowerCase().includes(query.toLowerCase()));
 
   const handleMarkAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -224,9 +224,6 @@ const Header = ({ onMenuClick, onThemeToggle, isDark, isCollapsed, setIsCollapse
                   )}
                 </div>
 
-                <div className="border-t border-slate-100 px-4 py-2.5 text-center">
-                  <button onClick={() => navigate("/notifications")} className="text-xs font-bold text-blue-600 hover:text-blue-800">View all notifications →</button>
-                </div>
               </div>
             )}
           </div>
@@ -261,18 +258,6 @@ const Header = ({ onMenuClick, onThemeToggle, isDark, isCollapsed, setIsCollapse
                     </div>
                   </div>
                   <div className="py-1.5">
-                    {[
-                      { label: "My profile", icon: <User size={14} />, path: "/profile" },
-                      { label: "My rota", icon: <Calendar size={14} />, path: "/rota" },
-                      { label: "Compliance status", icon: <ShieldCheck size={14} />, path: "/compliance" },
-                      { label: "Account settings", icon: <Settings size={14} />, path: "/settings" },
-                    ].map((item) => (
-                      <div key={item.path} onClick={() => { navigate(item.path); setProfileOpen(false); }} className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 cursor-pointer transition-colors">
-                        {item.icon}
-                        {item.label}
-                      </div>
-                    ))}
-                    <hr className="my-1 border-slate-100" />
                     <div onClick={handleLogout} className="flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer transition-colors">
                       <LogOut size={14} />
                       Sign out

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Edit2, Save, X, User, Link2 } from "lucide-react";
+import { Edit2, Save, X, User, Link2, KeyRound } from "lucide-react";
+import { clinicianService } from "../../../../services/api/clinicianService";
 import { Btn, FormField, DetailRow, Spinner, fmtDate } from "./shared.jsx";
 
 const TYPE_OPTS     = ["Pharmacist", "Technician", "IP"];
@@ -19,6 +20,10 @@ export default function BasicInfoPanel({
   const [linkUserId, setLinkUserId] = useState("");
   const [linking, setLinking] = useState(false);
   const [linkMsg, setLinkMsg] = useState("");
+  const [newLoginEmail, setNewLoginEmail] = useState("");
+  const [loginSaving, setLoginSaving] = useState(false);
+  const [resettingPw, setResettingPw] = useState(false);
+  const [loginMsg, setLoginMsg] = useState("");
 
   const build = () => ({
     fullName:      clinician?.fullName      || "",
@@ -194,6 +199,71 @@ export default function BasicInfoPanel({
         <p className="mt-4 text-sm font-medium text-red-600">{saveError}</p>
       )}
     </div>
+
+    {canManage && (
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <KeyRound size={16} className="text-blue-600" />
+          <h3 className="text-base font-bold text-slate-800">Clinician login</h3>
+        </div>
+        <p className="text-sm text-slate-500 mb-3">
+          Current login email:{" "}
+          <strong className="text-slate-800">
+            {linkedUserLabel.includes("Not linked") ? "—" : linkedUserLabel.match(/\(([^)]+)\)/)?.[1] || linkedUserLabel}
+          </strong>
+        </p>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">New login email</label>
+        <input
+          type="email"
+          value={newLoginEmail}
+          onChange={(e) => setNewLoginEmail(e.target.value)}
+          placeholder="Update linked user email"
+          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm mb-3"
+        />
+        <div className="flex flex-wrap gap-2">
+          <Btn
+            size="sm"
+            disabled={loginSaving || !newLoginEmail.trim()}
+            onClick={async () => {
+              setLoginSaving(true);
+              setLoginMsg("");
+              try {
+                await clinicianService.updateUserLogin(clinician._id || clinician.id, newLoginEmail.trim());
+                setLoginMsg("Login email updated.");
+                setNewLoginEmail("");
+              } catch (err) {
+                setLoginMsg(err?.response?.data?.message || "Update failed.");
+              } finally {
+                setLoginSaving(false);
+              }
+            }}
+          >
+            Save email
+          </Btn>
+          <Btn
+            size="sm"
+            variant="outline"
+            disabled={resettingPw || linkedUserLabel.includes("Not linked")}
+            onClick={async () => {
+              if (!window.confirm("Send a temporary password to the clinician's email?")) return;
+              setResettingPw(true);
+              setLoginMsg("");
+              try {
+                const { data } = await clinicianService.resetUserPassword(clinician._id || clinician.id);
+                setLoginMsg(data?.message || "Password reset email sent.");
+              } catch (err) {
+                setLoginMsg(err?.response?.data?.message || "Reset failed.");
+              } finally {
+                setResettingPw(false);
+              }
+            }}
+          >
+            Reset password
+          </Btn>
+        </div>
+        {loginMsg && <p className="mt-3 text-sm text-slate-600">{loginMsg}</p>}
+      </div>
+    )}
 
     {canManage && onLinkUser && (
       <div className="bg-white rounded-2xl border border-slate-200 p-6">

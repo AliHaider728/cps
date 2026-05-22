@@ -1,15 +1,13 @@
-import React from "react";
+import { cn } from "../../lib/utils";
 
-export function Spinner({ className = "w-8 h-8", color = "text-primary" }) {
+export function Spinner({ className, cls }) {
   return (
-    <svg
-      className={`animate-spin ${color} ${className}`}
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
+    <span
+      className={cn(
+        "inline-block h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin",
+        cls,
+        className
+      )}
+    />
   );
 }

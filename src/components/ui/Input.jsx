@@ -1,37 +1,18 @@
-import React from "react";
+import * as React from "react";
+import { cn, touchClass } from "../../lib/utils";
 
-export function Input({
-  className = "",
-  type = "text",
-  placeholder,
-  value,
-  onChange,
-  name,
-  required,
-  disabled,
-  autoFocus,
-  ...rest
-}) {
-  return (
-    <input
-      type={type}
-      name={name}
-      placeholder={placeholder}
-      value={value}
-      onChange={onChange}
-      required={required}
-      disabled={disabled}
-      autoFocus={autoFocus}
-      className={`
-        w-full px-3.5 py-2.5 text-sm
-        bg-white border border-slate-200 rounded-xl
-        text-slate-900 placeholder:text-slate-400
-        outline-none transition-all duration-200
-        focus:border-primary focus:ring-4 focus:ring-primary/10
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${className}
-      `}
-      {...rest}
-    />
-  );
-}
+const Input = React.forwardRef(({ className, type, ...props }, ref) => (
+  <input
+    type={type}
+    className={cn(
+      "flex w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+      touchClass,
+      className
+    )}
+    ref={ref}
+    {...props}
+  />
+));
+Input.displayName = "Input";
+
+export { Input };

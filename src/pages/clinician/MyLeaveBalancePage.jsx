@@ -1,13 +1,11 @@
 import { CalendarCheck } from "lucide-react";
 import { Badge } from "../../components/ui/Badge";
-import { useAuth } from "../../context/AuthContext";
 import { useClinicianLeave } from "../../hooks/useClinicianLeave";
 
 const contracts = ["ARRS", "EA", "Direct"];
 
 export default function MyLeaveBalancePage() {
-  const { user } = useAuth();
-  const { data, isLoading, isError } = useClinicianLeave(user?.clinicianId);
+  const { data, isLoading, isError, error } = useClinicianLeave();
   const balances = data?.balances || [];
   const entries = data?.entries || [];
 
@@ -21,7 +19,11 @@ export default function MyLeaveBalancePage() {
       </div>
 
       {isLoading && <p className="text-sm text-slate-500">Loading balances...</p>}
-      {isError && <p className="text-sm font-medium text-red-600">Unable to load leave balances.</p>}
+      {isError && (
+        <p className="text-sm font-medium text-red-600">
+          {error?.response?.data?.message || "Unable to load leave balances. Ask admin to link your login to a clinician profile."}
+        </p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         {contracts.map((contract) => {

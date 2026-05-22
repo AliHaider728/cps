@@ -1,18 +1,18 @@
 /**
- * sidebarConfig.js
- *
- * UPDATED (May 2026):
- *   ✅ Clinician Management simplified to single direct link
- *   ✅ All tabs removed from dropdown
- *   ✅ Applied across: super_admin, ops_manager, workforce, director
- *   ✅ All other paths and sections unchanged
- *   ✅ System Settings dropdown kept at bottom for all roles
- *   ✅ FIX: Clinician "My Timesheet" path corrected → /portal/clinician/my-timesheet
+ * sidebarConfig.js — navigation links only for routes that exist in AppRouter.jsx
  */
+
+const SETTINGS_SUPER_ADMIN = {
+  icon: "Settings",
+  label: "System Settings",
+  children: [
+    { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
+    { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
+  ],
+};
 
 export const sidebarConfig = {
 
-  // ════════════════════════════════════════════════════════════════
   super_admin: [
     {
       section: "MAIN",
@@ -41,64 +41,24 @@ export const sidebarConfig = {
     {
       section: "OPERATIONS",
       items: [
-        { icon: "UserCheck",     label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "Calendar",      label: "Rota Management",      path: "/dashboard/rota"       },
-        { icon: "FileSignature", label: "Contracts",            path: "/dashboard/contracts"  },
+        { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
+        { icon: "Calendar",  label: "Rota Management",      path: "/dashboard/rota"       },
+        { icon: "AlertCircle", label: "Rota Gaps",          path: "/dashboard/rota-gaps"  },
+        { icon: "CalendarOff", label: "Leave Management",   path: "/dashboard/leave"      },
       ],
     },
     {
       section: "FINANCE",
       items: [
-        { icon: "BarChart3",  label: "Finance Dashboard", path: "/dashboard/finance"    },
-        { icon: "Clock",      label: "Timesheets",         path: "/dashboard/timesheets" },
-        { icon: "Receipt",    label: "Invoices",           path: "/dashboard/invoices"   },
-        { icon: "Hash",       label: "Xero Codes",         path: "/dashboard/xero"       },
-        { icon: "TrendingUp", label: "Headcount",          path: "/dashboard/headcount"  },
-      ],
-    },
-    {
-      section: "TRAINING",
-      items: [
-        { icon: "CalendarCheck", label: "Supervision",  path: "/dashboard/supervision" },
-        { icon: "Award",         label: "Competency",   path: "/dashboard/competency"  },
-        { icon: "GraduationCap", label: "CPPE Tracker", path: "/dashboard/cppe"        },
-        { icon: "FolderOpen",    label: "Resources",    path: "/dashboard/resources"   },
-        { icon: "AlertOctagon",  label: "MHRA Alerts",  path: "/dashboard/mhra"        },
-      ],
-    },
-    {
-      section: "HR & COMPLIANCE",
-      items: [
-        { icon: "ClipboardCheck", label: "Compliance",       path: "/dashboard/compliance" },
-        { icon: "CalendarOff",    label: "Leave Management", path: "/dashboard/leave"      },
-        { icon: "UserPlus",       label: "Onboarding",       path: "/dashboard/onboarding" },
-        { icon: "Key",            label: "System Access",    path: "/dashboard/access"     },
-        { icon: "AlertTriangle",  label: "Complaints",       path: "/dashboard/complaints" },
-      ],
-    },
-    {
-      section: "REPORTS",
-      items: [
-        { icon: "PieChart", label: "Reports",       path: "/dashboard/reports"       },
-        { icon: "Bell",     label: "Notifications", path: "/dashboard/notifications" },
+        { icon: "Clock", label: "Timesheet Approval", path: "/dashboard/super-admin/timesheets" },
       ],
     },
     {
       section: "SYSTEM SETTINGS",
-      items: [
-        {
-          icon: "Settings",
-          label: "System Settings",
-          children: [
-            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
-            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
-          ],
-        },
-      ],
+      items: [SETTINGS_SUPER_ADMIN],
     },
   ],
 
-  // ════════════════════════════════════════════════════════════════
   director: [
     {
       section: "MAIN",
@@ -123,30 +83,14 @@ export const sidebarConfig = {
     {
       section: "VIEW ONLY",
       items: [
-        { icon: "BarChart3",     label: "Finance Dashboard",    path: "/dashboard/finance"       },
-        { icon: "FileSignature", label: "Contracts",            path: "/dashboard/contracts"     },
-        { icon: "AlertTriangle", label: "Complaints",           path: "/dashboard/complaints"    },
-        { icon: "UserCheck",     label: "Clinician Management", path: "/dashboard/clinicians"    },
-        { icon: "PieChart",      label: "Monthly Reports",      path: "/dashboard/reports"       },
-        { icon: "Bell",          label: "Notifications",        path: "/dashboard/notifications" },
-      ],
-    },
-    {
-      section: "SYSTEM SETTINGS",
-      items: [
-        {
-          icon: "Settings",
-          label: "System Settings",
-          children: [
-            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
-            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
-          ],
-        },
+        { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
+        { icon: "Calendar",  label: "Rota Management",      path: "/dashboard/rota"       },
+        { icon: "Clock",     label: "Timesheet Approval",   path: "/dashboard/super-admin/timesheets" },
+        { icon: "CalendarOff", label: "Leave Management",   path: "/dashboard/leave"      },
       ],
     },
   ],
 
-  // ════════════════════════════════════════════════════════════════
   ops_manager: [
     {
       section: "MAIN",
@@ -162,7 +106,7 @@ export const sidebarConfig = {
           label: "Client Hierarchy",
           children: [
             { icon: "Building2",   label: "ICBs",                 path: "/dashboard/super-admin/clients/icb"      },
-            { icon: "Layers",      label: "Federations / INT",     path: "/dashboard/super-admin/clients"          },
+            { icon: "Layers",      label: "Federations / INT",     path: "/dashboard/super-admin/clients/federation" },
             { icon: "Network",     label: "PCNs",                  path: "/dashboard/super-admin/clients/pcn"      },
             { icon: "Stethoscope", label: "Practices / Surgeries", path: "/dashboard/super-admin/clients/practice" },
           ],
@@ -174,53 +118,19 @@ export const sidebarConfig = {
     {
       section: "WORKFORCE",
       items: [
-        { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "Calendar",  label: "Rota Management",      path: "/dashboard/rota"       },
-        { icon: "RefreshCw", label: "Cover & Gaps",         path: "/dashboard/cover"      },
-      ],
-    },
-    {
-      section: "CONTRACTS",
-      items: [
-        { icon: "FileSignature", label: "Active Contracts",     path: "/dashboard/contracts"    },
-        { icon: "FileClock",     label: "Renewals",             path: "/dashboard/renewals"     },
-        { icon: "GitBranch",     label: "Mid-Contract Changes", path: "/dashboard/mid-contract" },
-      ],
-    },
-    {
-      section: "ONBOARDING",
-      items: [
-        { icon: "UserPlus", label: "New Starter Handover", path: "/dashboard/onboarding"    },
-        { icon: "Package",  label: "Welcome Packs",        path: "/dashboard/welcome-packs" },
-        { icon: "Key",      label: "System Access",        path: "/dashboard/access"        },
-      ],
-    },
-    {
-      section: "OTHER",
-      items: [
-        { icon: "AlertTriangle",  label: "Complaints",       path: "/dashboard/complaints"    },
-        { icon: "ClipboardCheck", label: "Compliance",       path: "/dashboard/compliance"    },
-        { icon: "CalendarOff",    label: "Leave Management", path: "/dashboard/leave"         },
-        { icon: "PieChart",       label: "Monthly Reports",  path: "/dashboard/reports"       },
-        { icon: "Bell",           label: "Notifications",    path: "/dashboard/notifications" },
+        { icon: "UserCheck",   label: "Clinician Management", path: "/dashboard/clinicians" },
+        { icon: "Calendar",    label: "Rota Management",      path: "/dashboard/rota"       },
+        { icon: "AlertCircle", label: "Rota Gaps",            path: "/dashboard/rota-gaps"  },
+        { icon: "CalendarOff", label: "Leave Management",     path: "/dashboard/leave"      },
+        { icon: "Clock",       label: "Timesheet Approval",   path: "/dashboard/super-admin/timesheets" },
       ],
     },
     {
       section: "SYSTEM SETTINGS",
-      items: [
-        {
-          icon: "Settings",
-          label: "System Settings",
-          children: [
-            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
-            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
-          ],
-        },
-      ],
+      items: [SETTINGS_SUPER_ADMIN],
     },
   ],
 
-  // ════════════════════════════════════════════════════════════════
   finance: [
     {
       section: "MAIN",
@@ -231,45 +141,13 @@ export const sidebarConfig = {
     {
       section: "TIMESHEETS",
       items: [
-        { icon: "Clock",      label: "Approve Timesheets",    path: "/dashboard/timesheets"    },
-        { icon: "GitCompare", label: "Variance Analysis",     path: "/dashboard/variance"      },
-        { icon: "RefreshCw",  label: "Cover Hours",           path: "/dashboard/cover-hours"   },
-        { icon: "Activity",   label: "Working Hour Patterns", path: "/dashboard/hour-patterns" },
-      ],
-    },
-    {
-      section: "INVOICES",
-      items: [
-        { icon: "Receipt",  label: "Contractor Invoices", path: "/dashboard/contractor-invoices" },
-        { icon: "FileText", label: "Client Invoices",     path: "/dashboard/client-invoices"     },
-      ],
-    },
-    {
-      section: "CODES & REPORTS",
-      items: [
-        { icon: "Hash",       label: "Staff Xero Codes",   path: "/dashboard/staff-xero"    },
-        { icon: "Hash",       label: "Client Xero Codes",  path: "/dashboard/client-xero"   },
-        { icon: "Users",      label: "Headcount Analysis", path: "/dashboard/headcount"     },
-        { icon: "DollarSign", label: "Expenses",           path: "/dashboard/expenses"      },
-        { icon: "Bell",       label: "Notifications",      path: "/dashboard/notifications" },
-      ],
-    },
-    {
-      section: "SYSTEM SETTINGS",
-      items: [
-        {
-          icon: "Settings",
-          label: "System Settings",
-          children: [
-            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
-            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
-          ],
-        },
+        { icon: "Clock",       label: "Approve Timesheets", path: "/dashboard/super-admin/timesheets" },
+        { icon: "CalendarOff", label: "Leave Management",   path: "/dashboard/leave" },
+        { icon: "UserCheck",   label: "Clinician Management", path: "/dashboard/clinicians" },
       ],
     },
   ],
 
-  // ════════════════════════════════════════════════════════════════
   training: [
     {
       section: "MAIN",
@@ -278,69 +156,14 @@ export const sidebarConfig = {
       ],
     },
     {
-      section: "SUPERVISION",
+      section: "CLINICIANS",
       items: [
-        {
-          icon: "CalendarCheck",
-          label: "Supervision",
-          children: [
-            { icon: "CalendarCheck", label: "Supervision Tracker",  path: "/dashboard/supervision"               },
-            { icon: "FileText",      label: "Supervision Forms",    path: "/dashboard/supervision-forms"         },
-            { icon: "XCircle",       label: "Cancellations",        path: "/dashboard/supervision-cancellations" },
-            { icon: "Monitor",       label: "Remote Supervision",   path: "/dashboard/remote-supervision"        },
-          ],
-        },
-      ],
-    },
-    {
-      section: "COMPETENCY",
-      items: [
-        {
-          icon: "Award",
-          label: "Competency",
-          children: [
-            { icon: "Award",      label: "New Starter Competency", path: "/dashboard/competency-new"     },
-            { icon: "TrendingUp", label: "Ongoing Competency",     path: "/dashboard/competency-ongoing" },
-            { icon: "Clipboard",  label: "Reflection / Incidents", path: "/dashboard/reflection"         },
-          ],
-        },
-      ],
-    },
-    {
-      section: "CPPE & TRAINING",
-      items: [
-        { icon: "GraduationCap", label: "CPPE Tracker",      path: "/dashboard/cppe"        },
-        { icon: "BookMarked",    label: "Study Leave Log",   path: "/dashboard/study-leave" },
-        { icon: "Compass",       label: "Scope of Practice", path: "/dashboard/scope"       },
-      ],
-    },
-    {
-      section: "RESOURCES",
-      items: [
-        { icon: "FolderOpen",   label: "SOPs & Guides",       path: "/dashboard/resources"          },
-        { icon: "Upload",       label: "Training Materials",  path: "/dashboard/training-materials" },
-        { icon: "AlertOctagon", label: "MHRA Alerts",         path: "/dashboard/mhra"               },
-        { icon: "CalendarOff",  label: "Absences (View)",     path: "/dashboard/absences"           },
-        { icon: "Users",        label: "Clinician Directory", path: "/dashboard/directory"          },
-        { icon: "Bell",         label: "Notifications",       path: "/dashboard/notifications"      },
-      ],
-    },
-    {
-      section: "SYSTEM SETTINGS",
-      items: [
-        {
-          icon: "Settings",
-          label: "System Settings",
-          children: [
-            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
-            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
-          ],
-        },
+        { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
+        { icon: "CalendarOff", label: "Leave Management", path: "/dashboard/leave" },
       ],
     },
   ],
 
-  // ════════════════════════════════════════════════════════════════
   workforce: [
     {
       section: "MAIN",
@@ -352,44 +175,18 @@ export const sidebarConfig = {
       section: "CLINICIANS",
       items: [
         { icon: "UserCheck", label: "Clinician Management", path: "/dashboard/clinicians" },
-        { icon: "Compass",   label: "Scope of Practice",   path: "/dashboard/scope"      },
-        { icon: "Phone",     label: "Staff Contacts",      path: "/dashboard/contacts"   },
       ],
     },
     {
       section: "ROTA & COVER",
       items: [
-        { icon: "Calendar",    label: "Monthly Rota",   path: "/dashboard/rota"      },
-        { icon: "RefreshCw",   label: "Cover Requests", path: "/dashboard/cover"     },
-        { icon: "AlertCircle", label: "Rota Gaps",      path: "/dashboard/rota-gaps" },
-      ],
-    },
-    {
-      section: "HR & COMPLIANCE",
-      items: [
-        { icon: "Key",            label: "System Access",      path: "/dashboard/access"        },
-        { icon: "ClipboardCheck", label: "Compliance Chasing", path: "/dashboard/compliance"    },
-        { icon: "CalendarOff",    label: "Leave Requests",     path: "/dashboard/leave"         },
-        { icon: "UserPlus",       label: "Onboarding",         path: "/dashboard/onboarding"    },
-        { icon: "Bell",           label: "Notifications",      path: "/dashboard/notifications" },
-      ],
-    },
-    {
-      section: "SYSTEM SETTINGS",
-      items: [
-        {
-          icon: "Settings",
-          label: "System Settings",
-          children: [
-            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
-            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
-          ],
-        },
+        { icon: "Calendar",    label: "Monthly Rota", path: "/dashboard/rota"      },
+        { icon: "AlertCircle", label: "Rota Gaps",    path: "/dashboard/rota-gaps" },
+        { icon: "CalendarOff", label: "Leave Requests", path: "/dashboard/leave" },
       ],
     },
   ],
 
-  // ════════════════════════════════════════════════════════════════
   clinician: [
     {
       section: "MAIN",
@@ -400,7 +197,6 @@ export const sidebarConfig = {
     {
       section: "MY WORK",
       items: [
-        // ✅ FIX: path was /portal/clinician/timesheet — corrected to /portal/clinician/my-timesheet
         { icon: "Clock",         label: "My Timesheet",     path: "/portal/clinician/my-timesheet" },
         { icon: "CalendarOff",   label: "Apply for Leave",  path: "/portal/clinician/apply-leave"  },
         { icon: "CalendarCheck", label: "My Leave Balance", path: "/portal/clinician/leave-balance" },
@@ -417,24 +213,7 @@ export const sidebarConfig = {
     {
       section: "MY COMPLIANCE",
       items: [
-        { icon: "ClipboardCheck", label: "Mandatory Training",  path: "/portal/clinician/mandatory"     },
-        { icon: "Upload",         label: "Upload Certificates", path: "/portal/clinician/certificates"  },
-        { icon: "FolderOpen",     label: "Resources",           path: "/portal/clinician/resources"     },
-        { icon: "Bell",           label: "My Notifications",    path: "/portal/clinician/notifications" },
-      ],
-    },
-    {
-      section: "SYSTEM SETTINGS",
-      items: [
-        {
-          icon: "Settings",
-          label: "System Settings",
-          children: [
-            { icon: "User",       label: "My Profile",          path: "/portal/clinician/profile"    },
-            { icon: "Shield",     label: "Roles & Permissions", path: "/dashboard/super-admin/users" },
-            { icon: "ScrollText", label: "Audit Trail",          path: "/dashboard/super-admin/audit" },
-          ],
-        },
+        { icon: "ClipboardCheck", label: "My Compliance", path: "/portal/clinician/compliance" },
       ],
     },
   ],

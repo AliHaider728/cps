@@ -333,13 +333,24 @@ export default function CliniciansListPage() {
       header: "",
       render: (c) => (
         <div className="flex items-center gap-1.5 justify-end">
-          {/* ── Add Shift button — moved from RotaPage ── */}
-          <button
-            onClick={() => setShiftModal({ open: true, clinicianId: c._id })}
-            className="h-8 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
-          >
-            <Calendar size={12} /> Add Shift
-          </button>
+          {(() => {
+            const shiftCount = Number(c.shiftCount ?? 0);
+            const label = shiftCount > 0 ? "Manage Shifts" : "Add Shift";
+            return (
+              <button
+                onClick={() => {
+                  if (shiftCount > 0) {
+                    navigate(`/dashboard/clinicians/${c._id}?tab=calendar`);
+                  } else {
+                    setShiftModal({ open: true, clinicianId: c._id });
+                  }
+                }}
+                className="h-8 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
+              >
+                <Calendar size={12} /> {label}
+              </button>
+            );
+          })()}
           <button
             onClick={() => navigate(`/dashboard/clinicians/${c._id}`)}
             className="h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap"

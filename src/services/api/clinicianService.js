@@ -44,7 +44,14 @@ export const clinicianService = {
   getClientHistory: (id) => apiClient.get(`${base}/${id}/client-history`),
 
   /* ── Tab 5 — Leave ──────────────────────────────────── */
+  getMyLeave:  ()                => apiClient.get(`${base}/me/leave`),
   getLeave:    (id)              => apiClient.get(`${base}/${id}/leave`),
+  updateUserLogin: (id, email)   => apiClient.patch(`${base}/${id}/user-login`, { email }),
+  resetUserPassword: (id)        => apiClient.post(`${base}/${id}/reset-login-password`),
+  getProjectMappings: (id)       => apiClient.get(`${base}/${id}/project-mappings`),
+  createProjectMapping: (id, data) => apiClient.post(`${base}/${id}/project-mappings`, data),
+  deleteProjectMapping: (id, mappingId) =>
+    apiClient.delete(`${base}/${id}/project-mappings/${mappingId}`),
   addLeave:    (id, data)        => apiClient.post(`${base}/${id}/leave`, data),
   updateLeave: (id, entryId, d)  => apiClient.put(`${base}/${id}/leave/${entryId}`, d),
   deleteLeave: (id, entryId)     => apiClient.delete(`${base}/${id}/leave/${entryId}`),

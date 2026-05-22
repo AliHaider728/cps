@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Stethoscope, ArrowLeft, ShieldAlert, ShieldCheck, Mail, Phone,
   User, Sparkles, ShieldCheck as ShieldIcon, Building2, CalendarDays,
@@ -14,8 +14,7 @@ import { QK } from "../../../lib/queryKeys";
 import { useAllUsers } from "../../../hooks/useAuth";
 import { usePCNs } from "../../../hooks/usePCN";
 import { usePractices } from "../../../hooks/usePractice";
-import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
-import { setActiveClinicianDetailTab } from "../../../slices/clinicianSlice";
+import { useAppSelector } from "../../../hooks/redux";
 
 import BasicInfoPanel     from "./panels/BasicInfoPanel.jsx";
 import SkillsPanel        from "./panels/SkillsPanel.jsx";
@@ -26,6 +25,8 @@ import SupervisionPanel   from "./panels/SupervisionPanel.jsx";
 import CPPEPanel          from "./panels/CPPEPanel.jsx";
 import OnboardingPanel    from "./panels/OnboardingPanel.jsx";
 import ScopePanel         from "./panels/ScopePanel.jsx";
+import ProjectMappingPanel from "./panels/ProjectMappingPanel.jsx";
+import { Briefcase } from "lucide-react";
 import { Spinner, fmtDate } from "./panels/shared.jsx";
 
 const TABS = [
@@ -34,11 +35,21 @@ const TABS = [
   { id: "compliance",  label: "Compliance",     icon: ShieldIcon    },
   { id: "history",     label: "Client History", icon: Building2     },
   { id: "calendar",    label: "Timesheet",      icon: CalendarDays  },
+  { id: "projects",    label: "Project Mapping", icon: Briefcase    },
   { id: "supervision", label: "Supervision",    icon: UsersIcon     },
   { id: "cppe",        label: "CPPE",           icon: GraduationCap },
   { id: "onboarding",  label: "Onboarding",     icon: Rocket        },
   { id: "scope",       label: "Scope",          icon: ScopeIcon     },
 ];
+
+const TAB_IDS = TABS.map((t) => t.id);
+const TAB_ALIASES = {
+  "basic-info": "basic",
+  "client-history": "history",
+  "supervision-log": "supervision",
+  "cppe-status": "cppe",
+  "project-mapping": "projects",
+};
 
 const TYPE_COLORS = {
   Pharmacist: "bg-purple-50 text-purple-700 border-purple-200",
@@ -56,11 +67,17 @@ const CONTRACT_COLORS = {
 export default function CliniciansDetailPage() {
   const { id }   = useParams();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
+  const [searchParams] = useSearchParams();
 
-  const activeTab      = useAppSelector((s) => s.clinician?.activeDetailTab || "basic");
+  const [activeTab, setActiveTab] = useState("basic");
   const role           = useAppSelector((s) => s.auth?.user?.role) || "";
   const [mobileTabOpen, setMobileTabOpen] = useState(false);
+
+  useEffect(() => {
+    const raw = searchParams.get("tab");
+    const tab = TAB_ALIASES[raw] || raw;
+    setActiveTab(tab && TAB_IDS.includes(tab) ? tab : "basic");
+  }, [id, searchParams]);
 
   const { data, isLoading, isError } = useClinician(id);
   const usersQ     = useAllUsers();
@@ -73,7 +90,7 @@ export default function CliniciansDetailPage() {
   const canRestrict = ["super_admin", "ops_manager"].includes(role);
 
   const changeTab = (tabId) => {
-    dispatch(setActiveClinicianDetailTab(tabId));
+    if (TAB_IDS.includes(tabId)) setActiveTab(tabId);
     setMobileTabOpen(false);
   };
 
@@ -134,6 +151,10 @@ export default function CliniciansDetailPage() {
         return <CompliancePanel clinicianId={id} canManage={canManage} />;
       case "history":
         return <ClientHistoryPanel clinicianId={id} canManage={canManage} pcns={pcns} practices={practices} />;
+      case "projects":
+        return (
+          <ProjectMappingPanel clinicianId={id} canManage={canManage} />
+        );
       case "calendar":
         return (
           <CalendarPanel
@@ -297,7 +318,7 @@ export default function CliniciansDetailPage() {
       <div className="sm:hidden relative">
         <button
           onClick={() => setMobileTabOpen(!mobileTabOpen)}
-          className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 shadow-sm"
+          className="w-full min-h-11 bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 shadow-sm"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
@@ -318,9 +339,10 @@ export default function CliniciansDetailPage() {
               const active = activeTab === t.id;
               return (
                 <button
+                  type="button"
                   key={t.id}
                   onClick={() => changeTab(t.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-colors text-left
+                  className={`w-full min-h-11 flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-colors text-left
                     ${active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"}
                     ${i > 0 ? "border-t border-slate-100" : ""}`}
                 >
@@ -345,9 +367,10 @@ export default function CliniciansDetailPage() {
               const active = activeTab === t.id;
               return (
                 <button
+                  type="button"
                   key={t.id}
                   onClick={() => changeTab(t.id)}
-                  className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-2 lg:py-2.5 rounded-xl text-xs lg:text-sm font-bold transition-all
+                  className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-2.5 lg:py-2.5 min-h-11 sm:min-h-9 rounded-xl text-xs lg:text-sm font-bold transition-all
                     ${active
                       ? "bg-blue-600 text-white shadow-sm shadow-blue-200"
                       : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}

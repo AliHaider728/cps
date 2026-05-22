@@ -620,24 +620,25 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <button onClick={prevMonth} className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-3 flex-wrap">
+            <button type="button" onClick={prevMonth} className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
               <ChevronLeft size={14} className="text-slate-600" />
             </button>
-            <h2 className="text-base font-bold text-slate-800 min-w-[160px] text-center">{monthLabel}</h2>
-            <button onClick={nextMonth} className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
+            <h2 className="text-sm sm:text-base font-bold text-slate-800 min-w-[140px] sm:min-w-[160px] text-center">{monthLabel}</h2>
+            <button type="button" onClick={nextMonth} className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
               <ChevronRight size={14} className="text-slate-600" />
             </button>
             <button
+              type="button"
               onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()); }}
-              className="text-xs font-semibold text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
+              className="text-xs font-semibold text-blue-600 px-3 py-2.5 sm:py-1.5 min-h-11 sm:min-h-0 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
             >
               Today
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             {view !== "timesheet" && (
               <div className="hidden md:flex items-center gap-1.5">
                 {stats.working > 0    && <StatPill label="working" value={stats.working}    color="bg-blue-50 text-blue-700"     />}
@@ -648,22 +649,25 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
             )}
 
             {/* View toggle — Calendar | List | Timesheet */}
-            <div className="flex items-center rounded-xl border border-slate-200 overflow-hidden">
+            <div className="flex w-full sm:w-auto items-stretch rounded-xl border border-slate-200 overflow-hidden">
               <button
+                type="button"
                 onClick={() => setView("calendar")}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${view === "calendar" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                className={`flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2 min-h-11 sm:min-h-0 text-xs font-semibold transition-colors ${view === "calendar" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
               >
                 <Calendar size={12} /> Calendar
               </button>
               <button
+                type="button"
                 onClick={() => setView("list")}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors border-x border-slate-200 ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                className={`flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2 min-h-11 sm:min-h-0 text-xs font-semibold transition-colors border-x border-slate-200 ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
               >
                 <List size={12} /> List
               </button>
               <button
+                type="button"
                 onClick={() => setView("timesheet")}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${view === "timesheet" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                className={`flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2 min-h-11 sm:min-h-0 text-xs font-semibold transition-colors ${view === "timesheet" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
               >
                 <FileText size={12} /> Timesheet
               </button>
@@ -693,8 +697,8 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
 
         {/* ── CALENDAR VIEW ── */}
         {!isLoading && view === "calendar" && (
-          <div className="p-4">
-            <div className="grid grid-cols-7 mb-2">
+          <div className="p-4 overflow-x-auto">
+            <div className="grid grid-cols-7 mb-2 min-w-[320px]">
               {DAYS.map((d) => (
                 <div key={d} className={`text-center text-[11px] font-bold uppercase tracking-wider py-2 ${d === "Sat" || d === "Sun" ? "text-slate-400" : "text-slate-500"}`}>
                   {d}
@@ -728,8 +732,8 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
 
         {/* ── LIST VIEW ── */}
         {!isLoading && view === "list" && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <div className="w-full overflow-x-auto px-4 sm:px-0">
+            <table className="min-w-[640px] w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   {["Date","Status","Time","Hours","Practice","System","Rate"].map((h) => (

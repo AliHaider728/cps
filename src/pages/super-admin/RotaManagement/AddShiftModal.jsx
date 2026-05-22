@@ -218,12 +218,8 @@ export default function AddShiftModal({ open, onClose, clinicianId, date }) {
       notes,
     };
 
-    // ── debug log (remove after fix confirmed) ────────────────────────────
-    console.log("[AddShiftModal] Sending payload:", payload);
-
     create.mutate(payload, {
-      onSuccess: (result) => {
-        console.log("[AddShiftModal] Success:", result);
+      onSuccess: () => {
         onClose?.();
       },
       onError: (err) => {

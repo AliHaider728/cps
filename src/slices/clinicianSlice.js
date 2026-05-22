@@ -15,6 +15,7 @@ const DETAIL_TABS = [
   "compliance",
   "history",
   "calendar",
+  "projects",
   "supervision",
   "cppe",
   "onboarding",

@@ -60,11 +60,11 @@ const DashboardLayout = ({ children }) => {
           setIsCollapsed={setIsCollapsed}
         />
 
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
+        <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6 overflow-x-hidden overflow-y-auto min-w-0">
           {children}
         </main>
 
-        <footer className="bg-white py-4 px-6 border-t border-slate-200 text-center text-xs text-slate-400 font-medium">
+        <footer className="bg-white py-4 px-4 sm:px-6 border-t border-slate-200 text-center text-xs text-slate-400 font-medium">
           © {new Date().getFullYear()}{" "}
           <span className="text-blue-600 font-semibold">Core Prescribing Solutions</span>
           · Designed by{" "}
