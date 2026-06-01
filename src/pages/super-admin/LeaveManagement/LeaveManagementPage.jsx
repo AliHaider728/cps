@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarOff, Check, X, Download, Search } from "lucide-react";
 import { leaveService } from "../../../services/api/leaveService";
-import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 
 const TABS = [
@@ -15,6 +14,40 @@ const leaveTypeLabel = (t) => {
   const map = { annual: "Annual Leave", sick: "Sick", cppe: "CPPE", other: "Other" };
   return map[t] || t || "—";
 };
+
+const leaveRowId = (row) => row?._id || row?.id || null;
+
+const fmtLeaveDate = (value) => {
+  if (!value) return "—";
+  const raw = String(value);
+  const dateOnly = raw.includes("T") ? raw.split("T")[0] : raw.slice(0, 10);
+  try {
+    const d = new Date(dateOnly);
+    if (Number.isNaN(d.getTime())) return dateOnly;
+    return d.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateOnly;
+  }
+};
+
+/** One row per leave record — dedupe by id in case API returns duplicates */
+function normalizeLeaves(rows) {
+  const seen = new Set();
+  const out = [];
+  for (const row of rows || []) {
+    const id = leaveRowId(row);
+    if (id) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+    }
+    out.push(row);
+  }
+  return out;
+}
 
 export default function LeaveManagementPage() {
   const [tab, setTab] = useState("pending");
@@ -29,7 +62,6 @@ export default function LeaveManagementPage() {
       tab === "report"
         ? leaveService.report().then((r) => r.data)
         : leaveService.list({ status: tab, search: search || undefined }).then((r) => r.data),
-    enabled: tab !== "report" || true,
   });
 
   const reviewM = useMutation({
@@ -42,7 +74,10 @@ export default function LeaveManagementPage() {
     },
   });
 
-  const pendingRows = listQ.data?.leaves || [];
+  const pendingRows = useMemo(
+    () => normalizeLeaves(listQ.data?.leaves),
+    [listQ.data?.leaves]
+  );
   const reportRows = listQ.data?.rows || [];
 
   const exportCsv = (rows, headers, filename) => {
@@ -66,6 +101,31 @@ export default function LeaveManagementPage() {
     return pendingRows;
   }, [tab, pendingRows]);
 
+  const renderActions = (row) => {
+    const id = leaveRowId(row);
+    if (!id) return null;
+    return (
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => reviewM.mutate({ id, action: "approve" })}
+          disabled={reviewM.isPending}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 hover:bg-emerald-100"
+        >
+          <Check size={12} /> Approve
+        </button>
+        <button
+          type="button"
+          onClick={() => setRejectId(id)}
+          disabled={reviewM.isPending}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200 hover:bg-rose-100"
+        >
+          <X size={12} /> Reject
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 pb-12">
       <div className="flex items-center gap-3">
@@ -82,6 +142,7 @@ export default function LeaveManagementPage() {
         {TABS.map((t) => (
           <button
             key={t.id}
+            type="button"
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
               tab === t.id
@@ -101,7 +162,7 @@ export default function LeaveManagementPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search clinician name…"
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm"
+            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
           />
         </div>
       )}
@@ -114,48 +175,34 @@ export default function LeaveManagementPage() {
       )}
 
       {tab === "pending" && (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full min-w-[720px] text-sm border-collapse">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Employee</th>
-                <th className="px-4 py-3">Contract</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">From</th>
-                <th className="px-4 py-3">To</th>
-                <th className="px-4 py-3">Days</th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="px-4 py-3 font-bold">Employee</th>
+                <th className="px-4 py-3 font-bold">Contract</th>
+                <th className="px-4 py-3 font-bold">Type</th>
+                <th className="px-4 py-3 font-bold">From</th>
+                <th className="px-4 py-3 font-bold">To</th>
+                <th className="px-4 py-3 font-bold">Days</th>
+                <th className="px-4 py-3 font-bold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {pendingRows.map((row) => (
-                <tr key={row._id}>
-                  <td className="px-4 py-3 font-semibold">{row.clinicianName}</td>
-                  <td className="px-4 py-3">{row.contractType}</td>
-                  <td className="px-4 py-3">{leaveTypeLabel(row.leaveType)}</td>
-                  <td className="px-4 py-3">{row.startDate}</td>
-                  <td className="px-4 py-3">{row.endDate}</td>
-                  <td className="px-4 py-3">{row.days}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => reviewM.mutate({ id: row._id, action: "approve" })}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200"
-                      >
-                        <Check size={12} /> Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRejectId(row._id)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200"
-                      >
-                        <X size={12} /> Reject
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {pendingRows.map((row) => {
+                const id = leaveRowId(row);
+                return (
+                  <tr key={id || `${row.clinicianName}-${row.startDate}`} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-semibold text-slate-800">{row.clinicianName}</td>
+                    <td className="px-4 py-3 text-slate-700">{row.contractType}</td>
+                    <td className="px-4 py-3 text-slate-700">{leaveTypeLabel(row.leaveType)}</td>
+                    <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtLeaveDate(row.startDate)}</td>
+                    <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtLeaveDate(row.endDate)}</td>
+                    <td className="px-4 py-3 text-slate-700">{row.days}</td>
+                    <td className="px-4 py-3">{renderActions(row)}</td>
+                  </tr>
+                );
+              })}
               {pendingRows.length === 0 && !listQ.isLoading && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
@@ -184,31 +231,34 @@ export default function LeaveManagementPage() {
               <Download size={14} /> Export CSV
             </Button>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full min-w-[720px] text-sm border-collapse">
               <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Employee</th>
-                  <th className="px-4 py-3">Contract</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">From</th>
-                  <th className="px-4 py-3">To</th>
-                  <th className="px-4 py-3">Days</th>
-                  <th className="px-4 py-3">Approved by</th>
+                  <th className="px-4 py-3 font-bold">Employee</th>
+                  <th className="px-4 py-3 font-bold">Contract</th>
+                  <th className="px-4 py-3 font-bold">Type</th>
+                  <th className="px-4 py-3 font-bold">From</th>
+                  <th className="px-4 py-3 font-bold">To</th>
+                  <th className="px-4 py-3 font-bold">Days</th>
+                  <th className="px-4 py-3 font-bold">Approved by</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {approvedFiltered.map((row) => (
-                  <tr key={row._id}>
-                    <td className="px-4 py-3 font-semibold">{row.clinicianName}</td>
-                    <td className="px-4 py-3">{row.contractType}</td>
-                    <td className="px-4 py-3">{leaveTypeLabel(row.leaveType)}</td>
-                    <td className="px-4 py-3">{row.startDate}</td>
-                    <td className="px-4 py-3">{row.endDate}</td>
-                    <td className="px-4 py-3">{row.days}</td>
-                    <td className="px-4 py-3 text-slate-600">{row.approverEmail || "Auto"}</td>
-                  </tr>
-                ))}
+                {approvedFiltered.map((row) => {
+                  const id = leaveRowId(row);
+                  return (
+                    <tr key={id || `${row.clinicianName}-${row.startDate}`} className="hover:bg-slate-50/50">
+                      <td className="px-4 py-3 font-semibold text-slate-800">{row.clinicianName}</td>
+                      <td className="px-4 py-3 text-slate-700">{row.contractType}</td>
+                      <td className="px-4 py-3 text-slate-700">{leaveTypeLabel(row.leaveType)}</td>
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtLeaveDate(row.startDate)}</td>
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtLeaveDate(row.endDate)}</td>
+                      <td className="px-4 py-3 text-slate-700">{row.days}</td>
+                      <td className="px-4 py-3 text-slate-600">{row.approverEmail || "Auto"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -227,8 +277,8 @@ export default function LeaveManagementPage() {
               <Download size={14} /> Export CSV
             </Button>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white text-xs">
-            <table className="w-full">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white text-xs shadow-sm">
+            <table className="w-full border-collapse">
               <thead className="bg-slate-50 text-left uppercase text-slate-500">
                 <tr>
                   {Object.keys(reportRows[0] || {
@@ -236,7 +286,7 @@ export default function LeaveManagementPage() {
                     project_name: "",
                     al_entitlement: "",
                   }).map((k) => (
-                    <th key={k} className="px-3 py-2 whitespace-nowrap">
+                    <th key={k} className="px-3 py-2 whitespace-nowrap font-bold">
                       {k.replace(/_/g, " ")}
                     </th>
                   ))}
@@ -246,7 +296,7 @@ export default function LeaveManagementPage() {
                 {reportRows.map((row, i) => (
                   <tr key={i}>
                     {Object.values(row).map((v, j) => (
-                      <td key={j} className="px-3 py-2 whitespace-nowrap">
+                      <td key={j} className="px-3 py-2 whitespace-nowrap text-slate-700">
                         {v}
                       </td>
                     ))}
@@ -263,10 +313,10 @@ export default function LeaveManagementPage() {
 
       {rejectId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-200">
             <h3 className="font-bold text-slate-800">Reject leave request</h3>
             <textarea
-              className="mt-3 w-full border border-slate-200 rounded-xl p-3 text-sm"
+              className="mt-3 w-full border border-slate-200 rounded-xl p-3 text-sm bg-white text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               rows={3}
               placeholder="Rejection note for clinician…"
               value={rejectNote}
@@ -275,6 +325,7 @@ export default function LeaveManagementPage() {
             <div className="mt-4 flex gap-2 justify-end">
               <Button variant="secondary" onClick={() => setRejectId(null)}>Cancel</Button>
               <Button
+                variant="danger"
                 onClick={() =>
                   reviewM.mutate({
                     id: rejectId,

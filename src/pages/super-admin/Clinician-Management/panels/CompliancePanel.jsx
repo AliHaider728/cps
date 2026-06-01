@@ -180,27 +180,35 @@ export default function CompliancePanel({ clinicianId, canManage }) {
                     rel="noreferrer"
                     className="px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-white"
                   >
-                    View
+                    📥 View Document
                   </a>
                 )}
                 {canManage && (
                   <>
+                    {/* Admin can upload/replace document file */}
                     <Btn variant="ghost" size="sm" onClick={() => openUpload(d)}>
                       <Upload size={12} />
                     </Btn>
-                    {d.status !== "approved" && (
-                      <Btn
-                        variant="success" size="sm"
-                        onClick={() => approveM.mutate(d._id)}
-                        disabled={approveM.isPending}
-                      >
-                        <Check size={12} />
-                      </Btn>
-                    )}
-                    {d.status !== "rejected" && (
-                      <Btn variant="danger" size="sm" onClick={() => openReject(d)}>
-                        <XCircle size={12} />
-                      </Btn>
+
+                    {/* Review actions only when clinician uploaded (pending) */}
+                    {(d.status === "uploaded" || d.status === "pending") && (
+                      <>
+                        <Btn
+                          variant="success"
+                          size="sm"
+                          onClick={() => approveM.mutate(d._id)}
+                          disabled={approveM.isPending}
+                        >
+                          <Check size={12} /> Approve
+                        </Btn>
+                        <Btn
+                          variant="danger"
+                          size="sm"
+                          onClick={() => openReject(d)}
+                        >
+                          <XCircle size={12} /> Reject
+                        </Btn>
+                      </>
                     )}
                   </>
                 )}

@@ -3,22 +3,20 @@ import Sidebar from "./Sidebar/Sidebar.jsx";
 import Header  from "./Header/Header.jsx";
 
 const DashboardLayout = ({ children }) => {
-  //  Desktop par true, mobile par false — window width check karke
-  const [sidebarOpen,  setSidebarOpen]  = useState(() => window.innerWidth >= 768);
-  const [isCollapsed,  setIsCollapsed]  = useState(false);
-  const [isDark,       setIsDark]       = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDark,      setIsDark]      = useState(false);
 
-  //  Resize par bhi handle karo
+  // Desktop par hamesha open rakho resize par
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setSidebarOpen(true); // desktop par hamesha open
-      }
+    const onResize = () => {
+      if (window.innerWidth >= 768) setSidebarOpen(true);
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // Theme persist
   useEffect(() => {
     const saved = localStorage.getItem("cps_theme");
     if (saved === "dark") {
@@ -34,25 +32,26 @@ const DashboardLayout = ({ children }) => {
     document.documentElement.classList.toggle("dark", next);
   };
 
+  // Effective sidebar width (accounts for hover-expand in Sidebar itself)
+  // Layout only cares about collapsed vs expanded for margin
+  const marginLeft = isCollapsed ? "md:ml-[68px]" : "md:ml-[256px]";
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className={`flex min-h-screen ${isDark ? "bg-slate-950" : "bg-slate-50"}`}>
       <Sidebar
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
+        isDark={isDark}
       />
 
-      <div
-        className={`flex-1 flex flex-col transition-all duration-300
-          ${isCollapsed ? "md:ml-[68px]" : "md:ml-[256px]"}`}
-      >
+      {/* Main content — transitions with sidebar width */}
+      <div className={`flex-1 flex flex-col transition-all duration-[280ms] ease-[cubic-bezier(.4,0,.2,1)] ${marginLeft}`}>
         <Header
-          //  Mobile par toggle karo (open/close), desktop par kuch mat karo
           onMenuClick={() => {
-            if (window.innerWidth < 768) {
-              setSidebarOpen(o => !o);
-            }
+            // Mobile: toggle drawer; Desktop: no-op (collapse handled in Header)
+            if (window.innerWidth < 768) setSidebarOpen((o) => !o);
           }}
           onThemeToggle={handleThemeToggle}
           isDark={isDark}
@@ -64,10 +63,11 @@ const DashboardLayout = ({ children }) => {
           {children}
         </main>
 
-        <footer className="bg-white py-4 px-4 sm:px-6 border-t border-slate-200 text-center text-xs text-slate-400 font-medium">
+        <footer className={`py-4 px-4 sm:px-6 border-t text-center text-xs font-medium
+          ${isDark ? "bg-slate-900 border-slate-800 text-slate-500" : "bg-white border-slate-200 text-slate-400"}`}>
           © {new Date().getFullYear()}{" "}
           <span className="text-blue-600 font-semibold">Core Prescribing Solutions</span>
-          · Designed by{" "}
+          {" · "}Designed by{" "}
           <span className="text-blue-600 font-semibold">TecnoSphere</span>
         </footer>
       </div>

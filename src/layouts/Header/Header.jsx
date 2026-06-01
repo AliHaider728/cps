@@ -1,275 +1,267 @@
-import { useState, useRef, useEffect } from "react";
-import {
-  Menu, Bell, Sun, Moon, Search, LogOut, User,
-  Calendar, ShieldCheck, BarChart2,
-  AlertTriangle, GraduationCap, ChevronLeft, ChevronRight
-} from "lucide-react";
-import { useAuth } from "../../context/AuthContext.jsx";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useRef, useEffect } from 'react';
+import { Menu, Search, Bell, Sun, Moon, LogOut, User, Settings, ChevronDown, X } from 'lucide-react';
 
-// ── Mock notifications ────
-const INITIAL_NOTIFICATIONS = [
-  {
-    id: 1, tab: "rota", read: false,
-    icon: <Calendar size={15} />, iconBg: "#eff6ff", iconColor: "#1d4ed8",
-    title: "Rota published — week 16",
-    desc: "Your schedule for Apr 14–20 is live.",
-    time: "2 min ago",
-    tag: "Rota", tagColor: "#1d4ed8", tagBg: "#dbeafe",
-  },
-  {
-    id: 2, tab: "compliance", read: false,
-    icon: <AlertTriangle size={15} />, iconBg: "#fff7ed", iconColor: "#c2410c",
-    title: "DBS renewal due in 7 days",
-    desc: "Certificate expires 17 Apr — upload renewal.",
-    time: "1 hr ago",
-    tag: "Urgent", tagColor: "#c2410c", tagBg: "#ffedd5",
-  },
-  {
-    id: 3, tab: "pcn", read: false,
-    icon: <BarChart2 size={15} />, iconBg: "#faf5ff", iconColor: "#6d28d9",
-    title: "PCN dashboard updated",
-    desc: "Q1 metrics uploaded by Network Manager.",
-    time: "3 hrs ago",
-    tag: "PCN", tagColor: "#6d28d9", tagBg: "#ede9fe",
-  },
-  {
-    id: 4, tab: "compliance", read: true,
-    icon: <GraduationCap size={15} />, iconBg: "#f0fdf4", iconColor: "#15803d",
-    title: "Training module assigned",
-    desc: "Complete 'Medicines Optimisation' by 30 Apr.",
-    time: "Yesterday",
-    tag: "Training", tagColor: "#15803d", tagBg: "#dcfce7",
-  },
-];
-
-const NOTIF_TABS = ["all", "rota", "compliance", "pcn"];
-
-const Header = ({ onMenuClick, onThemeToggle, isDark, isCollapsed, setIsCollapsed }) => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
-  const [notifOpen, setNotifOpen] = useState(false);
+const Header = ({ onMenuClick, onThemeToggle, isDark, user }) => {
   const [profileOpen, setProfileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("all");
-  const [query, setQuery] = useState("");
-
-  const notifRef = useRef(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [query, setQuery] = useState('');
+  const [notifOpen, setNotifOpen] = useState(false);
   const profileRef = useRef(null);
-  const searchRef = useRef(null);
+  const notifRef   = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
-      if (!notifRef.current?.contains(e.target)) setNotifOpen(false);
       if (!profileRef.current?.contains(e.target)) setProfileOpen(false);
-      if (!searchRef.current?.contains(e.target)) setSearchOpen(false);
+      if (!notifRef.current?.contains(e.target))   setNotifOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const displayName = user?.name || 'Admin';
+  const displayRole = user?.role?.replace(/_/g, ' ') || 'Administrator';
+  const initials    = displayName.charAt(0).toUpperCase();
 
-  const filtered = activeTab === "all"
-    ? notifications
-    : notifications.filter((n) => n.tab === activeTab);
-
-  const tabCounts = {
-    all: notifications.length,
-    rota: notifications.filter((n) => n.tab === "rota").length,
-    compliance: notifications.filter((n) => n.tab === "compliance").length,
-    pcn: notifications.filter((n) => n.tab === "pcn").length,
-  };
-
-  const QUICK_LINKS = [
-    { label: "Rota management", sub: "View & manage staff schedules", icon: <Calendar size={14} />, color: "#1d4ed8", bg: "#eff6ff", path: "/dashboard/rota" },
-    { label: "Clinician management", sub: "Profiles, compliance & timesheets", icon: <User size={14} />, color: "#c2410c", bg: "#fff7ed", path: "/dashboard/clinicians" },
-    { label: "Client hierarchy", sub: "PCNs, practices & compliance", icon: <BarChart2 size={14} />, color: "#6d28d9", bg: "#faf5ff", path: "/dashboard/super-admin/clients" },
-    { label: "Leave management", sub: "Approve and track leave requests", icon: <ShieldCheck size={14} />, color: "#15803d", bg: "#f0fdf4", path: "/dashboard/leave" },
-  ].filter((l) => !query || l.label.toLowerCase().includes(query.toLowerCase()));
-
-  const handleMarkAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  const handleNotifClick = (n) => setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-  const handleLogout = async () => { await logout(); navigate("/login"); };
+  const iconBtn = (isDark) =>
+    `flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200
+    ${isDark
+      ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800 border border-transparent hover:border-slate-700'
+      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent hover:border-slate-200'}`;
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
-        .hdr-fn { font-family: 'Nunito', sans-serif; }
-        .ni-desc-clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .hdr-dropdown { animation: hdrFadeIn 0.15s ease; }
-        @keyframes hdrFadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-        .hdr-notif-item:hover { background: #f8faff; }
-        .dark .hdr-notif-item:hover { background: rgba(37,99,235,0.08); }
-        .ntab-active { background: #eff6ff !important; color: #2563eb !important; }
-      `}</style>
+    <header
+      className={`sticky top-0 z-30 h-[64px] flex items-center px-4 gap-3 transition-colors duration-300
+        ${isDark
+          ? 'bg-slate-900/95 backdrop-blur-sm border-b border-slate-800 shadow-[0_1px_0_rgba(255,255,255,0.04)]'
+          : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_2px_16px_rgba(15,23,42,0.05)]'}`}
+    >
+      {/* Top accent line */}
+      <div className="absolute top-0 left-0 right-0 h-[2px]
+        bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-400 opacity-60" />
 
-      <header className="hdr-fn sticky top-0 z-50 bg-white border-b border-slate-200 h-16 px-4 sm:px-6 flex items-center justify-between shadow-sm">
+      {/* ── Mobile hamburger ── */}
+      <button onClick={onMenuClick} className={`md:hidden ${iconBtn(isDark)}`}>
+        <Menu size={19} />
+      </button>
 
-        {/* LEFT SIDE - Cleaned & Tight */}
-        <div className="flex items-center gap-2">   {/* gap-3 → gap-2 (kam space) */}
+      {/* ── Page title (desktop) ── */}
+      <div className="hidden md:flex flex-col justify-center flex-shrink-0">
+        <h1 className={`text-[15px] font-bold leading-tight tracking-tight
+          ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+          Admin Dashboard
+        </h1>
+        <p className={`text-[10.5px] font-semibold tracking-widest uppercase
+          ${isDark ? 'text-slate-600' : 'text-blue-500/60'}`}>
+          Core Prescribing Solutions
+        </p>
+      </div>
 
-          {/* Mobile Hamburger */}
+      {/* ── Divider ── */}
+      <div className={`hidden md:block w-px h-6 flex-shrink-0 mx-1
+        ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+
+      {/* ── Search ── */}
+      <div className="flex-1 max-w-sm relative">
+        <Search
+          size={14}
+          className={`absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200
+            ${searchFocused ? 'text-blue-500' : isDark ? 'text-slate-600' : 'text-slate-400'}`}
+        />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
+          placeholder="Search staff, shifts, invoices…"
+          className={`w-full h-9 pl-9 pr-8 text-[13px] rounded-xl border transition-all duration-200
+            focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400
+            ${isDark
+              ? 'bg-slate-800 border-slate-700 text-slate-200 placeholder-slate-600 hover:border-slate-600'
+              : 'bg-slate-50/80 border-slate-200 text-slate-800 placeholder-slate-400 hover:border-slate-300 hover:bg-white'}`}
+        />
+        {query && (
           <button
-            onClick={onMenuClick}
-            className="md:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+            onClick={() => setQuery('')}
+            className={`absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 transition-colors
+              ${isDark ? 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'
+                       : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}
           >
-            <Menu size={20} />
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* ── Right actions ── */}
+      <div className="flex items-center gap-1 ml-auto">
+
+        {/* Theme toggle */}
+        <button
+          onClick={onThemeToggle}
+          title={isDark ? 'Light mode' : 'Dark mode'}
+          className={`${iconBtn(isDark)} ${isDark ? '!text-amber-400 hover:!text-amber-300' : ''}`}
+        >
+          {isDark ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+
+        {/* ── Notifications ── */}
+        <div ref={notifRef} className="relative">
+          <button
+            onClick={() => setNotifOpen((o) => !o)}
+            className={`${iconBtn(isDark)} relative ${notifOpen
+              ? isDark ? '!bg-slate-800 !border-slate-700 !text-slate-200' : '!bg-slate-100 !border-slate-200 !text-slate-700'
+              : ''}`}
+          >
+            <Bell size={17} />
+            <span className="absolute top-2 right-2 w-[7px] h-[7px] rounded-full bg-red-500
+              ring-[1.5px] ring-white shadow-sm" />
           </button>
 
-          {/* Sidebar Collapse Button - Ab perfect aligned aur compact */}
-          <button
-            onClick={() => setIsCollapsed(c => !c)}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="hidden md:flex p-2 rounded-lg relative -ml-5 hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </button>
-
-          {/* Search */}
-          <div ref={searchRef} className="relative hidden sm:block">
-            <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 w-60 cursor-text">
-              <Search size={14} className="text-slate-400 shrink-0" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setSearchOpen(true)}
-                placeholder="Search rota, staff, PCN…"
-                className="bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none w-full"
-              />
-            </div>
-
-            {searchOpen && (
-              <div className="hdr-dropdown absolute top-[calc(100%+8px)] left-0 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden z-50">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-1">
-                  Quick links
+          {notifOpen && (
+            <div
+              className={`absolute right-0 top-[calc(100%+8px)] w-80 rounded-2xl border shadow-2xl overflow-hidden z-50
+                ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
+              style={{ animation: 'hdrFadeIn 0.15s ease' }}
+            >
+              <style>{`@keyframes hdrFadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+              <div className={`flex items-center justify-between px-4 py-3 border-b
+                ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+                <p className={`text-[13px] font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                  Notifications
                 </p>
-                {QUICK_LINKS.map((l) => (
-                  <div
-                    key={l.path}
-                    onClick={() => { navigate(l.path); setSearchOpen(false); setQuery(""); }}
-                    className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: l.bg, color: l.color }}>
-                      {l.icon}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{l.label}</p>
-                      <p className="text-xs text-slate-400">{l.sub}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT SIDE - same as before */}
-        <div className="flex items-center gap-1.5">
-          <button onClick={onThemeToggle} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
-            {isDark ? <Sun size={17} /> : <Moon size={17} />}
-          </button>
-
-          {/* Notifications, divider, Profile - bilkul same (no change) */}
-          <div ref={notifRef} className="relative">
-            <button onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors relative">
-              <Bell size={17} />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white">
-                  {unreadCount > 9 ? "9+" : unreadCount}
+                <span className="text-[10.5px] font-semibold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">
+                  3 new
                 </span>
-              )}
-            </button>
-
-            {/* Notifications dropdown (same as you had) */}
-            {notifOpen && (
-              <div className="hdr-dropdown absolute right-0 top-[calc(100%+10px)] w-[360px] bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <span className="text-sm font-bold text-slate-800">Notifications</span>
-                  <button onClick={handleMarkAllRead} className="text-xs font-bold text-blue-600 hover:text-blue-800">Mark all read</button>
-                </div>
-
-                <div className="flex gap-1 px-4 pt-2 border-b border-slate-100">
-                  {NOTIF_TABS.map((tab) => (
-                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-xs font-bold rounded-t-lg capitalize transition-colors ${activeTab === tab ? "ntab-active" : "text-slate-400 hover:text-slate-600"}`}>
-                      {tab === "all" ? `All (${tabCounts.all})` : `${tab.charAt(0).toUpperCase() + tab.slice(1)} (${tabCounts[tab]})`}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
-                  {filtered.length === 0 ? (
-                    <p className="text-center text-sm text-slate-400 py-10">No notifications</p>
-                  ) : (
-                    filtered.map((n) => (
-                      <div key={n.id} onClick={() => handleNotifClick(n)} className={`hdr-notif-item flex gap-3 px-4 py-3 cursor-pointer transition-colors relative ${!n.read ? "bg-blue-50/30" : ""}`}>
-                        {!n.read && <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-600" />}
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: n.iconBg, color: n.iconColor }}>
-                          {n.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-800 mb-0.5">{n.title}</p>
-                          <p className="ni-desc-clip text-xs text-slate-500 mb-1">{n.desc}</p>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: n.tagColor, background: n.tagBg }}>{n.tag}</span>
-                            <span className="text-[10px] text-slate-400">{n.time}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
+              </div>
+              {[
+                { icon: "🗓️", text: "New shift request from Sarah M.", time: "2m ago",  unread: true  },
+                { icon: "💊", text: "Prescription renewal due tomorrow.", time: "1h ago", unread: true  },
+                { icon: "📋", text: "Invoice #1048 approved.",           time: "3h ago", unread: false },
+              ].map((n, i) => (
+                <div key={i}
+                  className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors
+                    ${n.unread
+                      ? isDark ? 'bg-blue-500/5 hover:bg-blue-500/10' : 'bg-blue-50/60 hover:bg-blue-50'
+                      : isDark ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'}`}>
+                  <span className="text-lg shrink-0 mt-0.5">{n.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[12.5px] leading-snug
+                      ${n.unread
+                        ? isDark ? 'text-slate-200 font-medium' : 'text-slate-800 font-medium'
+                        : isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {n.text}
+                    </p>
+                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>{n.time}</p>
+                  </div>
+                  {n.unread && (
+                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-1.5
+                      shadow-[0_0_4px_rgba(59,130,246,0.7)]" />
                   )}
                 </div>
-
+              ))}
+              <div className={`px-4 py-2.5 border-t ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+                <button className="w-full text-[12px] font-semibold text-blue-500 hover:text-blue-600 transition-colors">
+                  View all notifications
+                </button>
               </div>
-            )}
-          </div>
-
-          <div className="w-px h-7 bg-slate-200 mx-1" />
-
-          {/* Profile Section - same */}
-          {user && (
-            <div ref={profileRef} className="relative">
-              <div onClick={() => { setProfileOpen((o) => !o); setNotifOpen(false); }} className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors border border-transparent hover:border-slate-200">
-                <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-xs font-bold text-slate-800 leading-tight">{user.name}</span>
-                  <span className="text-[10px] text-slate-400 capitalize">{user.role?.replace("_", " ")}</span>
-                </div>
-                <div className="relative">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                    {user.name?.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
-                </div>
-              </div>
-
-              {profileOpen && (
-                <div className="hdr-dropdown absolute right-0 top-[calc(100%+10px)] w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
-                  <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-                    <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-                      {user.name?.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{user.name}</p>
-                      <p className="text-xs text-slate-400 capitalize">{user.role?.replace("_", " ")}</p>
-                    </div>
-                  </div>
-                  <div className="py-1.5">
-                    <div onClick={handleLogout} className="flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer transition-colors">
-                      <LogOut size={14} />
-                      Sign out
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
-      </header>
-    </>
+
+        {/* ── Divider ── */}
+        <div className={`w-px h-6 mx-1 flex-shrink-0 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+
+        {/* ── Profile dropdown ── */}
+        <div ref={profileRef} className="relative">
+          <button
+            onClick={() => setProfileOpen((o) => !o)}
+            className={`flex items-center gap-2 h-9 pl-1.5 pr-2.5 rounded-xl transition-all duration-200 border
+              ${profileOpen
+                ? isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'
+                : isDark
+                  ? 'border-transparent hover:bg-slate-800 hover:border-slate-700'
+                  : 'border-transparent hover:bg-slate-50 hover:border-slate-200'}`}
+          >
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0
+              shadow-[0_2px_8px_rgba(99,102,241,0.35)]"
+              style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>
+              {initials}
+            </div>
+            <div className="hidden sm:flex flex-col items-start leading-none">
+              <span className={`text-[12px] font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                {displayName}
+              </span>
+              <span className={`text-[10px] capitalize mt-[2px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                {displayRole}
+              </span>
+            </div>
+            <ChevronDown
+              size={12}
+              className={`flex-shrink-0 transition-transform duration-200
+                ${profileOpen ? 'rotate-180' : ''}
+                ${isDark ? 'text-slate-500' : 'text-slate-400'}`}
+            />
+          </button>
+
+          {profileOpen && (
+            <div
+              className={`absolute right-0 top-[calc(100%+8px)] w-56 rounded-2xl border shadow-2xl overflow-hidden z-50
+                ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
+              style={{ animation: 'hdrFadeIn 0.15s ease' }}
+            >
+              {/* User info */}
+              <div className={`flex items-center gap-3 px-4 py-3.5 border-b
+                ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-100 bg-slate-50/70'}`}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0
+                  shadow-[0_2px_10px_rgba(99,102,241,0.35)]"
+                  style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-[13px] font-bold truncate ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+                    {displayName}
+                  </p>
+                  <p className={`text-[10.5px] capitalize truncate mt-[1px]
+                    ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {displayRole}
+                  </p>
+                </div>
+              </div>
+
+              {/* Menu items */}
+              <div className="py-1.5">
+                {[
+                  { icon: User,     label: 'My Profile' },
+                  { icon: Settings, label: 'Settings'   },
+                ].map(({ icon: Icon, label }) => (
+                  <button key={label}
+                    className={`w-full flex items-center gap-3 px-4 py-[9px] text-[13px] transition-colors
+                      ${isDark ? 'text-slate-300 hover:bg-slate-700/70' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    <span className={`w-7 h-7 rounded-lg flex items-center justify-center
+                      ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                      <Icon size={13} />
+                    </span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className={`border-t py-1.5 ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+                <button className={`w-full flex items-center gap-3 px-4 py-[9px] text-[13px] font-medium
+                  text-red-500 transition-colors
+                  ${isDark ? 'hover:bg-red-500/10' : 'hover:bg-red-50'}`}>
+                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center
+                    ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-400'}`}>
+                    <LogOut size={13} />
+                  </span>
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
   );
 };
 

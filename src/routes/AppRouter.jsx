@@ -44,6 +44,7 @@ const ClinicianDashboard = lazy(() => import("../pages/clinician/ClinicianDashbo
 
 // ── Clinician Portal
 const MyTimesheetPage    = lazy(() => import("../pages/clinician/MyTimesheetPage.jsx"));
+const EnterMyHoursPage   = lazy(() => import("../pages/clinician/EnterMyHoursPage.jsx"));
 const ApplyForLeavePage  = lazy(() => import("../pages/clinician/ApplyForLeavePage.jsx"));
 const MyLeaveBalancePage = lazy(() => import("../pages/clinician/MyLeaveBalancePage.jsx"));
 const LeaveManagementPage = lazy(() => import("../pages/super-admin/LeaveManagement/LeaveManagementPage.jsx"));
@@ -51,10 +52,10 @@ const ClinicianSupervisionPage = lazy(() => import("../pages/clinician/Clinician
 const RemoteSupervisionPage = lazy(() => import("../pages/clinician/RemoteSupervisionPage.jsx"));
 const ClinicianCPPEPage = lazy(() => import("../pages/clinician/ClinicianCPPEPage.jsx"));
 const ClinicianCompliancePage = lazy(() => import("../pages/clinician/ClinicianCompliancePage.jsx"));
+const ClinicianCertificatesPage = lazy(() => import("../pages/clinician/ClinicianCertificatesPage.jsx"));
 
 // ── Module 5 — Rota Management
 const RotaPage     = lazy(() => import("../pages/super-admin/RotaManagement/RotaPage.jsx"));
-const RotaGapsPage = lazy(() => import("../pages/super-admin/RotaManagement/RotaGapsPage.jsx"));
 
 // ✅ NEW — Timesheet Queue + Detail (admin approval flow)
 const TimesheetQueuePage  = lazy(() => import("../pages/super-admin/RotaManagement/TimesheetQueuePage.jsx"));
@@ -157,7 +158,7 @@ const AppRouter = () => (
     <Route path="/dashboard/rota"
       element={<P roles={["super_admin","ops_manager","workforce","finance","training","director"]}><RotaPage /></P>} />
     <Route path="/dashboard/rota-gaps"
-      element={<P roles={["super_admin","ops_manager","workforce","finance","training","director"]}><RotaGapsPage /></P>} />
+      element={<Navigate to="/dashboard/rota?tab=gaps" replace />} />
 
     {/* ✅ NEW — Timesheet approval queue + detail ─────── */}
     <Route path="/dashboard/super-admin/timesheets"
@@ -175,6 +176,7 @@ const AppRouter = () => (
     {/* ── Clinician Portal ──────────────────────────────── */}
     <Route path="/portal/clinician"              element={<P roles={CLINICIAN_ROLES}><ClinicianDashboard /></P>} />
     <Route path="/portal/clinician/my-timesheet" element={<P roles={CLINICIAN_ROLES}><MyTimesheetPage /></P>} />
+    <Route path="/portal/clinician/enter-hours"  element={<P roles={CLINICIAN_ROLES}><EnterMyHoursPage /></P>} />
     <Route path="/portal/clinician/timesheet" element={<Navigate to="/portal/clinician/my-timesheet" replace />} />
     <Route path="/portal/clinician/apply-leave"  element={<P roles={CLINICIAN_ROLES}><ApplyForLeavePage /></P>} />
     <Route path="/portal/clinician/leave-balance" element={<P roles={CLINICIAN_ROLES}><MyLeaveBalancePage /></P>} />
@@ -182,6 +184,8 @@ const AppRouter = () => (
     <Route path="/portal/clinician/remote-supervision" element={<P roles={CLINICIAN_ROLES}><RemoteSupervisionPage /></P>} />
     <Route path="/portal/clinician/cppe" element={<P roles={CLINICIAN_ROLES}><ClinicianCPPEPage /></P>} />
     <Route path="/portal/clinician/compliance" element={<P roles={CLINICIAN_ROLES}><ClinicianCompliancePage /></P>} />
+    <Route path="/portal/clinician/certificates"
+      element={<P roles={CLINICIAN_ROLES}><ClinicianCertificatesPage /></P>} />
 
     {/* ── 404 ───────────────────────────────────────────── */}
     <Route path="*" element={<NotFound />} />

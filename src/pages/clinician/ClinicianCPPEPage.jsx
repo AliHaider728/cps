@@ -1,19 +1,19 @@
 import { useClinicianLeave } from "../../hooks/useClinicianLeave";
-import { useQuery } from "@tanstack/react-query";
-import { clinicianService } from "../../services/api/clinicianService";
+import { useClinicianCPPE } from "../../hooks/useClinicianCPPE";
 import { Badge } from "../../components/ui/Badge";
 
 export default function ClinicianCPPEPage() {
   const { data: leaveData } = useClinicianLeave();
   const clinicianId = leaveData?.clinicianId;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["cppe", clinicianId],
-    queryFn: () => clinicianService.getCPPE(clinicianId).then((r) => r.data),
-    enabled: !!clinicianId,
-  });
+  const { data, isLoading } = useClinicianCPPE(clinicianId);
 
-  const cppe = data?.cppe || data?.cppeStatus || data || {};
+  const cppeData = data?.cppe || data?.cppeStatus || data || {};
+  const isEnrolled = !!cppeData.enrolled;
+  const progress = Number(cppeData.progress ?? cppeData.completionPercentage ?? cppeData.progressPct ?? 0) || 0;
+  const enrolledAt = cppeData.enrolledAt;
+  const completedAt = cppeData.completedAt;
+  const modules = cppeData.modules || [];
 
   if (!clinicianId) {
     return <p className="text-sm text-slate-600">No clinician profile linked.</p>;
@@ -23,25 +23,50 @@ export default function ClinicianCPPEPage() {
     <div className="mx-auto max-w-4xl space-y-6 pb-12">
       <h1 className="text-2xl font-bold text-slate-900">My CPPE Progress</h1>
       {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <div className="flex flex-wrap gap-2 items-center">
-          <Badge color={cppe.completed ? "success" : cppe.enrolled ? "blue" : "warning"}>
-            {cppe.completed ? "Completed" : cppe.enrolled ? "Enrolled" : cppe.exempt ? "Exempt" : "Not started"}
-          </Badge>
-          <span className="text-sm text-slate-600">
-            Progress: {cppe.progressPct ?? 0}%
-          </span>
+      {!isLoading && !isEnrolled ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-10 text-center">
+          <div className="text-4xl mb-3">📚</div>
+          <h3 className="font-semibold text-slate-700">Not Yet Enrolled in CPPE</h3>
+          <p className="text-sm text-slate-400 mt-1">
+            Contact your supervisor or training manager to enrol in the CPPE programme.
+          </p>
         </div>
-        {cppe.notes && <p className="mt-4 text-sm text-slate-700">{cppe.notes}</p>}
-        <ul className="mt-4 space-y-2">
-          {(cppe.modules || []).map((m, i) => (
-            <li key={i} className="text-sm flex justify-between border-b border-slate-100 py-2">
-              <span>{m.name}</span>
-              <span className="text-slate-500">{m.status}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex flex-wrap gap-2 items-center justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge color={progress >= 100 ? "success" : "blue"}>
+                {progress >= 100 ? "Completed" : "Enrolled"}
+              </Badge>
+              <span className="text-sm text-slate-600">Overall Progress</span>
+            </div>
+            <span className="font-bold text-blue-600">{progress}%</span>
+          </div>
+
+          <div className="w-full bg-slate-100 rounded-full h-3 mt-3">
+            <div
+              className="h-3 bg-blue-600 rounded-full transition-all"
+              style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+            />
+          </div>
+
+          <p className="text-xs text-slate-400 mt-2">
+            Enrolled: {enrolledAt ? new Date(enrolledAt).toLocaleDateString("en-GB") : "—"}
+            {completedAt ? ` · Completed: ${new Date(completedAt).toLocaleDateString("en-GB")}` : ""}
+          </p>
+
+          {modules.length > 0 && (
+            <ul className="mt-5 space-y-2">
+              {modules.map((m, i) => (
+                <li key={i} className="text-sm flex justify-between border-b border-slate-100 py-2">
+                  <span className="font-medium text-slate-700">{m.name}</span>
+                  <span className="text-slate-500">{m.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

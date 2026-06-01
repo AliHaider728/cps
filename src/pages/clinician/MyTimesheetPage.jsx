@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ChevronLeft, ChevronRight, Send, FileText, Save,
   Clock, CheckCircle2, TrendingUp, BarChart2,
@@ -118,7 +118,8 @@ function RowStatusBadge({ entry, monthlyStatus, editable }) {
       </span>
     );
   }
-  if (!entry.start_time || !entry.end_time) {
+  const actual = entry.actual_hours ?? calcHours(entry.start_time, entry.end_time);
+  if (actual == null || Number.isNaN(Number(actual))) {
     return (
       <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
         Incomplete
@@ -303,13 +304,18 @@ export default function MyTimesheetPage() {
   const isApproved = monthlyStatus === "approved";
   const isSubmitted = monthlyStatus === "submitted";
   const hoursLocked = isApproved || isSubmitted;
+  const timesheetReadOnly = true;
 
-  const missingRows = viewMode === "month"
-    ? rows.filter((r) => !r.start_time || !r.end_time)
-    : [];
+  const missingRows =
+    viewMode === "month"
+      ? rows.filter((r) => {
+          const actual = r.actual_hours ?? calcHours(r.start_time, r.end_time);
+          return actual == null || Number.isNaN(Number(actual));
+        })
+      : [];
 
   const canSubmit =
-    viewMode === "month" && isDraft && rows.length > 0 && missingRows.length === 0;
+    !timesheetReadOnly && viewMode === "month" && isDraft && rows.length > 0 && missingRows.length === 0;
 
   const totalExpected = rows.reduce((s, r) => s + Number(r.expected_hours || 0), 0);
   const totalActual = rows.reduce(
@@ -360,12 +366,12 @@ export default function MyTimesheetPage() {
     setDrafts((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [key]: val } }));
 
   const persistRow = async (entry) => {
+    const actual = entry.actual_hours ?? calcHours(entry.start_time, entry.end_time);
     const payload = {
-      start_time: entry.start_time,
-      end_time: entry.end_time,
+      actual_hours: actual == null ? null : Number(actual),
+      start_time: entry.start_time || "",
+      end_time: entry.end_time || "",
       notes: entry.notes || "",
-      month: cursor.month,
-      year: cursor.year,
     };
     if (entry.entry_id) {
       await updateEntry.mutateAsync({ entryId: entry.entry_id, data: payload });
@@ -380,7 +386,8 @@ export default function MyTimesheetPage() {
 
   const saveRow = async (entry) => {
     if (viewMode !== "month" || hoursLocked) return;
-    if (!entry.start_time || !entry.end_time) return;
+    const actual = entry.actual_hours ?? calcHours(entry.start_time, entry.end_time);
+    if (actual == null || Number.isNaN(Number(actual))) return;
     setSavingId(entry.id);
     try {
       await persistRow(entry);
@@ -398,9 +405,8 @@ export default function MyTimesheetPage() {
     setSubmitError("");
     try {
       for (const row of rows) {
-        if (row.start_time && row.end_time) {
-          await persistRow(row);
-        }
+        const actual = row.actual_hours ?? calcHours(row.start_time, row.end_time);
+        if (actual != null && !Number.isNaN(Number(actual))) await persistRow(row);
       }
       const refreshed = await timesheetMonthQuery.refetch();
       const payload = refreshed.data;
@@ -425,7 +431,7 @@ export default function MyTimesheetPage() {
   };
 
   return (
-    <div className="space-y-5 pb-10 max-w-7xl mx-auto px-1">
+    <div className="space-y-5 pb-10 max-w-full mx-auto px-1 overflow-x-hidden">
 
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -434,7 +440,7 @@ export default function MyTimesheetPage() {
             My Timesheet
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Enter your <strong>actual working hours</strong> per shift → submit month → Super Admin approves or rejects.
+            Assigned hours view only. Use <strong>Enter My Hours</strong> to submit actual worked time.
           </p>
         </div>
 
@@ -447,7 +453,7 @@ export default function MyTimesheetPage() {
                 viewMode === "month" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"
               }`}
             >
-              Enter &amp; submit hours
+              Assigned hours
             </button>
             <button
               type="button"
@@ -503,7 +509,7 @@ export default function MyTimesheetPage() {
             <RefreshCw size={14} className="text-slate-500" />
           </button>
 
-          {viewMode === "month" && (
+          {viewMode === "month" && !timesheetReadOnly && (
             <Button
               disabled={!canSubmit || submit.isLoading}
               onClick={() => setConfirming(true)}
@@ -521,7 +527,7 @@ export default function MyTimesheetPage() {
       </div>
 
       {/* How it works — month view only */}
-      {viewMode === "month" && isDraft && (
+      {viewMode === "month" && isDraft && !timesheetReadOnly && (
         <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4">
           <p className="text-xs font-black uppercase tracking-widest text-blue-600 mb-3">
             How to submit your hours
@@ -671,7 +677,7 @@ export default function MyTimesheetPage() {
           </div>
           {missingRows.length > 0 && (
             <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-              {missingRows.length} shift{missingRows.length > 1 ? "s" : ""} need times
+              {missingRows.length} shift{missingRows.length > 1 ? "s" : ""} need hours
             </span>
           )}
         </div>
@@ -681,7 +687,7 @@ export default function MyTimesheetPage() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 {(viewMode === "month"
-                  ? ["Date", "Practice", "Expected", "Start", "End", "Actual", "Rate", "Status", "Notes", ""]
+                  ? ["Date", "Practice", "Expected", "Actual Hours", "Status", "Actions"]
                   : ["Date", "Practice", "Expected", "Scheduled", "Rate", "System"]
                 ).map((h) => (
                   <th
@@ -696,7 +702,7 @@ export default function MyTimesheetPage() {
             <tbody className="divide-y divide-slate-50">
               {isLoading && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={viewMode === "month" ? 6 : 11} className="px-4 py-12 text-center text-slate-400 text-sm">
                     Loading…
                   </td>
                 </tr>
@@ -704,7 +710,7 @@ export default function MyTimesheetPage() {
 
               {!isLoading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-16 text-center text-slate-500 text-sm">
+                  <td colSpan={viewMode === "month" ? 6 : 11} className="px-4 py-16 text-center text-slate-500 text-sm">
                     No working shifts found{viewMode === "month" ? ` for ${monthLabel}` : ""}.
                   </td>
                 </tr>
@@ -714,8 +720,8 @@ export default function MyTimesheetPage() {
                 rows.map((entry) => {
                   const actual =
                     entry.actual_hours ?? calcHours(entry.start_time, entry.end_time);
-                  const editable = viewMode === "month" && isDraft && !hoursLocked;
-                  const complete = !!(entry.start_time && entry.end_time);
+                  const editable = viewMode === "month" && !timesheetReadOnly && isDraft && !hoursLocked;
+                  const expanded = !!drafts?.[entry.id]?.expanded;
 
                   if (viewMode === "all") {
                     return (
@@ -737,88 +743,119 @@ export default function MyTimesheetPage() {
                   }
 
                   return (
-                    <tr
-                      key={entry.id}
-                      className={entry.is_cover ? "bg-amber-50/50" : "hover:bg-slate-50/30"}
-                    >
-                      <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap">
-                        {fmtDate(entry.shift_date)}
-                      </td>
-                      <td className="px-4 py-3 text-xs max-w-[160px] truncate">
-                        <span className="flex items-center gap-1">
-                          <MapPin size={11} className="text-slate-400 shrink-0" />
-                          {entry.surgery_name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs">{Number(entry.expected_hours || 0).toFixed(2)}h</td>
-                      <td className="px-4 py-3">
-                        {editable ? (
-                          <input
-                            type="time"
-                            value={entry.start_time || ""}
-                            onChange={(e) => setRow(entry.id, "start_time", e.target.value)}
-                            onBlur={() => complete && saveRow(entry)}
-                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono w-[108px]"
-                          />
-                        ) : (
-                          <span className="text-xs font-mono">{fmtTime(entry.start_time) || "—"}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {editable ? (
-                          <input
-                            type="time"
-                            value={entry.end_time || ""}
-                            onChange={(e) => setRow(entry.id, "end_time", e.target.value)}
-                            onBlur={() => complete && saveRow(entry)}
-                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono w-[108px]"
-                          />
-                        ) : (
-                          <span className="text-xs font-mono">{fmtTime(entry.end_time) || "—"}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-bold">
-                        {actual != null ? `${Number(actual).toFixed(2)}h` : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        {entry.hourly_rate ? `£${entry.hourly_rate}/hr` : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <RowStatusBadge
-                          entry={entry}
-                          monthlyStatus={monthlyStatus}
-                          editable={editable}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        {editable ? (
-                          <input
-                            value={entry.notes || ""}
-                            onChange={(e) => setRow(entry.id, "notes", e.target.value)}
-                            onBlur={() => complete && saveRow(entry)}
-                            placeholder="Note…"
-                            className="w-full min-w-[100px] rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                          />
-                        ) : (
-                          <span className="text-xs text-slate-500">{entry.notes || "—"}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {editable && complete ? (
-                          <button
-                            type="button"
-                            onClick={() => saveRow(entry)}
-                            disabled={savingId === entry.id}
-                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-                          >
-                            <Save size={11} />
-                            {savingId === entry.id ? "Saving…" : "Save"}
-                          </button>
-                        ) : entry.is_cover ? (
-                          <span className="text-[10px] font-bold text-amber-700">Cover</span>
-                        ) : null}
-                      </td>
-                    </tr>
+                    <React.Fragment key={entry.id}>
+                      <tr className={entry.is_cover ? "bg-amber-50/50" : "hover:bg-slate-50/30"}>
+                        <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap">
+                          {fmtDate(entry.shift_date)}
+                        </td>
+                        <td className="px-4 py-3 text-xs max-w-[220px] truncate">
+                          <span className="flex items-center gap-1">
+                            <MapPin size={11} className="text-slate-400 shrink-0" />
+                            {entry.surgery_name}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs whitespace-nowrap">
+                          {Number(entry.expected_hours || 0).toFixed(2)}h
+                        </td>
+                        <td className="px-4 py-3">
+                          {editable ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.25"
+                                min="0"
+                                value={entry.actual_hours ?? ""}
+                                onChange={(e) => setRow(entry.id, "actual_hours", e.target.value)}
+                                placeholder="e.g. 7.5"
+                                className="rounded-lg border border-slate-200 px-2 py-2 text-xs w-[110px] min-h-11 sm:min-h-0"
+                              />
+                              <span className="text-[11px] text-slate-400 whitespace-nowrap">hours</span>
+                            </div>
+                          ) : (
+                            <span className="text-sm font-bold">
+                              {actual != null ? `${Number(actual).toFixed(2)}h` : "—"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <RowStatusBadge entry={entry} monthlyStatus={monthlyStatus} editable={editable} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {editable && (
+                              <button
+                                type="button"
+                                onClick={() => saveRow(entry)}
+                                disabled={savingId === entry.id}
+                                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[11px] font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50 min-h-11 sm:min-h-0"
+                                title="Save actual hours for this shift"
+                              >
+                                <Save size={11} />
+                                {savingId === entry.id ? "Saving…" : "Save"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setRow(entry.id, "expanded", !expanded)}
+                              className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 min-h-11 sm:min-h-0"
+                            >
+                              {expanded ? "Hide" : "Details"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {expanded && (
+                        <tr className="bg-white">
+                          <td colSpan={6} className="px-4 py-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                  Start time (optional)
+                                </p>
+                                <input
+                                  type="time"
+                                  value={entry.start_time || ""}
+                                  onChange={(e) => setRow(entry.id, "start_time", e.target.value)}
+                                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono min-h-11 sm:min-h-0"
+                                  disabled={!editable}
+                                />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                  End time (optional)
+                                </p>
+                                <input
+                                  type="time"
+                                  value={entry.end_time || ""}
+                                  onChange={(e) => setRow(entry.id, "end_time", e.target.value)}
+                                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono min-h-11 sm:min-h-0"
+                                  disabled={!editable}
+                                />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                  Notes (optional)
+                                </p>
+                                <input
+                                  value={entry.notes || ""}
+                                  onChange={(e) => setRow(entry.id, "notes", e.target.value)}
+                                  placeholder="Note…"
+                                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs min-h-11 sm:min-h-0"
+                                  disabled={!editable}
+                                />
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-3">
+                              Expected: {Number(entry.expected_hours || 0).toFixed(2)}h
+                              {entry.hourly_rate ? ` · Rate: £${entry.hourly_rate}/hr` : ""}
+                              {entry.clinical_system ? ` · System: ${entry.clinical_system}` : ""}
+                            </p>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
             </tbody>
@@ -830,9 +867,8 @@ export default function MyTimesheetPage() {
                     Month total
                   </td>
                   <td className="px-4 py-3 font-bold text-xs">{totalExpected.toFixed(2)}h</td>
-                  <td colSpan={2} />
                   <td className="px-4 py-3 font-black">{totalActual.toFixed(2)}h</td>
-                  <td colSpan={4} />
+                  <td colSpan={2} />
                 </tr>
               </tfoot>
             )}
@@ -842,7 +878,7 @@ export default function MyTimesheetPage() {
 
       {viewMode === "all" && (
         <p className="text-center text-sm text-slate-500">
-          To enter or submit hours, switch to <strong>Enter &amp; submit hours</strong> and pick the month.
+          This page is read-only for assigned shifts. Enter worked time from <strong>Enter My Hours</strong>.
         </p>
       )}
 

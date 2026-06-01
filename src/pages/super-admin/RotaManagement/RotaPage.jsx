@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import MonthlyCalendarView from "./MonthlyCalendarView";
 import WeeklyView          from "./WeeklyView";
 import GapReportView       from "./GapReportView";
@@ -24,7 +25,10 @@ const TABS = [
 ];
 
 export default function RotaPage() {
-  const [activeTab, setActiveTab] = useState("monthly");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab");
+  const safeInitialTab = TABS.some((t) => t.key === initialTab) ? initialTab : "monthly";
+  const [activeTab, setActiveTab] = useState(safeInitialTab);
   const [sendOpen,  setSendOpen]  = useState(false);
   const now = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -96,7 +100,14 @@ export default function RotaPage() {
               <button
                 key={key}
                 type="button"
-                onClick={() => setActiveTab(key)}
+                onClick={() => {
+                  setActiveTab(key);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("tab", key);
+                    return next;
+                  });
+                }}
                 className={[
                   "flex items-center gap-2 px-4 py-3 text-sm font-semibold rounded-t-xl",
                   "transition-all duration-200 focus:outline-none border-b-2",

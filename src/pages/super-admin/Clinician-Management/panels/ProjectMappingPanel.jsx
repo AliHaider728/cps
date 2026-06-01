@@ -4,9 +4,6 @@ import { Plus, Trash2 } from "lucide-react";
 import { clinicianService } from "../../../../services/api/clinicianService";
 import { usePractices } from "../../../../hooks/usePractice";
 import { Btn, ModalShell, FormField, Spinner } from "./shared.jsx";
-import { Button } from "../../../../components/ui/Button.jsx";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "../../../../components/ui/table.jsx";
-import TableScroll from "../../../../components/shared/TableScroll.jsx";
 
 const PROJECT_OPTS = ["ARRS", "EA", "Direct", "COVER"];
 const TYPE_OPTS = ["Locums Contractor", "Employed", "Limited Company"];
@@ -83,57 +80,55 @@ export default function ProjectMappingPanel({ clinicianId, canManage }) {
         )}
       </div>
 
-      <TableScroll>
-        <Table className="min-w-[640px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Practice</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Rate</TableHead>
-              <TableHead>Rate Type</TableHead>
-              <TableHead>VAT%</TableHead>
-              {canManage && <TableHead className="text-right" />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm border-collapse">
+          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <tr>
+              <th className="px-4 py-3 font-bold">Project</th>
+              <th className="px-4 py-3 font-bold">Practice</th>
+              <th className="px-4 py-3 font-bold">Type</th>
+              <th className="px-4 py-3 font-bold">Rate</th>
+              <th className="px-4 py-3 font-bold">Rate Type</th>
+              <th className="px-4 py-3 font-bold">VAT%</th>
+              {canManage && <th className="px-4 py-3" />}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
             {mappings.map((m) => (
-              <TableRow key={m.id}>
-                <TableCell className="font-semibold">{m.project || "—"}</TableCell>
-                <TableCell>{m.practice_name || "—"}</TableCell>
-                <TableCell>{m.type || "—"}</TableCell>
-                <TableCell>£{Number(m.rate || 0).toFixed(2)}</TableCell>
-                <TableCell>{m.rate_type || "—"}</TableCell>
-                <TableCell>{Number(m.vat_percentage || 0).toFixed(0)}%</TableCell>
+              <tr key={m.id} className="hover:bg-slate-50/50">
+                <td className="px-4 py-3 font-semibold text-slate-800">{m.project || "—"}</td>
+                <td className="px-4 py-3 text-slate-700">{m.practice_name || "—"}</td>
+                <td className="px-4 py-3 text-slate-700">{m.type || "—"}</td>
+                <td className="px-4 py-3 text-slate-700">£{Number(m.rate || 0).toFixed(2)}</td>
+                <td className="px-4 py-3 text-slate-700">{m.rate_type || "—"}</td>
+                <td className="px-4 py-3 text-slate-700">{Number(m.vat_percentage || 0).toFixed(0)}%</td>
                 {canManage && (
-                  <TableCell className="text-right">
-                    <Button
+                  <td className="px-4 py-3 text-right">
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="icon"
                       onClick={() => {
                         if (window.confirm("Delete this project mapping?")) {
                           deleteM.mutate(m.id);
                         }
                       }}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg"
                     >
                       <Trash2 size={14} />
-                    </Button>
-                  </TableCell>
+                    </button>
+                  </td>
                 )}
-              </TableRow>
+              </tr>
             ))}
             {mappings.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={canManage ? 7 : 6} className="py-8 text-center text-muted-foreground">
+              <tr>
+                <td colSpan={canManage ? 7 : 6} className="px-4 py-8 text-center text-slate-500">
                   No project mappings yet
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
-      </TableScroll>
+          </tbody>
+        </table>
+      </div>
 
       {modal && (
         <ModalShell title="Add Project Mapping" onClose={() => setModal(false)}>
@@ -171,6 +166,7 @@ export default function ProjectMappingPanel({ clinicianId, canManage }) {
               type="number"
             />
             <Btn
+              className="w-full sm:w-auto"
               onClick={() => createM.mutate(form)}
               disabled={createM.isPending || !form.practice_id}
             >
