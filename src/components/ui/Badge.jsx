@@ -6,24 +6,50 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-transparent bg-secondary text-secondary-foreground",
-        primary: "border-transparent bg-primary/10 text-primary",
-        success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-        danger: "border-red-200 bg-red-50 text-red-700",
-        warning: "border-amber-200 bg-amber-50 text-amber-700",
-        purple: "border-purple-200 bg-purple-50 text-purple-700",
-        blue: "border-blue-200 bg-blue-50 text-blue-700",
-        outline: "text-foreground border-border",
-        dark: "border-transparent bg-slate-800 text-white",
+        default:  "border-transparent bg-secondary text-secondary-foreground",
+        primary:  "border-transparent bg-primary/10 text-primary",
+        outline:  "text-foreground border-border",
+        dark:     "border-transparent bg-slate-800 text-white",
+
+        /* Timesheet / approval statuses */
+        draft:    "bg-gray-100 text-gray-600 border-gray-300",
+        pending:  "bg-yellow-50 text-yellow-700 border-yellow-300",
+        approved: "bg-green-50 text-green-700 border-green-300",
+        rejected: "bg-red-50 text-red-700 border-red-300",
+        active:   "bg-blue-50 text-blue-700 border-blue-300",
+        submitted:"bg-blue-50 text-blue-700 border-blue-300",
+
+        /* Supervision RAG */
+        GREEN:    "border-transparent bg-green-100 text-green-700",
+        AMBER:    "border-transparent bg-yellow-100 text-yellow-700",
+        RED:      "border-transparent bg-red-100 text-red-700",
+
+        /* Legacy aliases — kept for existing pages */
+        success:  "bg-green-50 text-green-700 border-green-300",
+        danger:   "bg-red-50 text-red-700 border-red-300",
+        warning:  "bg-yellow-50 text-yellow-700 border-yellow-300",
+        purple:   "border-purple-200 bg-purple-50 text-purple-700",
+        blue:     "border-blue-200 bg-blue-50 text-blue-700",
       },
     },
     defaultVariants: { variant: "default" },
   }
 );
 
-function Badge({ className, variant, color, ...props }) {
-  const v = variant || (color === "default" ? "default" : color) || "default";
-  return <div className={cn(badgeVariants({ variant: v }), className)} {...props} />;
+const COLOR_ALIASES = {
+  success: "approved",
+  danger:  "rejected",
+  warning: "pending",
+};
+
+function Badge({ className, variant, color, children, ...props }) {
+  const raw = variant || color || "default";
+  const v = COLOR_ALIASES[raw] || raw;
+  return (
+    <div className={cn(badgeVariants({ variant: v }), className)} {...props}>
+      {children}
+    </div>
+  );
 }
 
 export { Badge, badgeVariants };

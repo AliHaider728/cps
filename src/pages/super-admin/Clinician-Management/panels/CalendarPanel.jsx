@@ -10,15 +10,17 @@ import { useTimeEntries, useActiveTimeEntry } from "../../../../hooks/useTimeEnt
 import { apiClient } from "../../../../services/api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ShiftDetailModal from "../../../super-admin/RotaManagement/ShiftDetailModal";
+import AddShiftModal from "../../../super-admin/RotaManagement/AddShiftModal";
 import {
-  ChevronLeft, ChevronRight, Calendar, List,
+  ChevronLeft, ChevronRight, List,
   Clock, MapPin, AlertTriangle,
   Briefcase, Umbrella, Thermometer, BookOpen,
   UserPlus, XCircle, BarChart2, Timer, Activity,
-  Zap, FileText, CheckCircle2, X, TrendingUp,
+  Zap, FileText, CheckCircle2, X, Plus, Edit2,
+  Calendar,
 } from "lucide-react";
 
-/* ── Status configs ─────────────────────────────────── */
+/* ── Status configs ─────────────────────────────── */
 const STATUS_CONFIG = {
   working:      { bg: "bg-blue-500",   light: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200",   label: "Working",      Icon: Briefcase     },
   annual_leave: { bg: "bg-yellow-400", light: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", label: "Annual Leave", Icon: Umbrella      },
@@ -36,11 +38,11 @@ const TIMESHEET_STATUS = {
   rejected:  { cls: "bg-rose-50 text-rose-700 border-rose-200",          label: "Rejected"  },
 };
 
-const getStatus        = (s) => STATUS_CONFIG[s] || STATUS_CONFIG.cancelled;
-const MONTHS           = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAYS             = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const fmtTime          = (t) => { if (!t) return ""; return String(t).slice(0, 5); };
-const fmtHours         = (start, end) => {
+const getStatus  = (s) => STATUS_CONFIG[s] || STATUS_CONFIG.cancelled;
+const MONTHS     = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const fmtTime    = (t) => { if (!t) return ""; return String(t).slice(0, 5); };
+const fmtHours   = (start, end) => {
   if (!start || !end) return null;
   const [sh, sm] = start.split(":").map(Number);
   const [eh, em] = end.split(":").map(Number);
@@ -56,20 +58,19 @@ const formatLiveDuration = (startIso) => {
   return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
 };
 const deriveStats = (shifts) => {
-  let working = 0, leave = 0, sick = 0, cppe = 0, cover = 0, gaps = 0, totalHours = 0;
+  let working = 0, leave = 0, sick = 0, cover = 0, gaps = 0, totalHours = 0;
   shifts.forEach((s) => {
     const h = fmtHours(s.start_time, s.end_time) ?? s.hours ?? 0;
     switch (s.status) {
-      case "working":      working++;   totalHours += h; break;
-      case "annual_leave": leave++;     break;
-      case "sick":         sick++;      break;
-      case "cppe":         cppe++;      break;
-      case "cover":        cover++;     totalHours += h; break;
-      case "gap":          gaps++;      break;
+      case "working":      working++;  totalHours += h; break;
+      case "annual_leave": leave++;    break;
+      case "sick":         sick++;     break;
+      case "cover":        cover++;    totalHours += h; break;
+      case "gap":          gaps++;     break;
       default: break;
     }
   });
-  return { working, leave, sick, cppe, cover, gaps, totalHours: Math.round(totalHours * 10) / 10 };
+  return { working, leave, sick, cover, gaps, totalHours: Math.round(totalHours * 10) / 10 };
 };
 
 const usePracticeMap = () => {
@@ -77,7 +78,7 @@ const usePracticeMap = () => {
   return useMemo(() => buildPracticeNameMap(data), [data]);
 };
 
-/* ── Hooks ─────────────────────────────────────────── */
+/* ── API Hooks ──────────────────────────────────── */
 function useClinicianTimeEntriesAdmin(clinicianId) {
   return useQuery({
     queryKey: ["time-entries", "admin", clinicianId],
@@ -118,282 +119,327 @@ function useRejectTimesheet() {
   });
 }
 
-/* ── DiffBadge ──────────────────────────────────────── */
-function DiffBadge({ expected, actual }) {
-  if (actual == null || expected == null) return <span className="text-slate-300 text-xs">—</span>;
-  const diff = Math.round((parseFloat(actual) - parseFloat(expected)) * 100) / 100;
-  const abs  = Math.abs(diff);
-  const cls  = abs < 0.01
-    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-    : abs <= 1
-    ? "bg-amber-50 text-amber-700 border-amber-200"
-    : "bg-rose-50 text-rose-700 border-rose-200";
-  const sign = diff >= 0 ? "+" : "";
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg border text-[11px] font-bold ${cls}`}>
-      {sign}{diff.toFixed(2)}h
-    </span>
-  );
-}
+/* ════════════════════════════════════════════════
+   CALENDAR VIEW
+   ════════════════════════════════════════════════ */
+function CalendarView({ month, year, shifts, canManage, onAddShift, onEditShift, getPracticeName }) {
+  const [selectedDate, setSelectedDate] = useState(null);
 
-/* ════════════════════════════════════════════════════
-   TIMESHEET VIEW
-   Shows expected vs actual hours per shift.
-   Admin can Approve or Reject submitted timesheets.
-   ════════════════════════════════════════════════════ */
-function TimesheetView({ clinicianId, month, year, canManage }) {
-  const { data, isLoading, isError } = useClinicianTimesheetAdmin(clinicianId, month, year);
-  const approveMut   = useApproveTimesheet();
-  const rejectMut    = useRejectTimesheet();
-  const [rejectModal, setRejectModal] = useState(false);
-  const [reason, setReason]           = useState("");
-  const [actionMsg, setActionMsg]     = useState("");
+  // Build days grid
+  const { days, startPad } = useMemo(() => {
+    const firstDay = new Date(year, month - 1, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month, 0).getDate();
+    return { days: daysInMonth, startPad: firstDay };
+  }, [month, year]);
 
-  const timesheet = data?.timesheet ?? data;
-  const entries   = data?.entries   ?? [];
+  // Map shifts by date
+  const shiftsByDate = useMemo(() => {
+    const map = {};
+    shifts.forEach((s) => {
+      const key = String(s.date || "").slice(0, 10);
+      if (!map[key]) map[key] = [];
+      map[key].push(s);
+    });
+    return map;
+  }, [shifts]);
 
-  const status    = timesheet?.status || "draft";
-  const statusCfg = TIMESHEET_STATUS[status] || TIMESHEET_STATUS.draft;
-  const canAct    = canManage && status === "submitted";
+  const todayStr = new Date().toISOString().slice(0, 10);
 
-  const totalExpected = entries.reduce((s, e) => s + parseFloat(e.expected_hours || 0), 0);
-  const totalActual   = entries.reduce((s, e) => s + parseFloat(e.actual_hours   || 0), 0);
-  const fte           = (totalActual / 37.5).toFixed(2);
+  const selectedShifts = useMemo(() => {
+    if (!selectedDate) return [];
+    return shiftsByDate[selectedDate] || [];
+  }, [selectedDate, shiftsByDate]);
 
-  const handleApprove = async () => {
-    if (!window.confirm("Approve this timesheet?")) return;
-    try {
-      await approveMut.mutateAsync(timesheet.id);
-      setActionMsg("✅ Timesheet approved successfully.");
-    } catch {
-      setActionMsg("❌ Approval failed. Please try again.");
-    }
-  };
-
-  const handleReject = async () => {
-    if (!reason.trim()) return;
-    try {
-      await rejectMut.mutateAsync({ id: timesheet.id, reason });
-      setRejectModal(false);
-      setReason("");
-      setActionMsg("Timesheet rejected and clinician notified.");
-    } catch {
-      setActionMsg("❌ Rejection failed. Please try again.");
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16 gap-2 text-sm text-slate-400">
-        <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
-        Loading timesheet…
-      </div>
-    );
-  }
-
-  if (isError || !timesheet) {
-    return (
-      <div className="py-16 text-center text-slate-400 text-sm">
-        <FileText size={32} className="mx-auto mb-2 opacity-30" />
-        No timesheet found for {MONTHS[month - 1]} {year}.
-        <p className="text-xs mt-1 opacity-60">
-          Clinician hasn't submitted a timesheet yet, or no rota shifts exist this month.
-        </p>
-      </div>
-    );
+  const cells = [];
+  for (let i = 0; i < startPad; i++) cells.push(null);
+  for (let d = 1; d <= days; d++) {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    cells.push({ day: d, dateStr });
   }
 
   return (
-    <div className="space-y-4">
-
-      {/* Status banner */}
-      <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${statusCfg.cls}`}>
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider border ${statusCfg.cls}`}>
-            {statusCfg.label}
-          </span>
-          {timesheet.submitted_at && (
-            <span className="text-xs font-normal opacity-70">
-              Submitted {new Date(timesheet.submitted_at).toLocaleDateString("en-GB")}
-            </span>
-          )}
-        </div>
-        {timesheet.approved_at && (
-          <span className="text-xs opacity-70">
-            Approved {new Date(timesheet.approved_at).toLocaleDateString("en-GB")}
-          </span>
-        )}
-      </div>
-
-      {/* Rejection reason */}
-      {status === "rejected" && timesheet.rejection_reason && (
-        <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          <span><strong>Rejection reason:</strong> {timesheet.rejection_reason}</span>
-        </div>
-      )}
-
-      {/* Action message */}
-      {actionMsg && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 font-medium">
-          {actionMsg}
-        </div>
-      )}
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Expected",   value: `${totalExpected.toFixed(2)}h`, icon: Clock        },
-          { label: "Actual",     value: `${totalActual.toFixed(2)}h`,   icon: CheckCircle2 },
-          { label: "Difference", value: `${(totalActual - totalExpected).toFixed(2)}h`, icon: TrendingUp },
-          { label: "FTE",        value: fte,                             icon: BarChart2    },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="bg-white rounded-xl border border-slate-200 p-3 text-center shadow-sm">
-            <div className="flex items-center justify-center gap-1 mb-1">
-              <Icon size={11} className="text-slate-400" />
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-            </div>
-            <p className="text-lg font-black text-slate-800">{value}</p>
+    <div className="space-y-4 p-4">
+      {/* Header row */}
+      <div className="grid grid-cols-7 mb-1">
+        {DAYS_SHORT.map((d) => (
+          <div key={d} className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400 py-2">
+            {d}
           </div>
         ))}
       </div>
 
-      {/* Entries table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              {["Date","Surgery","Expected","Start","End","Actual","Difference","Notes","Cover"].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {entries.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-slate-400 text-sm italic">
-                  No shift entries found. Make sure shifts are seeded and rota is set up for this month.
-                </td>
-              </tr>
-            )}
-            {entries.map((entry) => (
-              <tr
-                key={entry.id}
-                className={`transition-colors ${entry.is_cover ? "bg-amber-50/60" : "hover:bg-slate-50/40"}`}
-              >
-                <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap text-xs">
-                  {new Date(entry.shift_date + "T00:00:00").toLocaleDateString("en-GB", {
-                    weekday: "short", day: "numeric", month: "short",
-                  })}
-                </td>
-                <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">
-                  {entry.surgery_name || "—"}
-                </td>
-                <td className="px-4 py-3 text-slate-500 text-xs font-medium">
-                  {Number(entry.expected_hours || 0).toFixed(2)}h
-                </td>
-                <td className="px-4 py-3 text-slate-600 text-xs font-mono">
-                  {fmtTime(entry.start_time) || <span className="text-slate-300">—</span>}
-                </td>
-                <td className="px-4 py-3 text-slate-600 text-xs font-mono">
-                  {fmtTime(entry.end_time) || <span className="text-slate-300">—</span>}
-                </td>
-                <td className="px-4 py-3 text-sm font-black text-slate-900 whitespace-nowrap">
-                  {entry.actual_hours != null
-                    ? `${Number(entry.actual_hours).toFixed(2)}h`
-                    : <span className="text-slate-300 font-normal text-xs">—</span>}
-                </td>
-                <td className="px-4 py-3">
-                  <DiffBadge expected={entry.expected_hours} actual={entry.actual_hours} />
-                </td>
-                <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate">
-                  {entry.notes || <span className="text-slate-300">—</span>}
-                </td>
-                <td className="px-4 py-3">
-                  {entry.is_cover && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
-                      Cover
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          {entries.length > 0 && (
-            <tfoot>
-              <tr className="bg-slate-50 border-t-2 border-slate-200">
-                <td colSpan={2} className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                  Monthly Total
-                </td>
-                <td className="px-4 py-3 text-xs font-bold text-slate-600">
-                  {totalExpected.toFixed(2)}h
-                </td>
-                <td colSpan={2} />
-                <td className="px-4 py-3 text-sm font-black text-slate-900">
-                  {totalActual.toFixed(2)}h
-                </td>
-                <td className="px-4 py-3">
-                  <DiffBadge expected={totalExpected} actual={totalActual} />
-                </td>
-                <td colSpan={2} />
-              </tr>
-            </tfoot>
-          )}
-        </table>
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell, idx) => {
+          if (!cell) return <div key={`pad-${idx}`} />;
+          const { day, dateStr } = cell;
+          const dayShifts = shiftsByDate[dateStr] || [];
+          const isToday   = dateStr === todayStr;
+          const isSelected = dateStr === selectedDate;
+
+          // Summarize statuses
+          const statusCounts = {};
+          dayShifts.forEach((s) => {
+            statusCounts[s.status] = (statusCounts[s.status] || 0) + 1;
+          });
+          const topStatuses = Object.keys(statusCounts).slice(0, 2);
+
+          return (
+            <button
+              key={dateStr}
+              type="button"
+              onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+              className={`
+                relative min-h-[64px] rounded-xl p-1.5 text-left transition-all border
+                ${isSelected
+                  ? "border-indigo-400 bg-indigo-50 shadow-sm"
+                  : isToday
+                    ? "border-blue-300 bg-blue-50"
+                    : dayShifts.length > 0
+                      ? "border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50"
+                      : "border-transparent bg-slate-50/50 hover:bg-slate-100/50"
+                }
+              `}
+            >
+              <span className={`
+                inline-flex items-center justify-center w-6 h-6 rounded-lg text-xs font-bold mb-1
+                ${isToday ? "bg-blue-600 text-white" : "text-slate-700"}
+              `}>
+                {day}
+              </span>
+              <div className="space-y-0.5">
+                {topStatuses.map((st) => {
+                  const cfg = getStatus(st);
+                  return (
+                    <div
+                      key={st}
+                      className={`w-full px-1.5 py-0.5 rounded-md text-[9px] font-bold truncate ${cfg.light} ${cfg.text}`}
+                    >
+                      {cfg.label}
+                      {statusCounts[st] > 1 && ` ×${statusCounts[st]}`}
+                    </div>
+                  );
+                })}
+                {Object.keys(statusCounts).length > 2 && (
+                  <div className="text-[9px] text-slate-400 font-semibold pl-1">
+                    +{Object.keys(statusCounts).length - 2} more
+                  </div>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Approve / Reject buttons */}
-      {canAct && (
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <button
-            onClick={() => setRejectModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-5 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-100 transition-all active:scale-[0.98]"
-          >
-            <X size={14} /> Reject
-          </button>
-          <button
-            onClick={handleApprove}
-            disabled={approveMut.isPending}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-100 disabled:opacity-50 transition-all active:scale-[0.98]"
-          >
-            <CheckCircle2 size={14} />
-            {approveMut.isPending ? "Approving…" : "Approve"}
-          </button>
-        </div>
-      )}
-
-      {/* Reject modal */}
-      {rejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-base font-bold text-slate-900 mb-1">Reject Timesheet</h2>
-            <p className="text-sm text-slate-500 mb-4">
-              Provide a reason — clinician will see this and can re-submit.
+      {/* Selected day detail */}
+      {selectedDate && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-indigo-100 bg-white/60">
+            <p className="text-sm font-bold text-slate-800">
+              {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", {
+                weekday: "long", day: "numeric", month: "long",
+              })}
             </p>
-            <textarea
-              rows={4}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason is required…"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 resize-none"
-            />
-            <div className="flex justify-end gap-2 mt-4">
+            <div className="flex items-center gap-2">
+              {canManage && (
+                <button
+                  onClick={() => onAddShift(selectedDate)}
+                  className="h-8 px-3 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 inline-flex items-center gap-1.5"
+                >
+                  <Plus size={12} /> Add
+                </button>
+              )}
               <button
-                onClick={() => { setRejectModal(false); setReason(""); }}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                onClick={() => setSelectedDate(null)}
+                className="h-8 w-8 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700 inline-flex items-center justify-center"
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleReject}
-                disabled={!reason.trim() || rejectMut.isPending}
-                className="rounded-xl bg-rose-600 hover:bg-rose-700 px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
-              >
-                {rejectMut.isPending ? "Rejecting…" : "Reject"}
+                <X size={13} />
               </button>
             </div>
+          </div>
+
+          {selectedShifts.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <p className="text-sm text-slate-400">No shifts on this day</p>
+              {canManage && (
+                <button
+                  onClick={() => onAddShift(selectedDate)}
+                  className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700"
+                >
+                  <Plus size={12} /> Add Shift
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-indigo-100">
+              {selectedShifts.map((shift, i) => {
+                const cfg     = getStatus(shift.status);
+                const hours   = fmtHours(shift.start_time, shift.end_time);
+                const rate    = shift.hourly_rate ?? shift.hourlyRate;
+                const cost    = rate && hours ? Math.round(rate * hours * 100) / 100 : null;
+                const practice = shift.practice_name || shift.surgery_name || getPracticeName(shift) || "—";
+
+                return (
+                  <div key={shift.id || i} className="px-4 py-3 flex items-start gap-3 group hover:bg-white/60 transition-colors">
+                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${cfg.bg}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${cfg.light} ${cfg.text} ${cfg.border}`}>
+                          <cfg.Icon size={9} /> {cfg.label}
+                        </span>
+                        {shift.service_code && (
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {shift.service_code}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-700 font-medium mt-1 truncate">{practice}</p>
+                      {shift.start_time && (
+                        <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                          {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
+                          {hours ? ` · ${hours}h` : ""}
+                        </p>
+                      )}
+                      {rate != null && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          £{rate}/hr{cost ? ` · £${cost.toFixed(2)} total` : ""}
+                        </p>
+                      )}
+                    </div>
+                    {canManage && (
+                      <button
+                        onClick={() => onEditShift(shift)}
+                        className="opacity-0 group-hover:opacity-100 h-7 w-7 rounded-lg border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 inline-flex items-center justify-center transition-all shrink-0"
+                      >
+                        <Edit2 size={11} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════
+   LIST VIEW  (with hourly rate column)
+   ════════════════════════════════════════════════ */
+function ListView({ shifts, canManage, isLoading, monthLabel, stats, getPracticeName, onAddShift, onEditShift, onSelectShift }) {
+  const listShifts = useMemo(() => shifts.filter(isWorkingShift), [shifts]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-32 gap-2 text-sm text-slate-400">
+        <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
+        Loading shifts…
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-[580px] w-full text-sm">
+        <thead>
+          <tr className="bg-slate-50 border-b border-slate-200">
+            {["Date", "Practice", "Time", "Hours", "Rate", "Status"].map((h) => (
+              <th key={h} className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">{h}</th>
+            ))}
+            {canManage && <th className="px-4 py-3 w-[50px]" />}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {listShifts.length === 0 && (
+            <tr>
+              <td colSpan={canManage ? 7 : 6} className="px-5 py-12 text-center text-slate-400 text-sm">
+                <FileText size={28} className="mx-auto mb-2 opacity-30" />
+                No working shifts for {monthLabel}
+              </td>
+            </tr>
+          )}
+          {listShifts.map((s, i) => {
+            const cfg   = getStatus(s.status);
+            const h     = fmtHours(s.start_time, s.end_time) ?? s.hours;
+            const rate  = s.hourly_rate ?? s.hourlyRate;
+            return (
+              <tr
+                key={s.id || i}
+                onClick={() => onSelectShift(s)}
+                className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
+              >
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <p className="text-xs font-bold text-slate-800">
+                    {String(s.date || "").slice(0, 10)}
+                  </p>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-start gap-1.5 min-w-0">
+                    <MapPin size={10} className="text-slate-400 shrink-0 mt-0.5" />
+                    <span className="text-xs text-slate-700 font-medium line-clamp-2 leading-snug">
+                      {getPracticeName(s) || "—"}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {s.start_time ? (
+                    <div className="flex items-center gap-1">
+                      <Clock size={10} className="text-slate-400 shrink-0" />
+                      <span className="text-xs font-mono text-slate-700">
+                        {fmtTime(s.start_time)} – {fmtTime(s.end_time)}
+                      </span>
+                    </div>
+                  ) : <span className="text-slate-300 text-xs">—</span>}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {h ? <span className="text-xs font-bold text-slate-700">{h}h</span>
+                     : <span className="text-xs text-slate-300">—</span>}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {rate != null
+                    ? <span className="text-xs font-semibold text-emerald-700">£{rate}/hr</span>
+                    : <span className="text-xs text-slate-300">—</span>}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap ${cfg.light} ${cfg.text} ${cfg.border}`}>
+                    <cfg.Icon size={10} /> {cfg.label}
+                  </span>
+                </td>
+                {canManage && (
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEditShift(s); }}
+                      className="opacity-0 group-hover:opacity-100 h-7 w-7 rounded-lg border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 inline-flex items-center justify-center transition-all"
+                    >
+                      <Edit2 size={12} />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {listShifts.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50">
+          <span className="text-xs text-slate-500">
+            {listShifts.length} shift{listShifts.length !== 1 ? "s" : ""} · {monthLabel}
+          </span>
+          <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+            {stats.totalHours > 0 && (
+              <span className="flex items-center gap-1">
+                <BarChart2 size={11} />
+                <strong className="text-slate-700">{stats.totalHours}h</strong> total
+              </span>
+            )}
+            {stats.gaps > 0 && (
+              <span className="flex items-center gap-1 text-red-600 font-semibold">
+                <AlertTriangle size={11} />
+                {stats.gaps} gap{stats.gaps !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -401,7 +447,9 @@ function TimesheetView({ clinicianId, month, year, canManage }) {
   );
 }
 
-/* ── ActiveShiftCard ────────────────────────────────── */
+/* ════════════════════════════════════════════════
+   ACTIVE SHIFT CARD
+   ════════════════════════════════════════════════ */
 function ActiveShiftCard({ clinicianId, isOwnDashboard }) {
   const intervalRef = useRef(null);
   const [liveDisplay, setLiveDisplay] = useState("00:00:00");
@@ -456,17 +504,17 @@ function ActiveShiftCard({ clinicianId, isOwnDashboard }) {
   return (
     <div className={`rounded-2xl border overflow-hidden ${isClockedIn ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
       <div className={`px-4 py-3 flex items-center justify-between border-b ${isClockedIn ? "border-emerald-200 bg-emerald-100/50" : "border-slate-100 bg-slate-50"}`}>
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isClockedIn ? "bg-emerald-600" : "bg-slate-400"}`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isClockedIn ? "bg-emerald-600" : "bg-slate-400"}`}>
             <Timer size={15} className="text-white" />
           </div>
-          <div>
-            <p className="text-sm font-bold text-slate-800">{isClockedIn ? "Shift In Progress" : "Shift Activity"}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-800 truncate">{isClockedIn ? "Shift In Progress" : "Shift Activity"}</p>
             <p className="text-xs text-slate-400">Time tracking overview</p>
           </div>
         </div>
         {isClockedIn && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live
           </div>
         )}
@@ -518,82 +566,32 @@ function StatPill({ label, value, color = "bg-slate-100 text-slate-700" }) {
   );
 }
 
-function DayCell({ day, isCurrentMonth, isToday, shifts = [], onClick }) {
-  const primary = shifts[0];
-  const cfg     = primary ? getStatus(primary.status) : null;
-  const extra   = shifts.length - 1;
-  return (
-    <div
-      onClick={() => primary && onClick(primary)}
-      className={`relative min-h-[72px] rounded-xl border p-2 transition-all duration-150
-        ${!isCurrentMonth ? "opacity-30 bg-slate-50/50 border-slate-100" : "bg-white border-slate-150"}
-        ${isToday ? "ring-2 ring-blue-400 ring-offset-1 border-blue-300" : ""}
-        ${primary ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5" : ""}
-        ${cfg ? cfg.border : "border-slate-100"}`}
-    >
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mb-1 ${isToday ? "bg-blue-500 text-white" : "text-slate-500"}`}>
-        {day}
-      </div>
-      {primary && (
-        <div className={`rounded-lg px-1.5 py-1 text-[10px] font-semibold leading-tight ${cfg.light} ${cfg.text}`}>
-          <div className="flex items-center gap-1">{cfg.Icon && <cfg.Icon size={8} />}<span>{cfg.label}</span></div>
-          {primary.start_time && <div className="opacity-70 mt-0.5">{fmtTime(primary.start_time)}–{fmtTime(primary.end_time)}</div>}
-        </div>
-      )}
-      {extra > 0 && (
-        <div className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center">
-          +{extra}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════
    MAIN — CalendarPanel
-   Props: clinicianId, canManage, userRole
-   ════════════════════════════════════════════════════ */
+   Views: List | Calendar
+   ════════════════════════════════════════════════ */
 export default function CalendarPanel({ clinicianId, canManage, userRole = "clinician" }) {
-  const now      = useMemo(() => new Date(), []);
-  const [month,  setMonth]   = useState(now.getMonth() + 1);
-  const [year,   setYear]    = useState(now.getFullYear());
-  const [view,   setView]    = useState("timesheet"); // default to timesheet tab
-  const [selected, setSelected] = useState(null);
+  const now   = useMemo(() => new Date(), []);
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year,  setYear]  = useState(now.getFullYear());
+  const [view,  setView]  = useState("calendar");
+
+  // Modals
+  const [addShiftOpen,    setAddShiftOpen]    = useState(false);
+  const [addShiftDate,    setAddShiftDate]    = useState(null);
+  const [editShift,       setEditShift]       = useState(null);
+  const [listSelected,    setListSelected]    = useState(null);
 
   const rotaQ       = useClinicianRota(clinicianId, month, year);
   const practiceMap = usePracticeMap();
 
   const shifts    = rotaQ?.data?.data?.shifts ?? rotaQ?.data?.shifts ?? [];
-  const listShifts = useMemo(() => shifts.filter(isWorkingShift), [shifts]);
   const isLoading = rotaQ?.isLoading;
 
   const isOwnDashboard = userRole === "clinician";
   const readOnly       = isOwnDashboard || !canManage;
 
   const stats = useMemo(() => deriveStats(shifts), [shifts]);
-
-  const shiftsByDate = useMemo(() => {
-    const map = {};
-    shifts.forEach((s) => {
-      const key = String(s.date || "").slice(0, 10);
-      if (!map[key]) map[key] = [];
-      map[key].push(s);
-    });
-    return map;
-  }, [shifts]);
-
-  const calendarDays = useMemo(() => {
-    const firstDay = new Date(year, month - 1, 1);
-    const lastDay  = new Date(year, month, 0);
-    let startDow = firstDay.getDay() - 1;
-    if (startDow < 0) startDow = 6;
-    const days = [];
-    for (let i = startDow - 1; i >= 0; i--) days.push({ date: new Date(year, month - 1, -i), isCurrentMonth: false });
-    for (let d = 1; d <= lastDay.getDate(); d++) days.push({ date: new Date(year, month - 1, d), isCurrentMonth: true });
-    const remaining = 42 - days.length;
-    for (let d = 1; d <= remaining; d++) days.push({ date: new Date(year, month, d), isCurrentMonth: false });
-    return days;
-  }, [month, year]);
 
   const getPracticeName = useCallback(
     (shift) => resolvePracticeName(shift, practiceMap),
@@ -602,93 +600,83 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
-  const isToday   = (d) => {
-    const t = new Date();
-    return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
-  };
-
   const monthLabel = `${MONTHS[month - 1]} ${year}`;
 
-  return (
-    <div className="space-y-5">
+  const handleAddShift = (date = null) => {
+    setAddShiftDate(date);
+    setAddShiftOpen(true);
+  };
 
-      {/* ✅ FIX: Only render for clinician's own dashboard.
-           Admin viewing someone else → skip (avoids 403 on /time-entries/active & /time-entries?limit=50) */}
+  return (
+    <div className="space-y-4">
+
+      {/* Active shift card — only clinician's own dashboard */}
       {isOwnDashboard && <ActiveShiftCard clinicianId={clinicianId} isOwnDashboard={isOwnDashboard} />}
 
-      {/* Main panel */}
+      {/* ── Main panel ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-3 flex-wrap">
-            <button type="button" onClick={prevMonth} className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
+        {/* ── Header ── */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-b border-slate-100">
+
+          {/* Month nav */}
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={prevMonth}
+              className="h-9 w-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shrink-0">
               <ChevronLeft size={14} className="text-slate-600" />
             </button>
-            <h2 className="text-sm sm:text-base font-bold text-slate-800 min-w-[140px] sm:min-w-[160px] text-center">{monthLabel}</h2>
-            <button type="button" onClick={nextMonth} className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors">
+            <span className="text-sm font-bold text-slate-800 min-w-[140px] text-center">{monthLabel}</span>
+            <button type="button" onClick={nextMonth}
+              className="h-9 w-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shrink-0">
               <ChevronRight size={14} className="text-slate-600" />
             </button>
             <button
               type="button"
               onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()); }}
-              className="text-xs font-semibold text-blue-600 px-3 py-2.5 sm:py-1.5 min-h-11 sm:min-h-0 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
+              className="h-9 px-3 text-xs font-semibold text-blue-600 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200 shrink-0"
             >
               Today
             </button>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-            {view !== "timesheet" && (
-              <div className="hidden md:flex items-center gap-1.5">
-                {stats.working > 0    && <StatPill label="working" value={stats.working}    color="bg-blue-50 text-blue-700"     />}
-                {stats.leave > 0      && <StatPill label="leave"   value={stats.leave}      color="bg-yellow-50 text-yellow-700" />}
-                {stats.gaps > 0       && <StatPill label="gaps"    value={stats.gaps}       color="bg-red-50 text-red-700"       />}
-                {stats.totalHours > 0 && <StatPill label="hrs"     value={stats.totalHours} color="bg-slate-100 text-slate-700"  />}
-              </div>
-            )}
+          {/* Right: stats + view toggle + add shift */}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {stats.working > 0    && <StatPill label="working" value={stats.working}    color="bg-blue-50 text-blue-700" />}
+            {stats.totalHours > 0 && <StatPill label="hrs"     value={stats.totalHours} color="bg-slate-100 text-slate-700" />}
+            {stats.gaps > 0       && <StatPill label="gaps"    value={stats.gaps}       color="bg-red-50 text-red-700" />}
 
-            {/* View toggle — Calendar | List | Timesheet */}
-            <div className="flex w-full sm:w-auto items-stretch rounded-xl border border-slate-200 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setView("calendar")}
-                className={`flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2 min-h-11 sm:min-h-0 text-xs font-semibold transition-colors ${view === "calendar" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
-              >
-                <Calendar size={12} /> Calendar
-              </button>
+            {/* View toggle: List | Calendar */}
+            <div className="flex rounded-xl border border-slate-200 overflow-hidden">
               <button
                 type="button"
                 onClick={() => setView("list")}
-                className={`flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2 min-h-11 sm:min-h-0 text-xs font-semibold transition-colors border-x border-slate-200 ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                className={`flex items-center justify-center gap-1.5 px-3 h-9 text-xs font-semibold transition-colors border-r border-slate-200 ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
               >
                 <List size={12} /> List
               </button>
               <button
                 type="button"
-                onClick={() => setView("timesheet")}
-                className={`flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2 min-h-11 sm:min-h-0 text-xs font-semibold transition-colors ${view === "timesheet" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                onClick={() => setView("calendar")}
+                className={`flex items-center justify-center gap-1.5 px-3 h-9 text-xs font-semibold transition-colors ${view === "calendar" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
               >
-                <FileText size={12} /> Timesheet
+                <Calendar size={12} /> Calendar
               </button>
             </div>
+
+            {/* Add Shift button (admin/manager) */}
+            {canManage && (
+              <button
+                onClick={() => handleAddShift()}
+                className="shrink-0 h-9 px-4 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 inline-flex items-center gap-1.5 shadow-sm shadow-blue-200 transition-all"
+              >
+                <Plus size={14} /> Add Shift
+              </button>
+            )}
           </div>
         </div>
 
-        {/* ── TIMESHEET VIEW ── */}
-        {view === "timesheet" && (
-          <div className="p-5">
-            <TimesheetView
-              clinicianId={clinicianId}
-              month={month}
-              year={year}
-              canManage={canManage}
-            />
-          </div>
-        )}
-
-        {/* ── LOADING (calendar/list) ── */}
-        {view !== "timesheet" && isLoading && (
+        {/* ── LOADING ── */}
+        {isLoading && (
           <div className="flex items-center justify-center h-32 gap-2 text-sm text-slate-400">
             <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
             Loading shifts…
@@ -697,111 +685,60 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
 
         {/* ── CALENDAR VIEW ── */}
         {!isLoading && view === "calendar" && (
-          <div className="p-4 overflow-x-auto">
-            <div className="grid grid-cols-7 mb-2 min-w-[320px]">
-              {DAYS.map((d) => (
-                <div key={d} className={`text-center text-[11px] font-bold uppercase tracking-wider py-2 ${d === "Sat" || d === "Sun" ? "text-slate-400" : "text-slate-500"}`}>
-                  {d}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {calendarDays.map(({ date, isCurrentMonth }, idx) => {
-                const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
-                return (
-                  <DayCell
-                    key={idx}
-                    day={date.getDate()}
-                    isCurrentMonth={isCurrentMonth}
-                    isToday={isToday(date)}
-                    shifts={shiftsByDate[key] || []}
-                    onClick={setSelected}
-                  />
-                );
-              })}
-            </div>
-            <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-slate-100">
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                <div key={key} className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                  <div className={`w-2.5 h-2.5 rounded-full ${cfg.bg}`} /> {cfg.label}
-                </div>
-              ))}
-            </div>
-          </div>
+          <CalendarView
+            month={month}
+            year={year}
+            shifts={shifts}
+            canManage={canManage}
+            onAddShift={handleAddShift}
+            onEditShift={(shift) => setEditShift(shift)}
+            getPracticeName={getPracticeName}
+          />
         )}
 
         {/* ── LIST VIEW ── */}
         {!isLoading && view === "list" && (
-          <div className="w-full overflow-x-auto px-4 sm:px-0">
-            <table className="min-w-[640px] w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  {["Date","Status","Time","Hours","Practice","System","Rate"].map((h) => (
-                    <th key={h} className="text-left px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {listShifts.length === 0 && (
-                  <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">
-                    <Calendar size={28} className="mx-auto mb-2 opacity-30" />
-                    No working shifts found for {monthLabel}
-                  </td></tr>
-                )}
-                {listShifts.map((s, i) => {
-                  const cfg   = getStatus(s.status);
-                  const h     = fmtHours(s.start_time, s.end_time) ?? s.hours;
-                  return (
-                    <tr key={s.id || i} onClick={() => setSelected(s)} className="hover:bg-slate-50/70 cursor-pointer transition-colors">
-                      <td className="px-5 py-3 text-xs font-bold text-slate-800">{String(s.date || "").slice(0, 10)}</td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${cfg.light} ${cfg.text} ${cfg.border}`}>
-                          <cfg.Icon size={10} /> {cfg.label}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-xs text-slate-600">
-                        <div className="flex items-center gap-1"><Clock size={11} className="text-slate-400" />
-                          {s.start_time ? `${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}` : "—"}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">{h ? <span className="text-xs font-bold text-slate-700">{h}h</span> : <span className="text-xs text-slate-300">—</span>}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-1.5 max-w-[180px]">
-                          <MapPin size={11} className="text-slate-400 shrink-0" />
-                          <span className="text-xs text-slate-700 font-medium truncate">{getPracticeName(s)}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        {s.clinical_system ? <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{s.clinical_system}</span> : <span className="text-xs text-slate-300">—</span>}
-                      </td>
-                      <td className="px-5 py-3">
-                        {s.hourly_rate ? <span className="text-xs font-semibold text-emerald-700">£{s.hourly_rate}/hr</span> : <span className="text-xs text-slate-300">—</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {listShifts.length > 0 && (
-              <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50">
-                <span className="text-xs text-slate-500">{listShifts.length} shift{listShifts.length !== 1 ? "s" : ""} · {monthLabel}</span>
-                <div className="flex items-center gap-3 text-xs text-slate-500">
-                  {stats.totalHours > 0 && <span className="flex items-center gap-1"><BarChart2 size={11} /><strong className="text-slate-700">{stats.totalHours}h</strong> total</span>}
-                  {stats.gaps > 0 && <span className="flex items-center gap-1 text-red-600 font-semibold"><AlertTriangle size={11} />{stats.gaps} gap{stats.gaps !== 1 ? "s" : ""}</span>}
-                </div>
-              </div>
-            )}
-          </div>
+          <ListView
+            shifts={shifts}
+            canManage={canManage}
+            isLoading={false}
+            monthLabel={monthLabel}
+            stats={stats}
+            getPracticeName={getPracticeName}
+            onAddShift={handleAddShift}
+            onEditShift={(shift) => setEditShift(shift)}
+            onSelectShift={(shift) => setListSelected(shift)}
+          />
         )}
       </div>
 
+      {/* ── List view: shift detail modal ── */}
       <ShiftDetailModal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        shift={selected}
+        open={!!listSelected}
+        onClose={() => setListSelected(null)}
+        shift={listSelected}
         readOnly={readOnly}
-        practiceName={selected ? getPracticeName(selected) : ""}
+        practiceName={listSelected ? getPracticeName(listSelected) : ""}
       />
+
+      {/* ── Add Shift modal ── */}
+      <AddShiftModal
+        open={addShiftOpen}
+        onClose={() => { setAddShiftOpen(false); setAddShiftDate(null); }}
+        clinicianId={clinicianId}
+        date={addShiftDate}
+      />
+
+      {/* ── Edit Shift modal ── */}
+      {editShift && (
+        <ShiftDetailModal
+          open={!!editShift}
+          onClose={() => setEditShift(null)}
+          shift={editShift}
+          readOnly={false}
+          practiceName={getPracticeName(editShift)}
+        />
+      )}
     </div>
   );
 }

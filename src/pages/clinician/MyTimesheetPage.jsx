@@ -27,10 +27,10 @@ const MONTHS = [
 ];
 
 const statusColor = {
-  draft:     "default",
-  submitted: "warning",
-  approved:  "success",
-  rejected:  "danger",
+  draft:     "draft",
+  submitted: "submitted",
+  approved:  "approved",
+  rejected:  "rejected",
 };
 
 const MONTHLY_STATUS = {
@@ -95,9 +95,9 @@ function StatCard({ label, value, sub, Icon, color = "text-slate-900" }) {
         <Icon size={16} className="text-slate-500" />
       </div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
         <p className={`text-xl font-black leading-tight ${color}`}>{value}</p>
-        {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
+        {sub && <p className="text-[10px] text-gray-500 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -140,7 +140,7 @@ function RowStatusBadge({ entry, monthlyStatus, editable }) {
       </span>
     );
   }
-  return <span className="text-slate-300 text-xs">—</span>;
+  return <span className="text-gray-400 text-xs">—</span>;
 }
 
 export default function MyTimesheetPage() {
@@ -436,7 +436,7 @@ export default function MyTimesheetPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
             My Timesheet
           </h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -557,7 +557,7 @@ export default function MyTimesheetPage() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-bold">{statusCfg.label}</span>
               {timesheet?.status && (
-                <Badge color={statusColor[timesheet.status] || "default"}>
+                <Badge color={statusColor[timesheet.status] || "draft"}>
                   {timesheet.status}
                 </Badge>
               )}
@@ -612,9 +612,9 @@ export default function MyTimesheetPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {weeklyBreakdown.map(([wk, data]) => (
               <div key={wk} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                <p className="text-[10px] font-bold uppercase text-slate-400">Week from</p>
-                <p className="text-sm font-bold text-slate-800">{fmtDate(wk)}</p>
-                <p className="text-xs text-slate-600 mt-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Week from</p>
+                <p className="text-sm font-bold text-gray-800">{fmtDate(wk)}</p>
+                <p className="text-xs text-gray-500 mt-1">
                   {data.shifts} shift{data.shifts !== 1 ? "s" : ""} · {data.hours.toFixed(2)}h
                 </p>
               </div>
@@ -643,7 +643,7 @@ export default function MyTimesheetPage() {
                 <span className="font-semibold text-slate-800">
                   {MONTHS[ts.month - 1]} {ts.year}
                 </span>
-                <Badge color={statusColor[ts.status] || "default"}>
+                <Badge color={statusColor[ts.status] || "draft"}>
                   {ts.status === "submitted" ? "Under review" : ts.status}
                 </Badge>
               </button>
@@ -667,11 +667,11 @@ export default function MyTimesheetPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="section-header flex items-center justify-between !py-3.5 !px-5 !rounded-none !border-0 !shadow-none border-b border-gray-200 bg-gray-50">
           <div className="flex items-center gap-2">
-            <FileText size={14} className="text-slate-400" />
-            <span className="text-sm font-bold text-slate-700">
+            <FileText size={14} className="text-gray-500" />
+            <span className="text-sm font-bold text-gray-800">
               {viewMode === "month" ? `${monthLabel} — enter your hours` : "All assigned shifts"}
             </span>
           </div>
@@ -684,7 +684,7 @@ export default function MyTimesheetPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="table-header bg-gray-50 border-b border-gray-200">
               <tr>
                 {(viewMode === "month"
                   ? ["Date", "Practice", "Expected", "Actual Hours", "Status", "Actions"]
@@ -692,7 +692,7 @@ export default function MyTimesheetPage() {
                 ).map((h) => (
                   <th
                     key={h || "actions"}
-                    className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -702,7 +702,7 @@ export default function MyTimesheetPage() {
             <tbody className="divide-y divide-slate-50">
               {isLoading && (
                 <tr>
-                  <td colSpan={viewMode === "month" ? 6 : 11} className="px-4 py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={viewMode === "month" ? 6 : 11} className="px-4 py-12 text-center text-gray-500 text-sm">
                     Loading…
                   </td>
                 </tr>
@@ -726,18 +726,18 @@ export default function MyTimesheetPage() {
                   if (viewMode === "all") {
                     return (
                       <tr key={entry.id} className="hover:bg-slate-50/40">
-                        <td className="px-4 py-3 text-xs font-semibold">{fmtDate(entry.shift_date)}</td>
-                        <td className="px-4 py-3 text-xs">{entry.surgery_name}</td>
-                        <td className="px-4 py-3 text-xs">{Number(entry.expected_hours || 0).toFixed(2)}h</td>
-                        <td className="px-4 py-3 text-xs font-mono text-slate-600">
+                        <td className="px-4 py-3 text-xs font-semibold text-gray-800">{fmtDate(entry.shift_date)}</td>
+                        <td className="px-4 py-3 text-xs text-gray-800">{entry.surgery_name}</td>
+                        <td className="px-4 py-3 text-xs text-gray-800">{Number(entry.expected_hours || 0).toFixed(2)}h</td>
+                        <td className="px-4 py-3 text-xs font-mono text-gray-500">
                           {entry.start_time && entry.end_time
                             ? `${fmtTime(entry.start_time)} – ${fmtTime(entry.end_time)}`
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-xs">
+                        <td className="px-4 py-3 text-xs text-gray-500">
                           {entry.hourly_rate ? `£${entry.hourly_rate}/hr` : "—"}
                         </td>
-                        <td className="px-4 py-3 text-xs">{entry.clinical_system || "—"}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{entry.clinical_system || "—"}</td>
                       </tr>
                     );
                   }
@@ -745,16 +745,16 @@ export default function MyTimesheetPage() {
                   return (
                     <React.Fragment key={entry.id}>
                       <tr className={entry.is_cover ? "bg-amber-50/50" : "hover:bg-slate-50/30"}>
-                        <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap">
+                        <td className="px-4 py-3 text-xs font-semibold text-gray-800 whitespace-nowrap">
                           {fmtDate(entry.shift_date)}
                         </td>
-                        <td className="px-4 py-3 text-xs max-w-[220px] truncate">
+                        <td className="px-4 py-3 text-xs max-w-[220px] truncate text-gray-800">
                           <span className="flex items-center gap-1">
-                            <MapPin size={11} className="text-slate-400 shrink-0" />
+                            <MapPin size={11} className="text-gray-400 shrink-0" />
                             {entry.surgery_name}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        <td className="px-4 py-3 text-xs text-gray-800 whitespace-nowrap">
                           {Number(entry.expected_hours || 0).toFixed(2)}h
                         </td>
                         <td className="px-4 py-3">
@@ -770,10 +770,10 @@ export default function MyTimesheetPage() {
                                 placeholder="e.g. 7.5"
                                 className="rounded-lg border border-slate-200 px-2 py-2 text-xs w-[110px] min-h-11 sm:min-h-0"
                               />
-                              <span className="text-[11px] text-slate-400 whitespace-nowrap">hours</span>
+                              <span className="text-[11px] text-gray-500 whitespace-nowrap">hours</span>
                             </div>
                           ) : (
-                            <span className="text-sm font-bold">
+                            <span className="text-sm font-bold text-gray-800">
                               {actual != null ? `${Number(actual).toFixed(2)}h` : "—"}
                             </span>
                           )}
@@ -811,7 +811,7 @@ export default function MyTimesheetPage() {
                           <td colSpan={6} className="px-4 py-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                               <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">
                                   Start time (optional)
                                 </p>
                                 <input
@@ -823,7 +823,7 @@ export default function MyTimesheetPage() {
                                 />
                               </div>
                               <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">
                                   End time (optional)
                                 </p>
                                 <input
@@ -835,7 +835,7 @@ export default function MyTimesheetPage() {
                                 />
                               </div>
                               <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">
                                   Notes (optional)
                                 </p>
                                 <input
@@ -847,7 +847,7 @@ export default function MyTimesheetPage() {
                                 />
                               </div>
                             </div>
-                            <p className="text-xs text-slate-400 mt-3">
+                            <p className="text-xs text-gray-500 mt-3">
                               Expected: {Number(entry.expected_hours || 0).toFixed(2)}h
                               {entry.hourly_rate ? ` · Rate: £${entry.hourly_rate}/hr` : ""}
                               {entry.clinical_system ? ` · System: ${entry.clinical_system}` : ""}
@@ -863,7 +863,7 @@ export default function MyTimesheetPage() {
             {viewMode === "month" && !isLoading && rows.length > 0 && (
               <tfoot>
                 <tr className="bg-slate-50 border-t-2 border-slate-200">
-                  <td colSpan={2} className="px-4 py-3 text-right text-[10px] font-black uppercase text-slate-400">
+                  <td colSpan={2} className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Month total
                   </td>
                   <td className="px-4 py-3 font-bold text-xs">{totalExpected.toFixed(2)}h</td>

@@ -77,7 +77,7 @@ export default function MyLeaveBalancePage() {
               shadow-[0_4px_12px_rgba(59,130,246,0.3)]">
               <CalendarCheck size={16} className="text-white" />
             </div>
-            <h1 className="page-title text-slate-900 dark:text-slate-100">My Leave Balance</h1>
+            <h1 className="page-title text-gray-900 font-semibold dark:text-slate-100">My Leave Balance</h1>
           </div>
           <p className="text-[13px] text-slate-500 dark:text-slate-400 ml-[2.875rem]">
             Annual leave allocation split by contract type
@@ -142,15 +142,15 @@ export default function MyLeaveBalancePage() {
                 </span>
               </div>
 
-              <p className="text-[13px] font-bold text-slate-600 dark:text-slate-400 mb-1">{contract} Annual Leave</p>
+              <p className="text-[13px] font-medium text-gray-500 dark:text-slate-400 mb-1">{contract} Annual Leave</p>
 
               <div className="flex items-baseline gap-1.5 mb-1">
-                <span className="text-4xl font-black text-slate-900 dark:text-slate-100 leading-none">{remaining}</span>
-                <span className="text-sm font-medium text-slate-400 dark:text-slate-500">days left</span>
+                <span className="text-4xl font-black text-gray-900 dark:text-slate-100 leading-none">{remaining}</span>
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-500">days left</span>
               </div>
 
-              <div className="flex justify-between text-xs text-slate-500 dark:text-slate-500 mb-2">
-                <span>Taken <strong className="text-slate-700 dark:text-slate-300">{used}d</strong></span>
+              <div className="flex justify-between text-xs text-gray-500 dark:text-slate-500 mb-2">
+                <span>Taken <strong className="text-gray-700 dark:text-slate-300">{used}d</strong></span>
                 <span className="font-semibold">{pct}% used</span>
               </div>
 
@@ -168,7 +168,7 @@ export default function MyLeaveBalancePage() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Clock size={14} className="text-slate-400 dark:text-slate-600" />
-            <h2 className="section-label text-slate-500 dark:text-slate-400">Recent Leave History</h2>
+            <h2 className="section-label text-gray-500 dark:text-slate-400">Recent Leave History</h2>
           </div>
           <span className="badge badge-slate">
             {entries.length} record{entries.length !== 1 ? "s" : ""}
@@ -209,16 +209,16 @@ export default function MyLeaveBalancePage() {
                               ${cfg ? `bg-gradient-to-br ${cfg.gradient}` : "bg-slate-200 dark:bg-slate-700"}`}>
                               <CalendarCheck size={13} className="text-white" />
                             </div>
-                            <span className="text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                            <span className="text-[13px] font-bold text-gray-800 dark:text-slate-200">
                               {entry.contract || entry.leaveType}
                             </span>
                           </div>
                         </td>
-                        <td className="text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                        <td className="text-gray-600 dark:text-slate-400 whitespace-nowrap">
                           {entry.startDate} – {entry.endDate}
                         </td>
                         <td>
-                          <span className="font-bold text-slate-700 dark:text-slate-300">
+                          <span className="font-bold text-gray-900 dark:text-slate-300">
                             {entry.hours || entry.days || 0}
                           </span>
                           <span className="text-slate-400 dark:text-slate-600 text-xs ml-1">

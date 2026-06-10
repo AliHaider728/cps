@@ -98,7 +98,7 @@ export default function ApplyForLeavePage() {
               shadow-[0_4px_12px_rgba(59,130,246,0.3)]">
               <CalendarDays size={16} className="text-white" />
             </div>
-            <h1 className="page-title text-slate-900 dark:text-slate-100">Apply for Leave</h1>
+            <h1 className="page-title text-gray-900 font-semibold dark:text-slate-100">Apply for Leave</h1>
           </div>
           <p className="text-[13px] text-slate-500 dark:text-slate-400 ml-[2.875rem]">
             Balances are separate per contract · Short annual leave may auto-approve
@@ -153,12 +153,12 @@ export default function ApplyForLeavePage() {
                 </span>
               </div>
 
-              <p className="text-[13px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+              <p className="text-[13px] font-medium text-gray-700 dark:text-slate-400 mb-1">
                 {contract} Contract
               </p>
               <div className="flex items-baseline gap-1.5 mb-1">
-                <span className="text-4xl font-black text-slate-900 dark:text-slate-100 leading-none">{remaining}</span>
-                <span className="text-sm font-medium text-slate-400 dark:text-slate-500">days left</span>
+                <span className="text-4xl font-black text-gray-900 dark:text-slate-100 leading-none">{remaining}</span>
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-500">days left</span>
               </div>
               <div className="flex justify-between text-xs text-slate-500 dark:text-slate-500 mb-2">
                 <span>Taken <strong className="text-slate-700 dark:text-slate-300">{used}d</strong></span>

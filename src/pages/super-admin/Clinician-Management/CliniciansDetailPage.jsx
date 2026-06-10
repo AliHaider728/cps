@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Stethoscope, ArrowLeft, ShieldAlert, ShieldCheck, Mail, Phone,
-  User, Sparkles, ShieldCheck as ShieldIcon, Building2, CalendarDays,
+  User, ShieldCheck as ShieldIcon, Building2, CalendarDays,
   Users as UsersIcon, GraduationCap, Rocket, ShieldAlert as ScopeIcon,
   Eye, ChevronDown, Clock, CalendarCheck,
 } from "lucide-react";
@@ -17,9 +17,8 @@ import { usePractices } from "../../../hooks/usePractice";
 import { useAppSelector } from "../../../hooks/redux";
 
 import BasicInfoPanel     from "./panels/BasicInfoPanel.jsx";
-import SkillsPanel        from "./panels/SkillsPanel.jsx";
 import CompliancePanel    from "./panels/CompliancePanel.jsx";
-import ClientHistoryPanel from "./panels/ClientHistoryPanel.jsx";
+// import ClientHistoryPanel from "./panels/ClientHistoryPanel.jsx"; // temporarily hidden
 import CalendarPanel      from "./panels/CalendarPanel.jsx";
 import SupervisionPanel   from "./panels/SupervisionPanel.jsx";
 import CPPEPanel          from "./panels/CPPEPanel.jsx";
@@ -29,13 +28,14 @@ import ProjectMappingPanel from "./panels/ProjectMappingPanel.jsx";
 import { Briefcase } from "lucide-react";
 import { Spinner, fmtDate } from "./panels/shared.jsx";
 
+// NOTE: "skills" tab removed — SkillsPanel is now embedded inside BasicInfoPanel
+
 const TABS = [
   { id: "basic",       label: "Basic Info",     icon: User          },
-  { id: "skills",      label: "Skills",         icon: Sparkles      },
   { id: "compliance",  label: "Compliance",     icon: ShieldIcon    },
-  { id: "history",     label: "Client History", icon: Building2     },
-  { id: "calendar",    label: "Timesheet",      icon: CalendarDays  },
+  // { id: "history",  label: "Client History", icon: Building2     }, // temporarily hidden
   { id: "projects",    label: "Project Mapping", icon: Briefcase    },
+  { id: "calendar",    label: "Timesheet",      icon: CalendarDays  },
   { id: "supervision", label: "Supervision",    icon: UsersIcon     },
   { id: "cppe",        label: "CPPE",           icon: GraduationCap },
   { id: "onboarding",  label: "Onboarding",     icon: Rocket        },
@@ -44,11 +44,13 @@ const TABS = [
 
 const TAB_IDS = TABS.map((t) => t.id);
 const TAB_ALIASES = {
-  "basic-info": "basic",
-  "client-history": "history",
+  "basic-info":      "basic",
+  // "client-history": "history", // temporarily hidden
   "supervision-log": "supervision",
-  "cppe-status": "cppe",
+  "cppe-status":     "cppe",
   "project-mapping": "projects",
+  // skills now redirects to basic since it's embedded there
+  "skills":          "basic",
 };
 
 const TYPE_COLORS = {
@@ -145,12 +147,10 @@ export default function CliniciansDetailPage() {
             users={users}
           />
         );
-      case "skills":
-        return <SkillsPanel clinician={clinician} onPatch={handlePatch} />;
       case "compliance":
         return <CompliancePanel clinicianId={id} canManage={canManage} />;
-      case "history":
-        return <ClientHistoryPanel clinicianId={id} canManage={canManage} pcns={pcns} practices={practices} />;
+      // case "history": // temporarily hidden
+      //   return <ClientHistoryPanel clinicianId={id} canManage={canManage} pcns={pcns} practices={practices} />;
       case "projects":
         return (
           <ProjectMappingPanel clinicianId={id} canManage={canManage} />
@@ -161,7 +161,7 @@ export default function CliniciansDetailPage() {
             clinicianId={id}
             clinician={clinician}
             canManage={canManage}
-            userRole={role}          // ← FIX: pass role so admin can approve/reject
+            userRole={role}
           />
         );
       case "supervision":

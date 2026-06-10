@@ -5,8 +5,8 @@ import { usePractice } from "../../hooks/usePractice";
 import { useEnterMyHours, useSubmitEnterMyHours, useUpsertEnterMyHours } from "../../hooks/useEnterMyHours";
 import { buildPracticeNameMap, isWorkingShift, resolvePracticeName } from "../../lib/practiceNames";
 import {
-  Clock, CalendarDays, Send, CheckCircle2, AlertCircle, Save,
-  Building2, Stethoscope, ClipboardList, Loader2, ChevronRight
+  CalendarDays, Send, Save,
+  Building2, ClipboardList, Loader2, ChevronRight
 } from "lucide-react";
 
 const now = new Date();
@@ -28,31 +28,23 @@ const calcHours = (startTime, endTime, breakMinutes) => {
   return (Math.round((mins / 60) * 100) / 100).toFixed(2);
 };
 
-const StatusPill = ({ value, type }) => {
-  const map = {
-    draft:    "badge-slate",
-    approved: "badge-green",
-    pending:  "badge-amber",
-    rejected: "badge-red",
-    submitted:"badge-blue",
-  };
-  const cls = map[String(value).toLowerCase()] || "badge-slate";
+const STATUS_STYLES = {
+  draft:     "bg-gray-100 text-gray-600 border border-gray-200",
+  approved:  "bg-green-50 text-green-700 border border-green-200",
+  pending:   "bg-amber-50 text-amber-700 border border-amber-200",
+  rejected:  "bg-red-50 text-red-700 border border-red-200",
+  submitted: "bg-blue-50 text-blue-700 border border-blue-200",
+};
+
+const StatusPill = ({ value }) => {
+  const key = String(value || "draft").toLowerCase();
+  const cls = STATUS_STYLES[key] || STATUS_STYLES.draft;
   return (
-    <span className={`badge ${cls}`}>
-      {String(value || "—")}
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap ${cls}`}>
+      {String(value || "draft")}
     </span>
   );
 };
-
-const FieldInput = ({ type = "text", value, onChange, className = "", ...rest }) => (
-  <input
-    type={type}
-    value={value}
-    onChange={onChange}
-    className={`input ${className}`}
-    {...rest}
-  />
-);
 
 export default function EnterMyHoursPage() {
   const user = useAppSelector((s) => s.auth.user);
@@ -86,10 +78,10 @@ export default function EnterMyHoursPage() {
     const sid      = String(shift.id || shift._id);
     const existing = rowsByShift.get(sid);
     const draft    = editing[sid] || {};
-    const startTime           = toTime(draft.startTime           ?? existing?.startTime           ?? "");
-    const endTime             = toTime(draft.endTime             ?? existing?.endTime             ?? "");
+    const startTime            = toTime(draft.startTime           ?? existing?.startTime           ?? "");
+    const endTime              = toTime(draft.endTime             ?? existing?.endTime             ?? "");
     const breakDurationMinutes = Number(draft.breakDurationMinutes ?? existing?.breakDurationMinutes ?? 0);
-    const notes               = String(draft.notes               ?? existing?.notes               ?? "");
+    const notes                = String(draft.notes               ?? existing?.notes               ?? "");
 
     setSavingShiftId(sid);
     try {
@@ -97,10 +89,10 @@ export default function EnterMyHoursPage() {
         entryId: existing?._id,
         month, year, shiftId: sid,
         assignedShiftRef: sid,
-        practiceId:  shift.practice_id || shift.surgery_id || "",
+        practiceId:   shift.practice_id || shift.surgery_id || "",
         practiceName: resolvePracticeName(shift, practiceMap),
-        pcn:         shift.pcn_name || shift.pcn || "—",
-        dateWorked:  String(shift.shift_date || shift.date || "").slice(0, 10),
+        pcn:          shift.pcn_name || shift.pcn || "—",
+        dateWorked:   String(shift.shift_date || shift.date || "").slice(0, 10),
         startTime, endTime, breakDurationMinutes, notes,
       });
       setEditing((prev) => ({ ...prev, [sid]: {} }));
@@ -117,23 +109,36 @@ export default function EnterMyHoursPage() {
     <div className="space-y-5 pb-12 px-1 animate-fade-up">
 
       {/* ── Page header ── */}
-      <div className="card p-5 flex flex-wrap items-start justify-between gap-4
-        border-l-4 border-l-blue-500">
+      <div
+        className="card p-5 flex flex-wrap items-start justify-between gap-4"
+        style={{ borderLeft: "4px solid #3b82f6" }}
+      >
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-9 h-9 rounded-xl gradient-blue-indigo flex items-center justify-center
-              shadow-[0_4px_12px_rgba(59,130,246,0.3)]">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{
+                background: "linear-gradient(135deg, #3b82f6, #6366f1)",
+                boxShadow: "0 4px 12px rgba(59,130,246,0.3)",
+              }}
+            >
               <ClipboardList size={16} className="text-white" />
             </div>
-            <h1 className="page-title text-slate-900 dark:text-slate-100">Enter My Hours</h1>
+            <h1 className="page-title">Enter My Hours</h1>
           </div>
           <p className="text-[13px] text-slate-500 dark:text-slate-400 ml-[2.875rem]">
             Record actual worked hours against your assigned shifts
           </p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl
-          bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20
-          text-blue-600 dark:text-blue-400 text-xs font-bold">
+
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold"
+          style={{
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            color: "#2563eb",
+          }}
+        >
           <CalendarDays size={13} />
           {MONTH_NAMES[month - 1]} {year}
         </div>
@@ -199,22 +204,24 @@ export default function EnterMyHoursPage() {
           </div>
         )}
         {!isLoading && shifts.map((shift) => {
-          const sid         = String(shift.id || shift._id);
-          const existing    = rowsByShift.get(sid);
-          const draft       = editing[sid] || {};
-          const startTime   = toTime(draft.startTime ?? existing?.startTime ?? "");
-          const endTime     = toTime(draft.endTime   ?? existing?.endTime   ?? "");
-          const breakMins   = Number(draft.breakDurationMinutes ?? existing?.breakDurationMinutes ?? 0);
-          const total       = calcHours(startTime, endTime, breakMins) || Number(existing?.totalWorkedHours || 0).toFixed(2);
-          const isSaving    = savingShiftId === sid;
+          const sid       = String(shift.id || shift._id);
+          const existing  = rowsByShift.get(sid);
+          const draft     = editing[sid] || {};
+          const startTime = toTime(draft.startTime ?? existing?.startTime ?? "");
+          const endTime   = toTime(draft.endTime   ?? existing?.endTime   ?? "");
+          const breakMins = Number(draft.breakDurationMinutes ?? existing?.breakDurationMinutes ?? 0);
+          const total     = calcHours(startTime, endTime, breakMins) || Number(existing?.totalWorkedHours || 0).toFixed(2);
+          const isSaving  = savingShiftId === sid;
 
           return (
             <div key={sid} className="card p-4 space-y-3 animate-scale-in">
               {/* Header row */}
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/10
-                  flex items-center justify-center shrink-0">
-                  <Building2 size={15} className="text-blue-600 dark:text-blue-400" />
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: "#eff6ff" }}
+                >
+                  <Building2 size={15} style={{ color: "#2563eb" }} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200 truncate">
@@ -229,7 +236,7 @@ export default function EnterMyHoursPage() {
                 </div>
                 {total && (
                   <div className="shrink-0 text-right">
-                    <p className="text-lg font-black text-blue-600 dark:text-blue-400 leading-tight">{total}</p>
+                    <p className="text-lg font-black leading-tight" style={{ color: "#2563eb" }}>{total}</p>
                     <p className="text-[10px] font-semibold text-slate-400">hrs</p>
                   </div>
                 )}
@@ -257,7 +264,14 @@ export default function EnterMyHoursPage() {
                 </div>
                 <div>
                   <label className="field-label">Total</label>
-                  <div className="input font-bold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/20">
+                  <div
+                    className="input font-bold"
+                    style={{
+                      color: "#2563eb",
+                      background: "#eff6ff",
+                      borderColor: "#bfdbfe",
+                    }}
+                  >
                     {total || "—"} h
                   </div>
                 </div>
@@ -337,8 +351,11 @@ export default function EnterMyHoursPage() {
                   <tr key={sid}>
                     <td>
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0">
-                          <Building2 size={12} className="text-blue-500" />
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ background: "#eff6ff" }}
+                        >
+                          <Building2 size={12} style={{ color: "#3b82f6" }} />
                         </div>
                         <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
                           {resolvePracticeName(shift, practiceMap)}
@@ -368,7 +385,7 @@ export default function EnterMyHoursPage() {
                         className="input w-20" />
                     </td>
                     <td>
-                      <span className="font-black text-blue-600 dark:text-blue-400">
+                      <span className="font-black" style={{ color: "#2563eb" }}>
                         {total || "—"}{total ? " h" : ""}
                       </span>
                     </td>
@@ -401,4 +418,4 @@ export default function EnterMyHoursPage() {
       </div>
     </div>
   );
-}
+} 
