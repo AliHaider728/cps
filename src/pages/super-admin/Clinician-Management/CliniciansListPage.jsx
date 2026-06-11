@@ -71,7 +71,6 @@ const ChangePasswordModal = ({ clinician, onClose }) => {
     setSaving(true);
     setError("");
     try {
-      // ✅ FIXED: correct API route PUT /api/auth/users/:id/password
       await apiClient.put(`/auth/users/${clinician._id}/password`, { password: newPassword });
       setSuccess(true);
       setTimeout(() => onClose(), 1500);
@@ -85,8 +84,6 @@ const ChangePasswordModal = ({ clinician, onClose }) => {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200">
-
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h3 className="text-base font-bold text-slate-800">Change Password</h3>
@@ -100,7 +97,6 @@ const ChangePasswordModal = ({ clinician, onClose }) => {
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-6 space-y-4">
           {error && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
@@ -113,7 +109,6 @@ const ChangePasswordModal = ({ clinician, onClose }) => {
             </div>
           )}
 
-          {/* New Password */}
           <F label="New Password">
             <div className="relative">
               <input
@@ -133,7 +128,6 @@ const ChangePasswordModal = ({ clinician, onClose }) => {
             </div>
           </F>
 
-          {/* Confirm Password */}
           <F label="Confirm Password">
             <div className="relative">
               <input
@@ -154,7 +148,6 @@ const ChangePasswordModal = ({ clinician, onClose }) => {
           </F>
         </div>
 
-        {/* Footer */}
         <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
           <button
             onClick={onClose}
@@ -445,34 +438,101 @@ export default function CliniciansListPage() {
         )
       ),
     },
+    /* ── Compliance column ── */
+    {
+      header: "Compliance",
+      render: (c) => {
+        // Support both complianceSummary (if backend embeds it) and compliance fields
+        const summary  = c.complianceSummary ?? c.compliance ?? null;
+        const groups   = summary?.groups   ?? null;
+        const uploaded = summary?.uploaded ?? null;
+        const total    = summary?.total    ?? null;
+        const missing  = summary?.missing  ?? (total != null && uploaded != null ? total - uploaded : null);
+
+        // If no compliance data at all, show dash
+        if (total == null && uploaded == null) {
+          return <span className="text-[11px] text-slate-300 font-medium">—</span>;
+        }
+
+        const safeUploaded = uploaded ?? 0;
+        const safeTotal    = total    ?? 0;
+        const safeMissing  = missing  ?? 0;
+        const pct = safeTotal > 0 ? Math.round((safeUploaded / safeTotal) * 100) : 0;
+
+        return (
+          <div className="min-w-[120px]">
+            {/* Counts row */}
+            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+              <span className="text-xs font-bold text-slate-700">
+                {safeUploaded}/{safeTotal}
+              </span>
+              {safeMissing > 0 ? (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-semibold whitespace-nowrap">
+                  {safeMissing} left
+                </span>
+              ) : safeTotal > 0 ? (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold whitespace-nowrap">
+                  ✓ Done
+                </span>
+              ) : null}
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden w-24">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  pct >= 80 ? "bg-emerald-400" : pct >= 50 ? "bg-amber-400" : "bg-red-400"
+                }`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+
+            {/* Groups sub-label */}
+            {groups != null && (
+              <p className="text-[10px] text-slate-400 mt-1">
+                {groups} group{groups !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    /* ── Actions ── */
     {
       header: "",
       render: (c) => (
         <div className="flex items-center gap-1.5 justify-end">
-          {/* Change Password */}
+          {/* Change Password — icon only */}
           <button
             onClick={() => setPwdModal(c)}
-            className="h-8 px-3 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 text-xs font-bold hover:bg-slate-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
+            title="Change Password"
+            className="h-8 w-8 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 inline-flex items-center justify-center transition-all"
           >
-            <KeyRound size={12} /> Password
+            <KeyRound size={13} />
           </button>
-          {/* View */}
+
+          {/* View — icon only */}
           <button
             onClick={() => navigate(`/dashboard/clinicians/${c._id}`)}
-            className="h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
+            title="View Clinician"
+            className="h-8 w-8 rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-800 inline-flex items-center justify-center transition-all"
           >
-            <Eye size={12} /> View
+            <Eye size={13} />
           </button>
+
           {/* Edit */}
           <button
             onClick={() => setModal({ mode: "edit", clinician: c })}
+            title="Edit"
             className="h-8 w-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 inline-flex items-center justify-center transition-all"
           >
             <Edit2 size={13} />
           </button>
+
           {/* Delete */}
           <button
             onClick={() => handleDelete(c)}
+            title="Delete"
             className="h-8 w-8 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 hover:text-red-700 inline-flex items-center justify-center transition-all"
           >
             <Trash2 size={13} />
