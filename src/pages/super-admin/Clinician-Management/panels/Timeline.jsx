@@ -17,25 +17,19 @@ import {
   Briefcase, Umbrella, Thermometer, BookOpen,
   UserPlus, XCircle, BarChart2, Timer, Activity,
   Zap, FileText, CheckCircle2, X, Plus, Edit2,
-  Calendar,
+  Calendar, ChevronDown as ChevronDownIcon,
+  TrendingUp, Layers,
 } from "lucide-react";
 
 /* ── Status configs ─────────────────────────────── */
 const STATUS_CONFIG = {
   working:      { bg: "bg-blue-500",   light: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200",   label: "Working",      Icon: Briefcase     },
-  annual_leave: { bg: "bg-yellow-400", light: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", label: "Annual Leave", Icon: Umbrella      },
+  annual_leave: { bg: "bg-amber-400",  light: "bg-amber-50",  text: "text-amber-700",  border: "border-amber-200",  label: "Annual Leave", Icon: Umbrella      },
   sick:         { bg: "bg-orange-500", light: "bg-orange-50", text: "text-orange-700", border: "border-orange-200", label: "Sick",         Icon: Thermometer   },
-  cppe:         { bg: "bg-green-500",  light: "bg-green-50",  text: "text-green-700",  border: "border-green-200",  label: "CPPE",         Icon: BookOpen      },
-  cover:        { bg: "bg-purple-500", light: "bg-purple-50", text: "text-purple-700", border: "border-purple-200", label: "Cover",        Icon: UserPlus      },
-  gap:          { bg: "bg-red-500",    light: "bg-red-50",    text: "text-red-700",    border: "border-red-200",    label: "Gap",          Icon: AlertTriangle },
+  cppe:         { bg: "bg-emerald-500",light: "bg-emerald-50",text: "text-emerald-700",border: "border-emerald-200",label: "CPPE",         Icon: BookOpen      },
+  cover:        { bg: "bg-violet-500", light: "bg-violet-50", text: "text-violet-700", border: "border-violet-200", label: "Cover",        Icon: UserPlus      },
+  gap:          { bg: "bg-rose-500",   light: "bg-rose-50",   text: "text-rose-700",   border: "border-rose-200",   label: "Gap",          Icon: AlertTriangle },
   cancelled:    { bg: "bg-slate-400",  light: "bg-slate-50",  text: "text-slate-500",  border: "border-slate-200",  label: "Cancelled",    Icon: XCircle       },
-};
-
-const TIMESHEET_STATUS = {
-  draft:     { cls: "bg-slate-100 text-slate-600 border-slate-200",      label: "Draft"     },
-  submitted: { cls: "bg-blue-50 text-blue-700 border-blue-200",          label: "Submitted" },
-  approved:  { cls: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Approved"  },
-  rejected:  { cls: "bg-rose-50 text-rose-700 border-rose-200",          label: "Rejected"  },
 };
 
 const getStatus  = (s) => STATUS_CONFIG[s] || STATUS_CONFIG.cancelled;
@@ -125,14 +119,12 @@ function useRejectTimesheet() {
 function CalendarView({ month, year, shifts, canManage, onAddShift, onEditShift, getPracticeName }) {
   const [selectedDate, setSelectedDate] = useState(null);
 
-  // Build days grid
   const { days, startPad } = useMemo(() => {
-    const firstDay = new Date(year, month - 1, 1).getDay(); // 0=Sun
+    const firstDay    = new Date(year, month - 1, 1).getDay();
     const daysInMonth = new Date(year, month, 0).getDate();
     return { days: daysInMonth, startPad: firstDay };
   }, [month, year]);
 
-  // Map shifts by date
   const shiftsByDate = useMemo(() => {
     const map = {};
     shifts.forEach((s) => {
@@ -159,7 +151,6 @@ function CalendarView({ month, year, shifts, canManage, onAddShift, onEditShift,
 
   return (
     <div className="space-y-4 p-4">
-      {/* Header row */}
       <div className="grid grid-cols-7 mb-1">
         {DAYS_SHORT.map((d) => (
           <div key={d} className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400 py-2">
@@ -168,16 +159,14 @@ function CalendarView({ month, year, shifts, canManage, onAddShift, onEditShift,
         ))}
       </div>
 
-      {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
         {cells.map((cell, idx) => {
           if (!cell) return <div key={`pad-${idx}`} />;
           const { day, dateStr } = cell;
-          const dayShifts = shiftsByDate[dateStr] || [];
-          const isToday   = dateStr === todayStr;
+          const dayShifts  = shiftsByDate[dateStr] || [];
+          const isToday    = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
 
-          // Summarize statuses
           const statusCounts = {};
           dayShifts.forEach((s) => {
             statusCounts[s.status] = (statusCounts[s.status] || 0) + 1;
@@ -211,12 +200,8 @@ function CalendarView({ month, year, shifts, canManage, onAddShift, onEditShift,
                 {topStatuses.map((st) => {
                   const cfg = getStatus(st);
                   return (
-                    <div
-                      key={st}
-                      className={`w-full px-1.5 py-0.5 rounded-md text-[9px] font-bold truncate ${cfg.light} ${cfg.text}`}
-                    >
-                      {cfg.label}
-                      {statusCounts[st] > 1 && ` ×${statusCounts[st]}`}
+                    <div key={st} className={`w-full px-1.5 py-0.5 rounded-md text-[9px] font-bold truncate ${cfg.light} ${cfg.text}`}>
+                      {cfg.label}{statusCounts[st] > 1 && ` ×${statusCounts[st]}`}
                     </div>
                   );
                 })}
@@ -231,7 +216,6 @@ function CalendarView({ month, year, shifts, canManage, onAddShift, onEditShift,
         })}
       </div>
 
-      {/* Selected day detail */}
       {selectedDate && (
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-indigo-100 bg-white/60">
@@ -273,10 +257,10 @@ function CalendarView({ month, year, shifts, canManage, onAddShift, onEditShift,
           ) : (
             <div className="divide-y divide-indigo-100">
               {selectedShifts.map((shift, i) => {
-                const cfg     = getStatus(shift.status);
-                const hours   = fmtHours(shift.start_time, shift.end_time);
-                const rate    = shift.hourly_rate ?? shift.hourlyRate;
-                const cost    = rate && hours ? Math.round(rate * hours * 100) / 100 : null;
+                const cfg      = getStatus(shift.status);
+                const hours    = fmtHours(shift.start_time, shift.end_time);
+                const rate     = shift.hourly_rate ?? shift.hourlyRate;
+                const cost     = rate && hours ? Math.round(rate * hours * 100) / 100 : null;
                 const practice = shift.practice_name || shift.surgery_name || getPracticeName(shift) || "—";
 
                 return (
@@ -326,123 +310,234 @@ function CalendarView({ month, year, shifts, canManage, onAddShift, onEditShift,
 }
 
 /* ════════════════════════════════════════════════
-   LIST VIEW  (with hourly rate column)
+   LIST VIEW  — Professional timesheet style
    ════════════════════════════════════════════════ */
 function ListView({ shifts, canManage, isLoading, monthLabel, stats, getPracticeName, onAddShift, onEditShift, onSelectShift }) {
-  const listShifts = useMemo(() => shifts.filter(isWorkingShift), [shifts]);
+
+  const grouped = useMemo(() => {
+    const working  = shifts.filter(isWorkingShift);
+    const orderMap = {};
+    const groups   = [];
+
+    working.forEach((s) => {
+      const name = getPracticeName(s) || "Unknown Practice";
+      if (orderMap[name] === undefined) {
+        orderMap[name] = groups.length;
+        groups.push({ practiceName: name, shifts: [] });
+      }
+      groups[orderMap[name]].shifts.push(s);
+    });
+
+    groups.forEach((g) => g.shifts.sort((a, b) => String(a.date).localeCompare(String(b.date))));
+    return groups;
+  }, [shifts, getPracticeName]);
+
+  const [collapsed, setCollapsed] = useState({});
+  const toggleCollapse = (name) =>
+    setCollapsed((prev) => ({ ...prev, [name]: !prev[name] }));
+
+  const totalShifts = grouped.reduce((sum, g) => sum + g.shifts.length, 0);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-32 gap-2 text-sm text-slate-400">
-        <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
+      <div className="flex items-center justify-center h-40 gap-3 text-sm text-slate-400">
+        <div className="w-5 h-5 rounded-full border-2 border-slate-200 border-t-indigo-500 animate-spin" />
         Loading shifts…
       </div>
     );
   }
 
+  if (totalShifts === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
+        <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+          <FileText size={24} className="text-slate-400" />
+        </div>
+        <p className="text-sm font-semibold text-slate-600 mb-1">No working shifts</p>
+        <p className="text-xs text-slate-400 mb-5">No shifts recorded for {monthLabel}</p>
+        {canManage && (
+          <button
+            onClick={() => onAddShift()}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all"
+          >
+            <Plus size={13} /> Add First Shift
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-[580px] w-full text-sm">
-        <thead>
-          <tr className="bg-slate-50 border-b border-slate-200">
-            {["Date", "Practice", "Time", "Hours", "Rate", "Status"].map((h) => (
-              <th key={h} className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">{h}</th>
-            ))}
-            {canManage && <th className="px-4 py-3 w-[50px]" />}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {listShifts.length === 0 && (
-            <tr>
-              <td colSpan={canManage ? 7 : 6} className="px-5 py-12 text-center text-slate-400 text-sm">
-                <FileText size={28} className="mx-auto mb-2 opacity-30" />
-                No working shifts for {monthLabel}
-              </td>
-            </tr>
-          )}
-          {listShifts.map((s, i) => {
-            const cfg   = getStatus(s.status);
-            const h     = fmtHours(s.start_time, s.end_time) ?? s.hours;
-            const rate  = s.hourly_rate ?? s.hourlyRate;
-            return (
-              <tr
-                key={s.id || i}
-                onClick={() => onSelectShift(s)}
-                className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
-              >
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <p className="text-xs font-bold text-slate-800">
-                    {String(s.date || "").slice(0, 10)}
-                  </p>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-start gap-1.5 min-w-0">
-                    <MapPin size={10} className="text-slate-400 shrink-0 mt-0.5" />
-                    <span className="text-xs text-slate-700 font-medium line-clamp-2 leading-snug">
-                      {getPracticeName(s) || "—"}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  {s.start_time ? (
-                    <div className="flex items-center gap-1">
-                      <Clock size={10} className="text-slate-400 shrink-0" />
-                      <span className="text-xs font-mono text-slate-700">
-                        {fmtTime(s.start_time)} – {fmtTime(s.end_time)}
-                      </span>
-                    </div>
-                  ) : <span className="text-slate-300 text-xs">—</span>}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  {h ? <span className="text-xs font-bold text-slate-700">{h}h</span>
-                     : <span className="text-xs text-slate-300">—</span>}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  {rate != null
-                    ? <span className="text-xs font-semibold text-emerald-700">£{rate}/hr</span>
-                    : <span className="text-xs text-slate-300">—</span>}
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap ${cfg.light} ${cfg.text} ${cfg.border}`}>
-                    <cfg.Icon size={10} /> {cfg.label}
-                  </span>
-                </td>
-                {canManage && (
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onEditShift(s); }}
-                      className="opacity-0 group-hover:opacity-100 h-7 w-7 rounded-lg border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 inline-flex items-center justify-center transition-all"
+    <div className="divide-y divide-slate-100">
+
+      {/* ── Summary banner ── */}
+      <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-slate-50/80">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <Layers size={12} className="text-slate-400" />
+          <span><strong className="text-slate-700 font-bold">{totalShifts}</strong> shifts · {grouped.length} practice{grouped.length !== 1 ? "s" : ""}</span>
+        </div>
+        {stats.totalHours > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <TrendingUp size={12} className="text-indigo-500" />
+            <span><strong className="text-indigo-700 font-bold">{stats.totalHours}h</strong> total</span>
+          </div>
+        )}
+        {stats.gaps > 0 && (
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-600">
+            <AlertTriangle size={12} />
+            {stats.gaps} gap{stats.gaps !== 1 ? "s" : ""}
+          </div>
+        )}
+        {canManage && (
+          <button
+            onClick={() => onAddShift()}
+            className="ml-auto inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition-colors"
+          >
+            <Plus size={11} /> Add Shift
+          </button>
+        )}
+      </div>
+
+      {/* ── Practice groups ── */}
+      {grouped.map(({ practiceName, shifts: groupShifts }) => {
+        const isCollapsed = collapsed[practiceName];
+        const groupHours  = groupShifts.reduce((sum, s) => sum + (fmtHours(s.start_time, s.end_time) ?? s.hours ?? 0), 0);
+        const roundedGroupHours = Math.round(groupHours * 10) / 10;
+
+        return (
+          <div key={practiceName} className="bg-white">
+
+            {/* Practice header */}
+            <button
+              type="button"
+              onClick={() => toggleCollapse(practiceName)}
+              className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors text-left group"
+            >
+              <div className="h-7 w-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                <MapPin size={12} className="text-indigo-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-slate-800 truncate">{practiceName}</p>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                  {groupShifts.length} shift{groupShifts.length !== 1 ? "s" : ""}
+                  {roundedGroupHours > 0 && <> · <span className="text-indigo-600 font-bold">{roundedGroupHours}h</span></>}
+                </p>
+              </div>
+              <ChevronDownIcon
+                size={14}
+                className={`text-slate-400 transition-transform duration-200 shrink-0 ${isCollapsed ? "-rotate-90" : ""}`}
+              />
+            </button>
+
+            {/* Shift rows */}
+            {!isCollapsed && (
+              <div className="border-t border-slate-100">
+                {groupShifts.map((s, i) => {
+                  const cfg  = getStatus(s.status);
+                  const h    = fmtHours(s.start_time, s.end_time) ?? s.hours;
+                  const rate = s.hourly_rate ?? s.hourlyRate;
+                  const cost = rate && h ? Math.round(rate * h * 100) / 100 : null;
+                  const dateObj = new Date(String(s.date || "").slice(0, 10) + "T00:00:00");
+                  const dayLabel = !isNaN(dateObj) ? dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : String(s.date || "").slice(0, 10);
+
+                  return (
+                    <div
+                      key={s.id || `${practiceName}-${i}`}
+                      onClick={() => onSelectShift(s)}
+                      className="flex items-center gap-3 px-5 py-3 pl-[52px] hover:bg-slate-50/70 cursor-pointer transition-colors group border-b border-slate-50 last:border-0"
                     >
-                      <Edit2 size={12} />
-                    </button>
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {listShifts.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50">
-          <span className="text-xs text-slate-500">
-            {listShifts.length} shift{listShifts.length !== 1 ? "s" : ""} · {monthLabel}
-          </span>
-          <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-            {stats.totalHours > 0 && (
-              <span className="flex items-center gap-1">
-                <BarChart2 size={11} />
-                <strong className="text-slate-700">{stats.totalHours}h</strong> total
-              </span>
-            )}
-            {stats.gaps > 0 && (
-              <span className="flex items-center gap-1 text-red-600 font-semibold">
-                <AlertTriangle size={11} />
-                {stats.gaps} gap{stats.gaps !== 1 ? "s" : ""}
-              </span>
+                      {/* Status dot + date */}
+                      <div className="shrink-0 w-[110px]">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.bg}`} />
+                          <p className="text-xs font-bold text-slate-800">{dayLabel}</p>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${cfg.light} ${cfg.text} ${cfg.border}`}>
+                          <cfg.Icon size={9} />{cfg.label}
+                        </span>
+                      </div>
+
+                      {/* Time & hours */}
+                      <div className="shrink-0 w-[120px]">
+                        {s.start_time ? (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <Clock size={10} className="text-slate-400 shrink-0" />
+                              <span className="text-xs font-mono text-slate-700">
+                                {fmtTime(s.start_time)}–{fmtTime(s.end_time)}
+                              </span>
+                            </div>
+                            {h && (
+                              <p className="text-[10px] text-indigo-600 font-bold mt-0.5 pl-3.5">{h}h</p>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-slate-300">No time set</span>
+                        )}
+                      </div>
+
+                      {/* Rate & cost */}
+                      <div className="flex-1 min-w-0">
+                        {rate != null ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md">
+                              £{rate}/hr
+                            </span>
+                            {cost && (
+                              <span className="text-xs font-bold text-slate-600">
+                                = £{cost.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                        {s.service_code && (
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md mt-1 inline-block">
+                            {s.service_code}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Edit */}
+                      {canManage && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onEditShift(s); }}
+                          className="opacity-0 group-hover:opacity-100 h-7 w-7 rounded-lg border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 inline-flex items-center justify-center transition-all shrink-0"
+                        >
+                          <Edit2 size={11} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
+        );
+      })}
+
+      {/* ── Footer ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-slate-50">
+        <span className="text-[11px] text-slate-400">{monthLabel}</span>
+        <div className="flex items-center gap-3 text-xs">
+          {stats.totalHours > 0 && (
+            <span className="text-slate-500">
+              <strong className="text-slate-700">{stats.totalHours}h</strong> logged
+            </span>
+          )}
+          {stats.working > 0 && (
+            <span className="text-slate-500">
+              <strong className="text-slate-700">{stats.working}</strong> working
+            </span>
+          )}
+          {stats.gaps > 0 && (
+            <span className="text-rose-600 font-semibold flex items-center gap-1">
+              <AlertTriangle size={10} />{stats.gaps} gap{stats.gaps !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -568,7 +663,6 @@ function StatPill({ label, value, color = "bg-slate-100 text-slate-700" }) {
 
 /* ════════════════════════════════════════════════
    MAIN — CalendarPanel
-   Views: List | Calendar
    ════════════════════════════════════════════════ */
 export default function CalendarPanel({ clinicianId, canManage, userRole = "clinician" }) {
   const now   = useMemo(() => new Date(), []);
@@ -576,11 +670,11 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   const [year,  setYear]  = useState(now.getFullYear());
   const [view,  setView]  = useState("calendar");
 
-  // Modals
-  const [addShiftOpen,    setAddShiftOpen]    = useState(false);
-  const [addShiftDate,    setAddShiftDate]    = useState(null);
-  const [editShift,       setEditShift]       = useState(null);
-  const [listSelected,    setListSelected]    = useState(null);
+  const [addShiftOpen, setAddShiftOpen] = useState(false);
+  const [addShiftDate, setAddShiftDate] = useState(null);
+
+  const [detailShift,    setDetailShift]    = useState(null);
+  const [detailReadOnly, setDetailReadOnly] = useState(true);
 
   const rotaQ       = useClinicianRota(clinicianId, month, year);
   const practiceMap = usePracticeMap();
@@ -602,24 +696,20 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
   const monthLabel = `${MONTHS[month - 1]} ${year}`;
 
-  const handleAddShift = (date = null) => {
-    setAddShiftDate(date);
-    setAddShiftOpen(true);
-  };
+  const handleAddShift    = (date = null) => { setAddShiftDate(date); setAddShiftOpen(true); };
+  const handleSelectShift = (shift) => { setDetailShift(shift); setDetailReadOnly(readOnly); };
+  const handleEditShift   = (shift) => { setDetailShift(shift); setDetailReadOnly(false); };
+  const handleCloseDetail = () => setDetailShift(null);
 
   return (
     <div className="space-y-4">
 
-      {/* Active shift card — only clinician's own dashboard */}
       {isOwnDashboard && <ActiveShiftCard clinicianId={clinicianId} isOwnDashboard={isOwnDashboard} />}
 
-      {/* ── Main panel ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
         {/* ── Header ── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-b border-slate-100">
-
-          {/* Month nav */}
           <div className="flex items-center gap-2">
             <button type="button" onClick={prevMonth}
               className="h-9 w-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shrink-0">
@@ -639,13 +729,11 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
             </button>
           </div>
 
-          {/* Right: stats + view toggle + add shift */}
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {stats.working > 0    && <StatPill label="working" value={stats.working}    color="bg-blue-50 text-blue-700" />}
             {stats.totalHours > 0 && <StatPill label="hrs"     value={stats.totalHours} color="bg-slate-100 text-slate-700" />}
             {stats.gaps > 0       && <StatPill label="gaps"    value={stats.gaps}       color="bg-red-50 text-red-700" />}
 
-            {/* View toggle: List | Calendar */}
             <div className="flex rounded-xl border border-slate-200 overflow-hidden">
               <button
                 type="button"
@@ -663,7 +751,6 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
               </button>
             </div>
 
-            {/* Add Shift button (admin/manager) */}
             {canManage && (
               <button
                 onClick={() => handleAddShift()}
@@ -675,15 +762,13 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
           </div>
         </div>
 
-        {/* ── LOADING ── */}
         {isLoading && (
-          <div className="flex items-center justify-center h-32 gap-2 text-sm text-slate-400">
-            <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
+          <div className="flex items-center justify-center h-40 gap-3 text-sm text-slate-400">
+            <div className="w-5 h-5 rounded-full border-2 border-slate-200 border-t-indigo-500 animate-spin" />
             Loading shifts…
           </div>
         )}
 
-        {/* ── CALENDAR VIEW ── */}
         {!isLoading && view === "calendar" && (
           <CalendarView
             month={month}
@@ -691,12 +776,11 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
             shifts={shifts}
             canManage={canManage}
             onAddShift={handleAddShift}
-            onEditShift={(shift) => setEditShift(shift)}
+            onEditShift={handleEditShift}
             getPracticeName={getPracticeName}
           />
         )}
 
-        {/* ── LIST VIEW ── */}
         {!isLoading && view === "list" && (
           <ListView
             shifts={shifts}
@@ -706,39 +790,28 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
             stats={stats}
             getPracticeName={getPracticeName}
             onAddShift={handleAddShift}
-            onEditShift={(shift) => setEditShift(shift)}
-            onSelectShift={(shift) => setListSelected(shift)}
+            onEditShift={handleEditShift}
+            onSelectShift={handleSelectShift}
           />
         )}
       </div>
 
-      {/* ── List view: shift detail modal ── */}
+      {/* ── ShiftDetailModal ── */}
       <ShiftDetailModal
-        open={!!listSelected}
-        onClose={() => setListSelected(null)}
-        shift={listSelected}
-        readOnly={readOnly}
-        practiceName={listSelected ? getPracticeName(listSelected) : ""}
+        open={!!detailShift}
+        onClose={handleCloseDetail}
+        shift={detailShift}
+        readOnly={detailReadOnly}
+        practiceName={detailShift ? getPracticeName(detailShift) : ""}
       />
 
-      {/* ── Add Shift modal ── */}
+      {/* ── AddShiftModal ── */}
       <AddShiftModal
         open={addShiftOpen}
         onClose={() => { setAddShiftOpen(false); setAddShiftDate(null); }}
         clinicianId={clinicianId}
         date={addShiftDate}
       />
-
-      {/* ── Edit Shift modal ── */}
-      {editShift && (
-        <ShiftDetailModal
-          open={!!editShift}
-          onClose={() => setEditShift(null)}
-          shift={editShift}
-          readOnly={false}
-          practiceName={getPracticeName(editShift)}
-        />
-      )}
     </div>
   );
 }

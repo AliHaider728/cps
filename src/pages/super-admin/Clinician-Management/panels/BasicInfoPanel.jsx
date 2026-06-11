@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
-import { Edit2, Save, X, User, Link2, Sparkles, Plus } from "lucide-react";
-import { clinicianService } from "../../../../services/api/clinicianService";
+import { Edit2, Save, X, User, Sparkles, Plus, Trash2, Pencil, Check } from "lucide-react";
 import { Btn, FormField, DetailRow, Spinner, fmtDate } from "./shared.jsx";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "../../../../components/ui/alert-dialog.jsx";
 
 const TYPE_OPTS     = ["Pharmacist", "Technician", "IP"];
 const CONTRACT_OPTS = ["ARRS", "EA", "Direct", "Mixed"];
@@ -19,22 +29,20 @@ export default function BasicInfoPanel({
   users = [],
   canManage = false,
 }) {
-  const [editing, setEditing] = useState(false);
-  const [saving,  setSaving]  = useState(false);
+  const [editing,   setEditing]   = useState(false);
+  const [saving,    setSaving]    = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [form,    setForm]    = useState({});
+  const [form,      setForm]      = useState({});
 
   // Skills state
-  const [specs,       setSpecs]       = useState([]);
-  const [extraSpec,   setExtraSpec]   = useState("");
-  const [future,      setFuture]      = useState("");
-  const [skillsDirty, setSkillsDirty] = useState(false);
+  const [specs,        setSpecs]        = useState([]);
+  const [extraSpec,    setExtraSpec]    = useState("");
+  const [editingSpec,  setEditingSpec]  = useState(null);  // index being edited
+  const [editSpecVal,  setEditSpecVal]  = useState("");
+  const [future,       setFuture]       = useState("");
+  const [skillsDirty,  setSkillsDirty]  = useState(false);
   const [skillsSaving, setSkillsSaving] = useState(false);
-
-  // Login mapping state
-  const [linkUserId, setLinkUserId] = useState("");
-  const [linking,    setLinking]    = useState(false);
-  const [linkMsg,    setLinkMsg]    = useState("");
+  const [specToDelete, setSpecToDelete] = useState(null);  // spec string pending delete confirm
 
   const build = () => ({
     fullName:      clinician?.fullName      || "",
@@ -58,12 +66,10 @@ export default function BasicInfoPanel({
 
   useEffect(() => {
     setForm(build());
-    setLinkUserId(
-      clinician?.user?._id || clinician?.user?.id || clinician?.user || clinician?.userId || ""
-    );
     setSpecs(clinician?.specialisms || []);
     setFuture(clinician?.futurePotential || "");
     setSkillsDirty(false);
+    setEditingSpec(null);
     /* eslint-disable-next-line */
   }, [clinician]);
 
@@ -82,7 +88,7 @@ export default function BasicInfoPanel({
     }
   };
 
-  // Skills helpers
+  /* ── Skills helpers ─────────────────────────── */
   const toggleSpec = (s) => {
     setSkillsDirty(true);
     setSpecs((cur) => cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]);
@@ -90,12 +96,33 @@ export default function BasicInfoPanel({
 
   const addExtraSpec = () => {
     const v = extraSpec.trim();
-    if (!v) return;
-    if (!specs.includes(v)) {
-      setSpecs((cur) => [...cur, v]);
-      setSkillsDirty(true);
-    }
+    if (!v || specs.includes(v)) return;
+    setSpecs((cur) => [...cur, v]);
+    setSkillsDirty(true);
     setExtraSpec("");
+  };
+
+  // Start inline edit of a spec chip
+  const startEditSpec = (idx) => {
+    setEditingSpec(idx);
+    setEditSpecVal(specs[idx]);
+  };
+
+  // Confirm inline edit
+  const confirmEditSpec = () => {
+    const v = editSpecVal.trim();
+    if (!v) { setEditingSpec(null); return; }
+    setSpecs((cur) => cur.map((s, i) => (i === editingSpec ? v : s)));
+    setSkillsDirty(true);
+    setEditingSpec(null);
+  };
+
+  // Actually delete after dialog confirm
+  const confirmDeleteSpec = () => {
+    if (specToDelete === null) return;
+    setSpecs((cur) => cur.filter((s) => s !== specToDelete));
+    setSkillsDirty(true);
+    setSpecToDelete(null);
   };
 
   const handleSkillsSave = async () => {
@@ -110,9 +137,8 @@ export default function BasicInfoPanel({
 
   const allSpecOpts = Array.from(new Set([...COMMON_SPECIALISMS, ...specs]));
 
-  // User helpers
-  const userLabel = (u) =>
-    u?.fullName || u?.name || u?.email || "User";
+  /* ── User label helpers ─────────────────────── */
+  const userLabel = (u) => u?.fullName || u?.name || u?.email || "User";
 
   const userOpts = (users || []).map((u) => [
     u._id || u.id,
@@ -127,38 +153,6 @@ export default function BasicInfoPanel({
     const u = users.find((x) => String(x._id || x.id) === String(form.supervisor || clinician?.supervisor?._id || clinician?.supervisor));
     return userLabel(u) || userLabel(clinician?.supervisor) || "";
   })();
-
-  const clinicianUserOpts = (users || [])
-    .filter((u) => String(u.role || "").toLowerCase() === "clinician")
-    .map((u) => [u._id || u.id, `${userLabel(u)} (${u.email || ""})`]);
-
-  const linkedUserLabel = (() => {
-    const uid = clinician?.user?._id || clinician?.user?.id || clinician?.user || clinician?.userId;
-    const u = users.find((x) => String(x._id || x.id) === String(uid));
-    return u ? `${userLabel(u)} (${u.email || ""})` : "Not linked";
-  })();
-
-  const handleLinkUser = async () => {
-    if (!onLinkUser) return;
-    const label = linkUserId
-      ? clinicianUserOpts.find(([id]) => String(id) === String(linkUserId))?.[1]
-      : "none";
-    if (
-      linkUserId &&
-      !window.confirm(`Link this clinician profile to ${label || "selected user"}?`)
-    ) return;
-    if (!linkUserId && !window.confirm("Remove login link from this clinician profile?")) return;
-    setLinking(true);
-    setLinkMsg("");
-    try {
-      await onLinkUser(linkUserId || null);
-      setLinkMsg(linkUserId ? "Login mapping updated." : "Login link removed.");
-    } catch (err) {
-      setLinkMsg(err?.response?.data?.message || err?.message || "Could not update login mapping.");
-    } finally {
-      setLinking(false);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -191,22 +185,22 @@ export default function BasicInfoPanel({
         {!editing ? (
           <div className="grid md:grid-cols-2 gap-x-8">
             <div>
-              <DetailRow label="Full name"      value={clinician?.fullName} />
-              <DetailRow label="Type"           value={clinician?.clinicianType} />
-              <DetailRow label="GPhC number"    value={clinician?.gphcNumber} mono />
-              <DetailRow label="Smart card"     value={clinician?.smartCard} mono />
-              <DetailRow label="Email"          value={clinician?.email} />
-              <DetailRow label="Phone"          value={clinician?.phone} />
-              <DetailRow label="Address"        value={[clinician?.addressLine1, clinician?.addressLine2, clinician?.city, clinician?.postcode].filter(Boolean).join(", ")} />
+              <DetailRow label="Full name"     value={clinician?.fullName} />
+              <DetailRow label="Type"          value={clinician?.clinicianType} />
+              <DetailRow label="GPhC number"   value={clinician?.gphcNumber} mono />
+              <DetailRow label="Smart card"    value={clinician?.smartCard} mono />
+              <DetailRow label="Email"         value={clinician?.email} />
+              <DetailRow label="Phone"         value={clinician?.phone} />
+              <DetailRow label="Address"       value={[clinician?.addressLine1, clinician?.addressLine2, clinician?.city, clinician?.postcode].filter(Boolean).join(", ")} />
             </div>
             <div>
-              <DetailRow label="Contract type"  value={clinician?.contractType} />
-              <DetailRow label="Working hours"  value={clinician?.workingHours ? `${clinician.workingHours} hrs/week` : "—"} />
-              <DetailRow label="Notice period"  value={clinician?.noticePeriod} />
-              <DetailRow label="Start date"     value={fmtDate(clinician?.startDate)} />
-              <DetailRow label="End date"       value={fmtDate(clinician?.endDate)} />
-              <DetailRow label="Ops lead"       value={opsLeadName} />
-              <DetailRow label="Supervisor"     value={supervisorName} />
+              <DetailRow label="Contract type" value={clinician?.contractType} />
+              <DetailRow label="Working hours" value={clinician?.workingHours ? `${clinician.workingHours} hrs/week` : "—"} />
+              <DetailRow label="Notice period" value={clinician?.noticePeriod} />
+              <DetailRow label="Start date"    value={fmtDate(clinician?.startDate)} />
+              <DetailRow label="End date"      value={fmtDate(clinician?.endDate)} />
+              <DetailRow label="Ops lead"      value={opsLeadName} />
+              <DetailRow label="Supervisor"    value={supervisorName} />
             </div>
           </div>
         ) : (
@@ -241,7 +235,7 @@ export default function BasicInfoPanel({
         )}
       </div>
 
-      {/* ── Skills & Specialisms Card (embedded) ── */}
+      {/* ── Skills & Specialisms Card ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
@@ -255,10 +249,11 @@ export default function BasicInfoPanel({
           </Btn>
         </div>
 
+        {/* ── Quick-toggle common specialisms ── */}
         <div className="mb-6">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Specialisms</p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Quick add</p>
           <div className="flex flex-wrap gap-2">
-            {allSpecOpts.map((s) => {
+            {COMMON_SPECIALISMS.map((s) => {
               const on = specs.includes(s);
               return (
                 <button
@@ -270,24 +265,122 @@ export default function BasicInfoPanel({
                       ? "bg-purple-50 border-purple-300 text-purple-700"
                       : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"}`}
                 >
-                  {s}
+                  {on ? "✓ " : ""}{s}
                 </button>
               );
             })}
           </div>
+        </div>
 
-          <div className="flex gap-2 mt-4">
-            <input
-              value={extraSpec}
-              onChange={(e) => setExtraSpec(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addExtraSpec())}
-              placeholder="Add custom specialism…"
-              className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400"
-            />
-            <Btn variant="ghost" size="sm" onClick={addExtraSpec} disabled={!extraSpec.trim()}>
-              <Plus size={13} /> Add
-            </Btn>
+        {/* ── Current specialisms list (editable chips) ── */}
+        {specs.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+              Current specialisms
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {specs.map((s, idx) => (
+                <div
+                  key={`${s}-${idx}`}
+                  className="group flex items-center gap-1 pl-3 pr-1 py-1 rounded-xl bg-purple-50 border border-purple-200 text-purple-700"
+                >
+                  {editingSpec === idx ? (
+                    /* ── Inline edit mode ── */
+                    <>
+                      <input
+                        autoFocus
+                        value={editSpecVal}
+                        onChange={(e) => setEditSpecVal(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") confirmEditSpec();
+                          if (e.key === "Escape") setEditingSpec(null);
+                        }}
+                        className="w-32 text-xs bg-white border border-purple-300 rounded-lg px-2 py-0.5 focus:outline-none focus:border-purple-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={confirmEditSpec}
+                        className="h-5 w-5 rounded-md flex items-center justify-center text-purple-600 hover:bg-purple-200 transition-colors"
+                        title="Confirm"
+                      >
+                        <Check size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSpec(null)}
+                        className="h-5 w-5 rounded-md flex items-center justify-center text-slate-400 hover:bg-purple-200 transition-colors"
+                        title="Cancel"
+                      >
+                        <X size={11} />
+                      </button>
+                    </>
+                  ) : (
+                    /* ── Display mode ── */
+                    <>
+                      <span className="text-xs font-bold">{s}</span>
+
+                      {/* Edit button */}
+                      <button
+                        type="button"
+                        onClick={() => startEditSpec(idx)}
+                        className="h-5 w-5 rounded-md flex items-center justify-center text-purple-400 hover:text-purple-700 hover:bg-purple-200 transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil size={10} />
+                      </button>
+
+                      {/* Delete button — triggers AlertDialog */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => setSpecToDelete(s)}
+                            className="h-5 w-5 rounded-md flex items-center justify-center text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Remove"
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove specialism?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove <strong>"{s}"</strong> from this clinician's specialisms? You can add it again any time.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setSpecToDelete(null)}>
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              variant="destructive"
+                              onClick={confirmDeleteSpec}
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
+        )}
+
+        {/* ── Add custom specialism ── */}
+        <div className="flex gap-2 mb-6">
+          <input
+            value={extraSpec}
+            onChange={(e) => setExtraSpec(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addExtraSpec())}
+            placeholder="Add custom specialism…"
+            className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-purple-400"
+          />
+          <Btn variant="ghost" size="sm" onClick={addExtraSpec} disabled={!extraSpec.trim()}>
+            <Plus size={13} /> Add
+          </Btn>
         </div>
 
         <FormField
@@ -300,39 +393,8 @@ export default function BasicInfoPanel({
         />
       </div>
 
-      {/* ── Login Mapping Card (super_admin only) ── */}
-      {canManage && onLinkUser && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Link2 size={16} className="text-blue-600" />
-            <h3 className="text-base font-bold text-slate-800">Login mapping</h3>
-          </div>
-          <p className="text-sm text-slate-500 mb-3">
-            Current: <strong className="text-slate-800">{linkedUserLabel}</strong>
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-            <div className="flex-1 w-full">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Clinician user account
-              </label>
-              <select
-                value={linkUserId}
-                onChange={(e) => setLinkUserId(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              >
-                <option value="">— No linked user —</option>
-                {clinicianUserOpts.map(([id, label]) => (
-                  <option key={id} value={id}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <Btn size="sm" onClick={handleLinkUser} disabled={linking}>
-              {linking ? <Spinner /> : <Save size={13} />} Save mapping
-            </Btn>
-          </div>
-          {linkMsg && <p className="mt-3 text-sm text-slate-600">{linkMsg}</p>}
-        </div>
-      )}
+      {/* Login mapping card — temporarily hidden */}
+      {/* {canManage && onLinkUser && ( ... )} */}
 
     </div>
   );

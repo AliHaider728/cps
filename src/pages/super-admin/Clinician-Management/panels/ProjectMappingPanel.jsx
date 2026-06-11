@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { clinicianService } from "../../../../services/api/clinicianService";
 import { usePractices } from "../../../../hooks/usePractice";
 import { Btn, ModalShell, FormField, Spinner } from "./shared.jsx";
@@ -11,18 +11,22 @@ const RATE_TYPE_OPTS = ["Per Hour", "Fixed"];
 
 const defaultRate = (project) => (project === "COVER" || project === "EA" ? 29 : 28);
 
+const emptyForm = {
+  project: "ARRS",
+  practice_id: "",
+  type: "Locums Contractor",
+  rate: 28,
+  rate_type: "Per Hour",
+  vat_percentage: 0,
+};
+
 export default function ProjectMappingPanel({ clinicianId, canManage }) {
   const qc = useQueryClient();
   const practicesQ = usePractices();
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({
-    project: "ARRS",
-    practice_id: "",
-    type: "Locums Contractor",
-    rate: 28,
-    rate_type: "Per Hour",
-    vat_percentage: 0,
-  });
+
+  const [modal, setModal]   = useState(false);   // "add" | "edit" | false
+  const [editing, setEditing] = useState(null);  // mapping object being edited
+  const [form, setForm]     = useState(emptyForm);
 
   const { data, isLoading } = useQuery({
     queryKey: ["project-mappings", clinicianId],
@@ -35,7 +39,16 @@ export default function ProjectMappingPanel({ clinicianId, canManage }) {
       clinicianService.createProjectMapping(clinicianId, payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["project-mappings", clinicianId] });
-      setModal(false);
+      closeModal();
+    },
+  });
+
+  const updateM = useMutation({
+    mutationFn: ({ mappingId, payload }) =>
+      clinicianService.updateProjectMapping(clinicianId, mappingId, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project-mappings", clinicianId] });
+      closeModal();
     },
   });
 
@@ -53,33 +66,56 @@ export default function ProjectMappingPanel({ clinicianId, canManage }) {
 
   const mappings = data?.mappings || [];
 
+  const openAdd = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setModal("add");
+  };
+
+  const openEdit = (m) => {
+    setEditing(m);
+    setForm({
+      project:        m.project || "ARRS",
+      practice_id:    m.practice_id || "",
+      type:           m.type || "Locums Contractor",
+      rate:           Number(m.rate || 0),
+      rate_type:      m.rate_type || "Per Hour",
+      vat_percentage: Number(m.vat_percentage || 0),
+    });
+    setModal("edit");
+  };
+
+  const closeModal = () => {
+    setModal(false);
+    setEditing(null);
+    setForm(emptyForm);
+  };
+
+  const handleSave = () => {
+    if (modal === "edit" && editing) {
+      updateM.mutate({ mappingId: editing.id, payload: form });
+    } else {
+      createM.mutate(form);
+    }
+  };
+
+  const isPending = createM.isPending || updateM.isPending;
+
   if (isLoading) return <Spinner />;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-4 border-b border-slate-100">
         <h3 className="font-bold text-slate-800">Project Mapping</h3>
         {canManage && (
-          <Btn
-            size="sm"
-            className="w-full sm:w-auto"
-            onClick={() => {
-              setForm({
-                project: "ARRS",
-                practice_id: "",
-                type: "Locums Contractor",
-                rate: 28,
-                rate_type: "Per Hour",
-                vat_percentage: 0,
-              });
-              setModal(true);
-            }}
-          >
+          <Btn size="sm" className="w-full sm:w-auto" onClick={openAdd}>
             <Plus size={14} /> Add Project
           </Btn>
         )}
       </div>
 
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm border-collapse">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -103,18 +139,32 @@ export default function ProjectMappingPanel({ clinicianId, canManage }) {
                 <td className="px-4 py-3 text-slate-700">{m.rate_type || "—"}</td>
                 <td className="px-4 py-3 text-slate-700">{Number(m.vat_percentage || 0).toFixed(0)}%</td>
                 {canManage && (
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm("Delete this project mapping?")) {
-                          deleteM.mutate(m.id);
-                        }
-                      }}
-                      className="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Edit */}
+                      <button
+                        type="button"
+                        onClick={() => openEdit(m)}
+                        className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm("Delete this project mapping?")) {
+                            deleteM.mutate(m.id);
+                          }
+                        }}
+                        disabled={deleteM.isPending}
+                        className="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors disabled:opacity-40"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 )}
               </tr>
@@ -130,23 +180,33 @@ export default function ProjectMappingPanel({ clinicianId, canManage }) {
         </table>
       </div>
 
+      {/* Add / Edit Modal */}
       {modal && (
-        <ModalShell title="Add Project Mapping" onClose={() => setModal(false)}>
+        <ModalShell
+          title={modal === "edit" ? "Edit Project Mapping" : "Add Project Mapping"}
+          onClose={closeModal}
+        >
           <div className="grid gap-3">
             <FormField
               label="Project"
               value={form.project}
               onChange={(v) =>
-                setForm((f) => ({
-                  ...f,
-                  project: v,
-                  rate: defaultRate(v),
-                }))
+                setForm((f) => ({ ...f, project: v, rate: defaultRate(v) }))
               }
               options={PROJECT_OPTS}
             />
-            <FormField label="Practice" value={form.practice_id} onChange={(v) => setForm((f) => ({ ...f, practice_id: v }))} options={[["", "— Select practice —"], ...practices.map((p) => [p.id, p.name])]} />
-            <FormField label="Type" value={form.type} onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={TYPE_OPTS} />
+            <FormField
+              label="Practice"
+              value={form.practice_id}
+              onChange={(v) => setForm((f) => ({ ...f, practice_id: v }))}
+              options={[["", "— Select practice —"], ...practices.map((p) => [p.id, p.name])]}
+            />
+            <FormField
+              label="Type"
+              value={form.type}
+              onChange={(v) => setForm((f) => ({ ...f, type: v }))}
+              options={TYPE_OPTS}
+            />
             <FormField
               label="Rate (£)"
               value={form.rate}
@@ -165,12 +225,22 @@ export default function ProjectMappingPanel({ clinicianId, canManage }) {
               onChange={(v) => setForm((f) => ({ ...f, vat_percentage: Number(v) || 0 }))}
               type="number"
             />
+
+            {/* Error */}
+            {(createM.isError || updateM.isError) && (
+              <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                {createM.error?.response?.data?.message ||
+                  updateM.error?.response?.data?.message ||
+                  "Something went wrong. Please try again."}
+              </p>
+            )}
+
             <Btn
               className="w-full sm:w-auto"
-              onClick={() => createM.mutate(form)}
-              disabled={createM.isPending || !form.practice_id}
+              onClick={handleSave}
+              disabled={isPending || !form.practice_id}
             >
-              Save
+              {isPending ? "Saving…" : modal === "edit" ? "Save Changes" : "Save"}
             </Btn>
           </div>
         </ModalShell>

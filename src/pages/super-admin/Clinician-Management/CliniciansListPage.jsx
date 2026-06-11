@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  Stethoscope, Plus, Eye, Edit2, Trash2, X, Check,
+  Stethoscope, Plus, Eye, EyeOff, Edit2, Trash2, X, Check,
   Search, SlidersHorizontal, ShieldAlert, RefreshCw,
   AlertCircle, ChevronDown, ShieldCheck, UserPlus, KeyRound,
 } from "lucide-react";
@@ -11,7 +11,7 @@ import { useAllUsers, useCreateUser } from "../../../hooks/useAuth";
 import DataTable from "../../../components/ui/DataTable";
 import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
 import { resetListFilters, setListFilter } from "../../../slices/clinicianSlice";
-import { apiClient } from "../../../services/api/client"; // ← for password change
+import { apiClient } from "../../../services/api/client";
 
 const TYPE_OPTS     = ["Pharmacist", "Technician", "IP"];
 const CONTRACT_OPTS = ["ARRS", "EA", "Direct", "Mixed"];
@@ -56,18 +56,22 @@ const buildForm = (existing) => ({
 
 /* ══════════ CHANGE PASSWORD MODAL ══════════ */
 const ChangePasswordModal = ({ clinician, onClose }) => {
-  const [newPassword, setNewPassword] = useState("");
-  const [confirm, setConfirm]         = useState("");
-  const [saving, setSaving]           = useState(false);
-  const [error, setError]             = useState("");
-  const [success, setSuccess]         = useState(false);
+  const [newPassword,  setNewPassword]  = useState("");
+  const [confirm,      setConfirm]      = useState("");
+  const [showNew,      setShowNew]      = useState(false);
+  const [showConfirm,  setShowConfirm]  = useState(false);
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState("");
+  const [success,      setSuccess]      = useState(false);
 
   const handle = async () => {
-    if (!newPassword.trim()) { setError("Password is required"); return; }
-    if (newPassword.length < 6) { setError("Password must be at least 6 characters"); return; }
-    if (newPassword !== confirm) { setError("Passwords do not match"); return; }
-    setSaving(true); setError("");
+    if (!newPassword.trim())       { setError("Password is required"); return; }
+    if (newPassword.length < 6)    { setError("Password must be at least 6 characters"); return; }
+    if (newPassword !== confirm)   { setError("Passwords do not match"); return; }
+    setSaving(true);
+    setError("");
     try {
+      // ✅ FIXED: correct API route PUT /api/auth/users/:id/password
       await apiClient.put(`/auth/users/${clinician._id}/password`, { password: newPassword });
       setSuccess(true);
       setTimeout(() => onClose(), 1500);
@@ -79,18 +83,25 @@ const ChangePasswordModal = ({ clinician, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-slate-200">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h3 className="text-base font-bold text-slate-800">Change Password</h3>
             <p className="text-xs text-slate-400 mt-0.5">{clinician.fullName}</p>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all"
+          >
             <X size={18} />
           </button>
         </div>
-        <div className="px-5 py-5 space-y-4">
+
+        {/* Body */}
+        <div className="px-6 py-6 space-y-4">
           {error && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
               <AlertCircle size={14} className="shrink-0" /> {error}
@@ -101,20 +112,65 @@ const ChangePasswordModal = ({ clinician, onClose }) => {
               <Check size={14} className="shrink-0" /> Password updated successfully!
             </div>
           )}
+
+          {/* New Password */}
           <F label="New Password">
-            <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 6 characters" />
+            <div className="relative">
+              <input
+                type={showNew ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Min 6 characters"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 pr-10 text-sm text-slate-700 font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNew(!showNew)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </F>
+
+          {/* Confirm Password */}
           <F label="Confirm Password">
-            <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat password" />
+            <div className="relative">
+              <input
+                type={showConfirm ? "text" : "password"}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Repeat password"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 pr-10 text-sm text-slate-700 font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(!showConfirm)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </F>
         </div>
-        <div className="flex gap-3 px-5 py-4 border-t border-slate-100">
-          <button onClick={onClose} className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+          >
             Cancel
           </button>
-          <button onClick={handle} disabled={saving || success}
-            className="flex-1 px-4 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-all">
-            {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <KeyRound size={15} />}
+          <button
+            onClick={handle}
+            disabled={saving || success}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-all"
+          >
+            {saving
+              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <KeyRound size={15} />
+            }
             {saving ? "Saving…" : "Update Password"}
           </button>
         </div>
@@ -130,6 +186,7 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
   const [error,  setError]  = useState("");
   const [createLogin, setCreateLogin] = useState(true);
   const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPwd, setShowLoginPwd]   = useState(false);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -223,7 +280,22 @@ const ClinicianModal = ({ existing, users, onClose, onSave }) => {
                     </p>
                   </div>
                   <F label="Password">
-                    <Input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="Min 6 characters" />
+                    <div className="relative">
+                      <Input
+                        type={showLoginPwd ? "text" : "password"}
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="Min 6 characters"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPwd(!showLoginPwd)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showLoginPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </F>
                 </div>
               ) : (
@@ -264,9 +336,9 @@ export default function CliniciansListPage() {
   const updateM     = useUpdateClinician();
   const deleteM     = useDeleteClinician();
 
-  const [modal,       setModal]       = useState(null);
-  const [pwdModal,    setPwdModal]    = useState(null); // ← change password
-  const [userError,   setUserError]   = useState(null);
+  const [modal,     setModal]     = useState(null);
+  const [pwdModal,  setPwdModal]  = useState(null);
+  const [userError, setUserError] = useState(null);
 
   const items = (data?.clinicians || []).map((c) => ({
     ...(c.data || c),

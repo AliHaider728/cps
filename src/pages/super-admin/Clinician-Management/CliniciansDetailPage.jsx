@@ -19,7 +19,7 @@ import { useAppSelector } from "../../../hooks/redux";
 import BasicInfoPanel     from "./panels/BasicInfoPanel.jsx";
 import CompliancePanel    from "./panels/CompliancePanel.jsx";
 // import ClientHistoryPanel from "./panels/ClientHistoryPanel.jsx"; // temporarily hidden
-import CalendarPanel      from "./panels/CalendarPanel.jsx";
+import CalendarPanel      from "./panels/Timeline.jsx";
 import SupervisionPanel   from "./panels/SupervisionPanel.jsx";
 import CPPEPanel          from "./panels/CPPEPanel.jsx";
 import OnboardingPanel    from "./panels/OnboardingPanel.jsx";
@@ -35,7 +35,7 @@ const TABS = [
   { id: "compliance",  label: "Compliance",     icon: ShieldIcon    },
   // { id: "history",  label: "Client History", icon: Building2     }, // temporarily hidden
   { id: "projects",    label: "Project Mapping", icon: Briefcase    },
-  { id: "calendar",    label: "Timesheet",      icon: CalendarDays  },
+  { id: "calendar",    label: "Timeline",      icon: CalendarDays  },
   { id: "supervision", label: "Supervision",    icon: UsersIcon     },
   { id: "cppe",        label: "CPPE",           icon: GraduationCap },
   { id: "onboarding",  label: "Onboarding",     icon: Rocket        },
