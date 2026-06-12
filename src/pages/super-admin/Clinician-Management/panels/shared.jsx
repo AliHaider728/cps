@@ -1,6 +1,6 @@
 import { X, Check } from "lucide-react";
 import { fmtDate, fmtDateInput } from "../../../../lib/formatters";
-import { ModalShell } from "../../../components/ui/ModalShell";
+import { ModalShell } from "../../../../components/ui/ModalShell";
 
 /* ══════════════════════════════════════════════════════════
    Shared atoms used across all Clinician Management panels
