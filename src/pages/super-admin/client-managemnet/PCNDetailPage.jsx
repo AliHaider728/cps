@@ -11,6 +11,7 @@ import { usePCN, useUpdatePCN, useUpsertMeeting } from "../../../hooks/usePCN";
 import { useDocumentGroups } from "../../../hooks/useCompliance";
 import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
 import { setActivePcnDetailTab } from "../../../slices/pcnSlice";
+import { ModalShell } from "../../../components/ui/ModalShell";
 import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
@@ -21,19 +22,6 @@ import ReportingArchivePanel from "./ReportingArchivePanel.jsx";
 ══════════════════════════════════════════════════════════ */
 const Spinner = ({ cls = "border-white" }) => (
   <span className={`inline-block w-4 h-4 border-2 ${cls} border-t-transparent rounded-full animate-spin`} />
-);
-
-const ModalShell = ({ title, onClose, children, footer, wide }) => (
-  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-    <div className={`bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] w-full ${wide ? "max-w-2xl" : "max-w-lg"}`}>
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-        <h3 className="text-[15px] font-bold text-slate-800">{title}</h3>
-        <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all"><X size={16} /></button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 [scrollbar-width:thin]">{children}</div>
-      {footer && <div className="flex gap-3 px-6 pb-5 pt-3 border-t border-slate-100 shrink-0">{footer}</div>}
-    </div>
-  </div>
 );
 
 const Btn = ({ onClick, disabled, variant = "primary", size = "md", children, cls = "" }) => {

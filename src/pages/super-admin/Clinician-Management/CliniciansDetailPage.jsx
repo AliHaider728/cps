@@ -26,7 +26,8 @@ import OnboardingPanel    from "./panels/OnboardingPanel.jsx";
 import ScopePanel         from "./panels/ScopePanel.jsx";
 import ProjectMappingPanel from "./panels/ProjectMappingPanel.jsx";
 import { Briefcase } from "lucide-react";
-import { Spinner, fmtDate } from "./panels/shared.jsx";
+import { Spinner } from "./panels/shared.jsx";
+import { fmtDate } from "../../lib/formatters";
 
 // NOTE: "skills" tab removed — SkillsPanel is now embedded inside BasicInfoPanel
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Edit2, Save, X, User, Sparkles, Plus, Trash2, Pencil, Check } from "lucide-react";
-import { Btn, FormField, DetailRow, Spinner, fmtDate } from "./shared.jsx";
+import { Btn, FormField, DetailRow, Spinner } from "./shared.jsx";
+import { fmtDate } from "../../../lib/formatters";
 import {
   AlertDialog,
   AlertDialogTrigger,

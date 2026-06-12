@@ -3,7 +3,8 @@ import { Rocket, Save, Send } from "lucide-react";
 import {
   useUpdateOnboarding, useSendWelcomePack,
 } from "../../../../hooks/useClinician";
-import { Btn, FormField, Spinner, ToggleRow, fmtDate } from "./shared.jsx";
+import { Btn, FormField, Spinner, ToggleRow } from "./shared.jsx";
+import { fmtDate } from "../../../lib/formatters";
 
 const CHECKLIST = [
   ["mobilisationPlan",  "Mobilisation plan in place"],

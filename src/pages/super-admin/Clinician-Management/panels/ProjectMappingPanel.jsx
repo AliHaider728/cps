@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { clinicianService } from "../../../../services/api/clinicianService";
 import { usePractices } from "../../../../hooks/usePractice";
-import { Btn, ModalShell, FormField, Spinner } from "./shared.jsx";
+import { Btn, FormField, Spinner } from "./shared.jsx";
+import { ModalShell } from "../../../../components/ui/ModalShell";
 
 const PROJECT_OPTS = ["ARRS", "EA", "Direct", "COVER"];
 const TYPE_OPTS = ["Locums Contractor", "Employed", "Limited Company"];

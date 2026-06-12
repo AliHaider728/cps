@@ -6,7 +6,9 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clinicianService } from "../../../../services/api";
 import { QK } from "../../../../lib/queryKeys";
-import { Btn, ModalShell, FormField, Spinner, StatusBadge, ToggleRow, fmtDate } from "./shared.jsx";
+import { Btn, FormField, Spinner, StatusBadge, ToggleRow } from "./shared.jsx";
+import { ModalShell } from "../../../../components/ui/ModalShell";
+import { fmtDate } from "../../../lib/formatters";
 
 const COMMON_WORKSTREAMS = [
   "SMR", "EHCH", "Enhanced Access", "QOF Reviews", "Care Homes",

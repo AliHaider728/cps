@@ -1,9 +1,4 @@
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function isUuid(value) {
-  return UUID_RE.test(String(value || "").trim());
-}
+import { isUuid } from "./validators";
 
 /** Build id → name map from practices API payload or list */
 export function buildPracticeNameMap(practicesData) {

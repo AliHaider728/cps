@@ -12,7 +12,9 @@ import {
   useAssignComplianceGroups,
 } from "../../../../hooks/useClinicianCompliance";
 import { useDocumentGroups } from "../../../../hooks/useCompliance";
-import { Btn, ModalShell, FormField, Spinner, StatusBadge, fmtDate } from "./shared.jsx";
+import { Btn, FormField, Spinner, StatusBadge } from "./shared.jsx";
+import { ModalShell } from "../../../../components/ui/ModalShell";
+import { fmtDate } from "../../../lib/formatters";
 
 export default function CompliancePanel({ clinicianId, canManage }) {
   const { data: legacyData, isLoading: legacyLoading }   = useClinicianCompliance(clinicianId);

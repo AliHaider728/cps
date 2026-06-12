@@ -6,7 +6,9 @@ import {
   useUpdateSupervisionLog,
   useDeleteSupervisionLog,
 } from "../../../../hooks/useClinicianSupervision";
-import { Btn, ModalShell, FormField, Spinner, RagBadge, fmtDate } from "./shared.jsx";
+import { Btn, FormField, Spinner, RagBadge } from "./shared.jsx";
+import { ModalShell } from "../../../../components/ui/ModalShell";
+import { fmtDate } from "../../../lib/formatters";
 
 // ✅ FIXED: Match backend ragStatus values exactly
 const RAG_OPTS = [
