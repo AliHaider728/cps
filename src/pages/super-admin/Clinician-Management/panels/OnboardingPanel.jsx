@@ -4,7 +4,7 @@ import {
   useUpdateOnboarding, useSendWelcomePack,
 } from "../../../../hooks/useClinician";
 import { Btn, FormField, Spinner, ToggleRow } from "./shared.jsx";
-import { fmtDate } from "../../../lib/formatters";
+import { fmtDate } from "../../../../lib/formatters";
 
 const CHECKLIST = [
   ["mobilisationPlan",  "Mobilisation plan in place"],

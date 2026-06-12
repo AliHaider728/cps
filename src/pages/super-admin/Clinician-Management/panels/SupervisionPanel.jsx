@@ -8,7 +8,7 @@ import {
 } from "../../../../hooks/useClinicianSupervision";
 import { Btn, FormField, Spinner, RagBadge } from "./shared.jsx";
 import { ModalShell } from "../../../../components/ui/ModalShell";
-import { fmtDate } from "../../../lib/formatters";
+import { fmtDate } from "../../../../lib/formatters";
 
 // ✅ FIXED: Match backend ragStatus values exactly
 const RAG_OPTS = [

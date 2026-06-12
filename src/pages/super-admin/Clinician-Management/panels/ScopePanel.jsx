@@ -8,7 +8,7 @@ import { clinicianService } from "../../../../services/api";
 import { QK } from "../../../../lib/queryKeys";
 import { Btn, FormField, Spinner, StatusBadge, ToggleRow } from "./shared.jsx";
 import { ModalShell } from "../../../../components/ui/ModalShell";
-import { fmtDate } from "../../../lib/formatters";
+import { fmtDate } from "../../../../lib/formatters";
 
 const COMMON_WORKSTREAMS = [
   "SMR", "EHCH", "Enhanced Access", "QOF Reviews", "Care Homes",

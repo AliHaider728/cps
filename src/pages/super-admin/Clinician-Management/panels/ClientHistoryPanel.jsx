@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Building2, Plus, X, Check } from "lucide-react";
 import { Btn, FormField, Spinner, StatusBadge } from "./shared.jsx";
 import { ModalShell } from "../../../../components/ui/ModalShell";
-import { fmtDate } from "../../../lib/formatters";
+import { fmtDate } from "../../../../lib/formatters";
 import { clinicianService } from "../../../../services/api";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";

@@ -27,7 +27,7 @@ import ScopePanel         from "./panels/ScopePanel.jsx";
 import ProjectMappingPanel from "./panels/ProjectMappingPanel.jsx";
 import { Briefcase } from "lucide-react";
 import { Spinner } from "./panels/shared.jsx";
-import { fmtDate } from "../../lib/formatters";
+import { fmtDate } from "../../../lib/formatters";
 
 // NOTE: "skills" tab removed — SkillsPanel is now embedded inside BasicInfoPanel
 

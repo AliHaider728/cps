@@ -14,7 +14,7 @@ import {
 import { useDocumentGroups } from "../../../../hooks/useCompliance";
 import { Btn, FormField, Spinner, StatusBadge } from "./shared.jsx";
 import { ModalShell } from "../../../../components/ui/ModalShell";
-import { fmtDate } from "../../../lib/formatters";
+import { fmtDate } from "../../../../lib/formatters";
 
 export default function CompliancePanel({ clinicianId, canManage }) {
   const { data: legacyData, isLoading: legacyLoading }   = useClinicianCompliance(clinicianId);
