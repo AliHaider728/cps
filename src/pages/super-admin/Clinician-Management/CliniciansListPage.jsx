@@ -438,61 +438,94 @@ export default function CliniciansListPage() {
         )
       ),
     },
-    /* ── Compliance column ── */
+    /* ── HIGH-END COMPLIANCE SaaS COLUMN ── */
     {
-      header: "Compliance",
+      header: "Compliance Data",
       render: (c) => {
-        // Support both complianceSummary (if backend embeds it) and compliance fields
-        const summary  = c.complianceSummary ?? c.compliance ?? null;
-        const groups   = summary?.groups   ?? null;
-        const uploaded = summary?.uploaded ?? null;
-        const total    = summary?.total    ?? null;
-        const missing  = summary?.missing  ?? (total != null && uploaded != null ? total - uploaded : null);
+        const summary = c.complianceSummary ?? c.compliance ?? null;
+        const groups   = summary?.groups   ?? 0;
+        const uploaded = summary?.uploaded ?? 0;
+        const total    = summary?.total    ?? 0;
+        const missing  = summary?.missing  ?? Math.max(0, total - uploaded);
 
-        // If no compliance data at all, show dash
-        if (total == null && uploaded == null) {
-          return <span className="text-[11px] text-slate-300 font-medium">—</span>;
+        // Blank/No assignment state (Minimal & Clean)
+        if (total === 0 && uploaded === 0) {
+          return (
+            <div className="w-[180px]">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-dashed border-slate-300 text-[10px] uppercase font-bold text-slate-400 bg-slate-50/50">
+                 Not Assigned
+              </span>
+            </div>
+          );
         }
 
-        const safeUploaded = uploaded ?? 0;
-        const safeTotal    = total    ?? 0;
-        const safeMissing  = missing  ?? 0;
-        const pct = safeTotal > 0 ? Math.round((safeUploaded / safeTotal) * 100) : 0;
+        const pct = total > 0 ? Math.min(100, Math.round((uploaded / total) * 100)) : 0;
+        const isDone = missing === 0 && total > 0;
+
+        // Micro Themes for clean, focused UX
+        let theme = { 
+           gradient: "bg-gradient-to-r from-emerald-400 to-emerald-500", 
+           textColor: "text-emerald-600",
+           titleText: "Compliant" 
+        };
+
+        if (!isDone) {
+           if (pct < 50) {
+               theme = { 
+                  gradient: "bg-gradient-to-r from-rose-500 to-rose-400", 
+                  textColor: "text-rose-600",
+                  titleText: "Action Required" 
+               };
+           } else {
+               theme = { 
+                  gradient: "bg-gradient-to-r from-amber-500 to-amber-400", 
+                  textColor: "text-amber-600",
+                  titleText: "Incomplete" 
+               };
+           }
+        }
 
         return (
-          <div className="min-w-[120px]">
-            {/* Counts row */}
-            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-              <span className="text-xs font-bold text-slate-700">
-                {safeUploaded}/{safeTotal}
-              </span>
-              {safeMissing > 0 ? (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-semibold whitespace-nowrap">
-                  {safeMissing} left
-                </span>
-              ) : safeTotal > 0 ? (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold whitespace-nowrap">
-                  ✓ Done
-                </span>
-              ) : null}
-            </div>
+          <div className="w-[180px] flex flex-col gap-2 relative top-0.5">
+             
+             {/* Text Elements (Top Data Row) */}
+             <div className="flex items-center justify-between w-full pr-1">
+                {/* Labels left side */}
+                <div className="flex flex-col justify-center leading-tight">
+                  <span className={`text-[10px] font-black uppercase tracking-wide flex items-center gap-1 ${theme.textColor}`}>
+                    {!isDone ? <AlertCircle size={10} className="shrink-0"/> : <ShieldCheck size={10} className="shrink-0" />}
+                    {theme.titleText}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                    {pct}% &bull; {groups} Group{groups !== 1 ? 's' : ''}
+                  </span>
+                </div>
 
-            {/* Progress bar */}
-            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden w-24">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  pct >= 80 ? "bg-emerald-400" : pct >= 50 ? "bg-amber-400" : "bg-red-400"
-                }`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
+                {/* Direct missing actionable tags - Shows to admin EXACTLY whats required right now*/}
+                {isDone ? (
+                   <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider text-slate-400 bg-slate-100/50 border border-slate-200">
+                     Complete
+                   </span>
+                ) : (
+                   <span className="text-[10px] px-1.5 py-[3px] rounded bg-rose-50 text-rose-600 border border-rose-100 font-extrabold flex items-center gap-1 shrink-0">
+                     {missing} Left
+                   </span>
+                )}
+             </div>
 
-            {/* Groups sub-label */}
-            {groups != null && (
-              <p className="text-[10px] text-slate-400 mt-1">
-                {groups} group{groups !== 1 ? "s" : ""}
-              </p>
-            )}
+             {/* Minimal Sleek Progress Track (Only 5px high) */}
+             <div className="w-full bg-slate-100 rounded-full h-[5px] flex items-center shadow-inner overflow-hidden pr-[1px]">
+               <div 
+                 className={`h-full rounded-full transition-all duration-700 ease-in-out ${theme.gradient}`}
+                 style={{ width: `${Math.max(1, pct)}%` }} // Minimum visual trace width 
+               />
+             </div>
+
+             {/* Total Overview Details - Extremely discreet text below bar */}
+             <div className="w-full flex items-center text-[9px] font-semibold tracking-wide text-slate-400 pl-1 uppercase">
+                 {uploaded} of {total} Docs Uploaded
+             </div>
+             
           </div>
         );
       },

@@ -3,6 +3,7 @@
  *
  * All Clinician Management API calls.
  * Adds scope + restricted-client methods that were missing.
+ * FIXED: getClinicianComplianceGroups + assignComplianceGroups added
  */
 
 import { apiClient } from "./client";
@@ -22,7 +23,7 @@ export const clinicianService = {
   restrict:   (id, reason) => apiClient.patch(`${base}/${id}/restrict`,   { reason }),
   unrestrict: (id)         => apiClient.patch(`${base}/${id}/unrestrict`),
 
-  /* ── Tab 3 — Compliance docs ────────────────────────── */
+  /* ── Tab 3 — Compliance docs (legacy flat list) ─────── */
   getCompliance: (id) => apiClient.get(`${base}/${id}/compliance`),
 
   upsertComplianceDoc: (id, docId, formData) => {
@@ -39,6 +40,13 @@ export const clinicianService = {
 
   rejectComplianceDoc: (id, docId, reason) =>
     apiClient.post(`${base}/${id}/compliance/${docId}/reject`, { reason }),
+
+  /* ── Tab 3 — Compliance Groups ──────────────────────── */
+  getClinicianComplianceGroups: (id) =>
+    apiClient.get(`${base}/${id}/compliance-groups`),
+
+  assignComplianceGroups: (id, groupIds) =>
+    apiClient.put(`${base}/${id}/compliance-groups`, { groupIds }),
 
   /* ── Tab 4 — Client history ─────────────────────────── */
   getClientHistory: (id) => apiClient.get(`${base}/${id}/client-history`),
@@ -69,12 +77,12 @@ export const clinicianService = {
   /* ── Tab 8 — Onboarding ─────────────────────────────── */
   updateOnboarding: (id, data) => apiClient.put(`${base}/${id}/onboarding`, data),
   sendWelcomePack:  (id, data) => apiClient.post(`${base}/${id}/onboarding/welcome`, data || {}),
-
-  /* ── Tab 9 — Scope of practice ──────────────────────── */  // ← NEW
+  
+  /* ── Tab 9 — Scope of practice ──────────────────────── */
   getScope:    (id)        => apiClient.get(`${base}/${id}/scope`),
   updateScope: (id, data)  => apiClient.put(`${base}/${id}/scope`, data),
 
-  /* ── Tab 9 — Per-client restrictions ────────────────── */  // ← NEW
+  /* ── Tab 9 — Per-client restrictions ────────────────── */
   getRestrictedClients:   (id)           => apiClient.get(`${base}/${id}/restricted-clients`),
   addRestrictedClient:    (id, data)     => apiClient.post(`${base}/${id}/restricted-clients`, data),
   removeRestrictedClient: (id, recordId) => apiClient.delete(`${base}/${id}/restricted-clients/${recordId}`),

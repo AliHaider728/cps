@@ -10,42 +10,41 @@ import {
   RefreshCcw, AlertCircle, FileBadge
 } from "lucide-react";
 
-// ── Status config (no emojis) ─────────────────────────────────────────────────
 const STATUS_CONFIG = {
   missing: {
-    label:    "Required",
-    badgeCls: "badge-red",
-    cardBdr:  "border-red-200 dark:border-red-800/50",
-    Icon:     AlertTriangle,
-    iconCls:  "bg-red-50 dark:bg-red-900/20 text-red-500",
+    label    : "Required",
+    badgeCls : "badge-red",
+    cardBdr  : "border-red-200",
+    Icon     : AlertTriangle,
+    iconCls  : "bg-red-50 text-red-500",
   },
   uploaded: {
-    label:    "Under Review",
-    badgeCls: "badge-amber",
-    cardBdr:  "border-amber-200 dark:border-amber-800/50",
-    Icon:     Clock,
-    iconCls:  "bg-amber-50 dark:bg-amber-900/20 text-amber-500",
+    label    : "Under Review",
+    badgeCls : "badge-amber",
+    cardBdr  : "border-amber-200",
+    Icon     : Clock,
+    iconCls  : "bg-amber-50 text-amber-500",
   },
   approved: {
-    label:    "Approved",
-    badgeCls: "badge-green",
-    cardBdr:  "border-green-200 dark:border-green-800/40",
-    Icon:     ShieldCheck,
-    iconCls:  "bg-green-50 dark:bg-green-900/20 text-green-600",
+    label    : "Approved",
+    badgeCls : "badge-green",
+    cardBdr  : "border-green-200",
+    Icon     : ShieldCheck,
+    iconCls  : "bg-green-50 text-green-600",
   },
   rejected: {
-    label:    "Rejected — Reupload Required",
-    badgeCls: "badge-red",
-    cardBdr:  "border-red-200 dark:border-red-800/50",
-    Icon:     ShieldX,
-    iconCls:  "bg-red-50 dark:bg-red-900/20 text-red-500",
+    label    : "Rejected — Reupload Required",
+    badgeCls : "badge-red",
+    cardBdr  : "border-red-200",
+    Icon     : ShieldX,
+    iconCls  : "bg-red-50 text-red-500",
   },
   expired: {
-    label:    "Expired",
-    badgeCls: "badge-amber",
-    cardBdr:  "border-orange-200 dark:border-orange-800/50",
-    Icon:     ShieldAlert,
-    iconCls:  "bg-orange-50 dark:bg-orange-900/20 text-orange-500",
+    label    : "Expired",
+    badgeCls : "badge-amber",
+    cardBdr  : "border-orange-200",
+    Icon     : ShieldAlert,
+    iconCls  : "bg-orange-50 text-orange-500",
   },
 };
 
@@ -58,7 +57,7 @@ const fmtDate = (d) => {
     const dateOnly = raw.includes("T") ? raw.split("T")[0] : raw.slice(0, 10);
     const dt       = new Date(dateOnly);
     if (Number.isNaN(dt.getTime())) return dateOnly;
-    return dt.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+    return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   } catch { return String(d); }
 };
 
@@ -88,11 +87,9 @@ export default function ClinicianCertificatesPage() {
     const id   = docIdOf(doc);
     const file = selectedFiles[id];
     if (!file) return;
-
     const formData = new FormData();
     formData.append("file", file);
     formData.append("docName", doc.docName || doc.name || "Document");
-
     setUploadingId(id);
     try {
       await upsertDoc({ docId: id || "new", data: formData });
@@ -103,11 +100,11 @@ export default function ClinicianCertificatesPage() {
   if (!clinicianId)
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-6">
-        <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-          <AlertCircle size={24} className="text-slate-400 dark:text-slate-600" />
+        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+          <AlertCircle size={24} className="text-slate-400" />
         </div>
-        <p className="text-sm font-bold text-slate-600 dark:text-slate-400">Account not linked</p>
-        <p className="text-xs text-slate-400 dark:text-slate-600 mt-1 max-w-xs">
+        <p className="text-sm font-bold text-slate-600">Account not linked</p>
+        <p className="text-xs text-slate-400 mt-1 max-w-xs">
           Your account is not linked to a clinician profile. Contact your administrator.
         </p>
       </div>
@@ -121,24 +118,23 @@ export default function ClinicianCertificatesPage() {
             shadow-[0_4px_16px_rgba(59,130,246,0.35)] animate-pulse">
             <FileBadge size={18} className="text-white" />
           </div>
-          <p className="text-sm text-slate-400 dark:text-slate-500 font-semibold">Loading documents…</p>
+          <p className="text-sm text-slate-400 font-semibold">Loading documents…</p>
         </div>
       </div>
     );
 
   if (error)
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-red-200 dark:border-red-800/50
-        bg-red-50 dark:bg-red-900/20 px-4 py-3 m-4 animate-scale-in">
+      <div className="alert-error m-4 animate-scale-in">
         <XCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
-        <p className="text-sm font-medium text-red-600 dark:text-red-400">
+        <p className="text-sm font-medium text-red-600">
           Failed to load compliance documents. Please try again.
         </p>
       </div>
     );
 
   return (
-    <div className="max-w-3xl mx-auto px-2 py-6 space-y-6 animate-fade-up">
+    <div className="max-w-full mx-auto px-2 py-6 space-y-6 animate-fade-up">
 
       {/* ── Page header ── */}
       <div className="card p-5 border-l-4 border-l-blue-500">
@@ -147,9 +143,9 @@ export default function ClinicianCertificatesPage() {
             shadow-[0_4px_12px_rgba(59,130,246,0.3)]">
             <FileBadge size={16} className="text-white" />
           </div>
-          <h1 className="page-title text-slate-900 dark:text-slate-100">My Certificates</h1>
+          <h1 className="page-title">My Certificates</h1>
         </div>
-        <p className="text-[13px] text-slate-500 dark:text-slate-400 ml-[2.875rem]">
+        <p className="text-[13px] text-slate-500 ml-[2.875rem]">
           Upload required compliance documents for admin review. All must be approved before shift assignment.
         </p>
       </div>
@@ -159,16 +155,14 @@ export default function ClinicianCertificatesPage() {
         <div className="card p-5 animate-scale-in">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-[13px] font-bold text-slate-700 dark:text-slate-300">Compliance Progress</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+              <p className="text-[13px] font-bold text-slate-700">Compliance Progress</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
                 {approvedCount} of {docs.length} documents approved
               </p>
             </div>
             <div className="text-right">
-              <span className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
-                {progress}
-              </span>
-              <span className="text-sm text-slate-400 dark:text-slate-500 ml-0.5">%</span>
+              <span className="text-2xl font-black text-slate-900 leading-none">{progress}</span>
+              <span className="text-sm text-slate-400 ml-0.5">%</span>
             </div>
           </div>
           <div className="progress-track">
@@ -185,7 +179,7 @@ export default function ClinicianCertificatesPage() {
             />
           </div>
           {progress === 100 && (
-            <div className="flex items-center gap-2 mt-3 text-sm text-green-600 dark:text-green-400 font-semibold">
+            <div className="flex items-center gap-2 mt-3 text-sm text-green-600 font-semibold">
               <CheckCircle2 size={14} />
               All documents approved — ready for shift assignment
             </div>
@@ -196,11 +190,11 @@ export default function ClinicianCertificatesPage() {
       {/* ── Empty state ── */}
       {docs.length === 0 && (
         <div className="card flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-            <FileText size={24} className="text-slate-300 dark:text-slate-600" />
+          <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+            <FileText size={24} className="text-slate-300" />
           </div>
-          <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No documents assigned yet</p>
-          <p className="text-xs text-slate-400 dark:text-slate-600 mt-1">
+          <p className="text-sm font-bold text-slate-500">No documents assigned yet</p>
+          <p className="text-xs text-slate-400 mt-1">
             Your administrator will assign required compliance documents
           </p>
         </div>
@@ -209,19 +203,18 @@ export default function ClinicianCertificatesPage() {
       {/* ── Document cards ── */}
       <div className="space-y-3">
         {docs.map((doc) => {
-          const id        = docIdOf(doc);
-          const status    = doc.status || doc.approvalStatus || "missing";
-          const cfg       = STATUS_CONFIG[status] || STATUS_CONFIG.missing;
-          const { Icon }  = cfg;
-          const uploadable    = canUpload(doc);
-          const isUploading   = uploadingId === id;
-          const chosenFile    = selectedFiles[id];
+          const id              = docIdOf(doc);
+          const status          = doc.status || doc.approvalStatus || "missing";
+          const cfg             = STATUS_CONFIG[status] || STATUS_CONFIG.missing;
+          const { Icon }        = cfg;
+          const uploadable      = canUpload(doc);
+          const isUploading     = uploadingId === id;
+          const chosenFile      = selectedFiles[id];
           const rejectionReason = doc.rejectReason || doc.notes || doc.rejectionReason;
 
           return (
             <div key={id}
-              className={`card overflow-hidden transition-all duration-300 animate-scale-in
-                ${cfg.cardBdr}`}>
+              className={`card overflow-hidden transition-all duration-300 animate-scale-in border ${cfg.cardBdr}`}>
               <div className="p-5">
                 {/* Top row */}
                 <div className="flex items-start justify-between gap-4">
@@ -230,50 +223,48 @@ export default function ClinicianCertificatesPage() {
                       <Icon size={18} strokeWidth={2} />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-[13.5px] font-bold text-slate-800 dark:text-slate-200 truncate">
+                      <h3 className="text-[13.5px] font-bold text-slate-800 truncate">
                         {doc.docName || doc.name}
                       </h3>
                       <div className="flex flex-wrap gap-3 mt-1">
                         {doc.expiryDate && (
-                          <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
                             <Clock size={10} /> Expiry: {fmtDate(doc.expiryDate)}
                           </span>
                         )}
                         {status === "uploaded" && doc.uploadedAt && (
-                          <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
                             <Upload size={10} /> Uploaded: {fmtDate(doc.uploadedAt)}
                           </span>
                         )}
                         {status === "approved" && doc.approvedAt && (
-                          <span className="text-[11px] text-green-600 dark:text-green-500 flex items-center gap-1">
+                          <span className="text-[11px] text-green-600 flex items-center gap-1">
                             <CheckCircle2 size={10} /> Approved: {fmtDate(doc.approvedAt)}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                  <span className={`badge shrink-0 ${cfg.badgeCls}`}>
-                    {cfg.label}
-                  </span>
+                  <span className={`badge shrink-0 ${cfg.badgeCls}`}>{cfg.label}</span>
                 </div>
 
                 {/* Rejection reason */}
                 {status === "rejected" && rejectionReason && (
                   <div className="mt-3 flex items-start gap-2.5 p-3
-                    bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/40 rounded-xl">
+                    bg-red-50 border border-red-100 rounded-xl">
                     <AlertTriangle size={13} className="text-red-500 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-[11px] font-bold text-red-700 dark:text-red-400 mb-0.5 uppercase tracking-wide">
+                      <p className="text-[11px] font-bold text-red-700 mb-0.5 uppercase tracking-wide">
                         Rejection Reason
                       </p>
-                      <p className="text-[12.5px] text-red-600 dark:text-red-400">{rejectionReason}</p>
+                      <p className="text-[12.5px] text-red-600">{rejectionReason}</p>
                     </div>
                   </div>
                 )}
 
                 {/* Upload section */}
                 {uploadable && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/60">
+                  <div className="mt-4 pt-4 border-t border-slate-100">
                     <input
                       type="file"
                       className="hidden"
@@ -305,7 +296,7 @@ export default function ClinicianCertificatesPage() {
                         </button>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-600 mt-2">
+                    <p className="text-[11px] text-slate-400 mt-2">
                       Accepted: PDF, JPG, PNG, DOC, DOCX · Max 10 MB
                     </p>
                   </div>
@@ -313,13 +304,13 @@ export default function ClinicianCertificatesPage() {
 
                 {/* Status messages */}
                 {status === "approved" && (
-                  <div className="mt-3 flex items-center gap-2 text-[12.5px] text-green-600 dark:text-green-400 font-medium">
+                  <div className="mt-3 flex items-center gap-2 text-[12.5px] text-green-600 font-medium">
                     <CheckCircle2 size={13} />
                     This document has been verified and approved by admin.
                   </div>
                 )}
                 {status === "uploaded" && (
-                  <div className="mt-3 flex items-center gap-2 text-[12.5px] text-amber-600 dark:text-amber-400 font-medium">
+                  <div className="mt-3 flex items-center gap-2 text-[12.5px] text-amber-600 font-medium">
                     <Clock size={13} />
                     Under review — you will be notified once a decision is made.
                   </div>

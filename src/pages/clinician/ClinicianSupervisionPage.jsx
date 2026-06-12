@@ -55,7 +55,7 @@ export default function ClinicianSupervisionPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-12">
+    <div className="mx-auto max-w-full space-y-6 pb-12">
       <h1 className="text-2xl font-bold text-slate-900">My Supervision</h1>
       {isLoading && <p className="text-sm text-slate-500">Loading sessions…</p>}
       <div className="space-y-4">

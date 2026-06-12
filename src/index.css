@@ -15,11 +15,6 @@ body {
   font-family: 'Nunito', sans-serif;
 }
 
-.dark body,
-body.dark {
-  @apply bg-slate-900 text-slate-200;
-}
-
 /* ── Scrollbars ──────────────────────────────────────────────────────────────── */
 .sidebar-scroll::-webkit-scrollbar,
 .hide-scroll::-webkit-scrollbar { display: none; }
@@ -29,9 +24,6 @@ body.dark {
 ::-webkit-scrollbar-track       { background: transparent; }
 ::-webkit-scrollbar-thumb       { @apply bg-slate-200 rounded-full; }
 ::-webkit-scrollbar-thumb:hover { @apply bg-slate-300; }
-
-.dark ::-webkit-scrollbar-thumb       { @apply bg-slate-700; }
-.dark ::-webkit-scrollbar-thumb:hover { @apply bg-slate-600; }
 
 /* ── Focus ring ─────────────────────────────────────────────────────────────── */
 :focus-visible {
@@ -43,6 +35,7 @@ body.dark {
 @keyframes scaleIn { from { transform: scale(0.97); opacity: 0; }      to { transform: scale(1);    opacity: 1; } }
 @keyframes spinArc { to   { transform: rotate(360deg); } }
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes pulse   { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
@@ -56,49 +49,30 @@ body.dark {
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
-.dark .skeleton {
-  background: linear-gradient(90deg, #1e293b 25%, #273549 50%, #1e293b 75%);
-  background-size: 200% 100%;
-}
 
 @layer components {
 
   /* ── Typography ──────────────────────────────────────────────────────────── */
   .page-title {
-    @apply text-slate-900 text-xl font-semibold tracking-tight;
-  }
-  .dark .page-title {
-    @apply text-slate-100;
+    @apply text-slate-900 text-xl font-bold tracking-tight;
   }
 
   .section-label {
     @apply text-[11px] font-bold uppercase tracking-widest text-slate-500;
   }
-  .dark .section-label {
-    @apply text-slate-400;
-  }
 
   .field-label {
-    @apply block text-[13px] font-medium text-slate-700 mb-1.5;
-  }
-  .dark .field-label {
-    @apply text-slate-300;
+    @apply block text-[13px] font-semibold text-slate-700 mb-1.5;
   }
 
   .section-header {
     @apply bg-white border border-slate-200 rounded-xl px-6 py-5 shadow-sm;
-  }
-  .dark .section-header {
-    @apply bg-slate-800 border-slate-700;
   }
 
   /* ── Card ────────────────────────────────────────────────────────────────── */
   .card {
     @apply bg-white border border-slate-200 rounded-2xl shadow-sm;
     transition: box-shadow 250ms cubic-bezier(.4,0,.2,1), transform 250ms cubic-bezier(.4,0,.2,1);
-  }
-  .dark .card {
-    @apply bg-slate-800 border-slate-700;
   }
   .card-hover:hover {
     @apply -translate-y-0.5 shadow-lg;
@@ -107,9 +81,6 @@ body.dark {
   /* ── Divider ─────────────────────────────────────────────────────────────── */
   .divider {
     @apply h-px bg-slate-100 my-0;
-  }
-  .dark .divider {
-    @apply bg-slate-800;
   }
 
   /* ── Buttons ─────────────────────────────────────────────────────────────── */
@@ -131,33 +102,21 @@ body.dark {
   }
 
   .btn-ghost {
-    @apply bg-slate-50 text-slate-600 border-slate-200;
+    @apply bg-slate-50 text-slate-600 border border-slate-200;
   }
   .btn-ghost:hover {
     @apply bg-slate-100 border-slate-300;
   }
-  .dark .btn-ghost {
-    @apply bg-slate-800 text-slate-400 border-slate-700;
-  }
-  .dark .btn-ghost:hover {
-    @apply bg-slate-700 border-slate-600;
-  }
 
   /* ── Form inputs ─────────────────────────────────────────────────────────── */
   .input {
-    @apply block w-full px-3 py-2 rounded-[10px] border border-slate-300
+    @apply block w-full px-3.5 py-2.5 rounded-xl border border-slate-200
            bg-slate-50 text-[13px] text-slate-800 outline-none
            transition-all duration-150;
     font-family: 'Nunito', sans-serif;
   }
-  .input:hover { @apply border-slate-400 bg-white; }
-  .input:focus { @apply border-blue-500 bg-white ring-2 ring-blue-500/10; }
-
-  .dark .input {
-    @apply bg-slate-900 border-slate-700 text-slate-200;
-  }
-  .dark .input:hover { @apply border-slate-600 bg-slate-800/80; }
-  .dark .input:focus { @apply border-blue-500 bg-slate-800/80 ring-2 ring-blue-500/20; }
+  .input:hover  { @apply border-slate-300 bg-white; }
+  .input:focus  { @apply border-blue-500 bg-white ring-2 ring-blue-500/10; }
 
   /* ── Badge / Status pills ────────────────────────────────────────────────── */
   .badge {
@@ -169,43 +128,35 @@ body.dark {
   .badge-green     { @apply bg-green-50  text-green-700  border-green-200;  }
   .badge-amber     { @apply bg-amber-50  text-amber-700  border-amber-200;  }
   .badge-red       { @apply bg-red-50    text-red-700    border-red-200;    }
-  .badge-slate     { @apply bg-slate-100 text-slate-600  border-slate-300;  }
+  .badge-slate     { @apply bg-slate-100 text-slate-600  border-slate-200;  }
   .badge-purple    { @apply bg-purple-50 text-purple-700 border-purple-200; }
+  .badge-teal      { @apply bg-teal-50   text-teal-700   border-teal-200;   }
 
   /* status-specific aliases */
-  .badge-draft     { @apply bg-slate-100 text-slate-600  border-slate-300;  }
-  .badge-pending   { @apply bg-yellow-50 text-yellow-700 border-yellow-300; }
-  .badge-approved  { @apply bg-green-50  text-green-700  border-green-200;  }
-  .badge-rejected  { @apply bg-red-50    text-red-700    border-red-200;    }
-  .badge-submitted { @apply bg-blue-50   text-blue-700   border-blue-200;   }
+  .badge-draft     { @apply bg-slate-100  text-slate-600  border-slate-200;  }
+  .badge-pending   { @apply bg-amber-50   text-amber-700  border-amber-200;  }
+  .badge-approved  { @apply bg-green-50   text-green-700  border-green-200;  }
+  .badge-rejected  { @apply bg-red-50     text-red-700    border-red-200;    }
+  .badge-submitted { @apply bg-blue-50    text-blue-700   border-blue-200;   }
 
   /* ── Table ───────────────────────────────────────────────────────────────── */
-  .table-pro thead th,
-  .table-header th {
-    @apply text-xs font-semibold uppercase tracking-wide text-slate-500
-           px-4 py-3 bg-slate-50 border-b border-slate-200 whitespace-nowrap text-left;
+  .table-pro thead th {
+    @apply text-[11px] font-bold uppercase tracking-wider text-slate-400
+           px-4 py-3 bg-slate-50 border-b border-slate-100 whitespace-nowrap text-left;
   }
   .table-pro tbody tr {
-    @apply border-b border-slate-100 transition-colors duration-100;
+    @apply border-b border-slate-50 transition-colors duration-100;
   }
-  .table-pro tbody tr:hover { @apply bg-slate-50; }
+  .table-pro tbody tr:hover { @apply bg-slate-50/80; }
   .table-pro tbody td {
     @apply px-4 py-3 text-[13px] align-middle text-slate-700;
   }
   .table-pro tbody tr:last-child { @apply border-b-0; }
 
-  .dark .table-pro thead th {
-    @apply bg-slate-800 border-slate-700 text-slate-400;
-  }
-  .dark .table-pro tbody tr { @apply border-slate-700; }
-  .dark .table-pro tbody tr:hover { @apply bg-slate-800/60; }
-  .dark .table-pro tbody td { @apply text-slate-300; }
-
   /* ── Progress bar ────────────────────────────────────────────────────────── */
   .progress-track {
     @apply h-1.5 rounded-full bg-slate-100 overflow-hidden;
   }
-  .dark .progress-track { @apply bg-slate-800; }
 
   .progress-fill {
     @apply h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500;
@@ -214,7 +165,7 @@ body.dark {
 
   /* ── Gradient helpers ────────────────────────────────────────────────────── */
   .gradient-blue-indigo  { @apply bg-gradient-to-br from-blue-500 to-indigo-500; }
-  .gradient-header       { @apply bg-gradient-to-br from-blue-50 to-indigo-50;   }
+  .gradient-header       { @apply bg-gradient-to-br from-blue-50  to-indigo-50;  }
 
   /* ── Page content wrapper ────────────────────────────────────────────────── */
   .page-content {
@@ -225,5 +176,25 @@ body.dark {
   .animate-fade-up  { animation: fadeUp  0.25s ease forwards; }
   .animate-scale-in { animation: scaleIn 0.2s  ease forwards; }
   .spin-arc         { animation: spinArc 0.8s linear infinite; }
+
+  /* ── Alert boxes ─────────────────────────────────────────────────────────── */
+  .alert-success {
+    @apply flex items-start gap-3 rounded-xl px-4 py-3 border
+           bg-green-50 border-green-200;
+  }
+  .alert-error {
+    @apply flex items-start gap-3 rounded-xl px-4 py-3 border
+           bg-red-50 border-red-200;
+  }
+  .alert-info {
+    @apply flex items-start gap-3 rounded-xl px-4 py-3 border
+           bg-blue-50 border-blue-200;
+  }
+
+  /* ── Form section ────────────────────────────────────────────────────────── */
+  .form-section-header {
+    @apply flex items-center gap-3 px-5 py-4 border-b border-slate-100
+           bg-slate-50/80;
+  }
 
 }
