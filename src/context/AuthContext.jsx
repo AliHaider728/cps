@@ -13,8 +13,8 @@ export const useAuth = () => {
   const { user, token, initialized } = useAppSelector((state) => state.auth);
 
   const login = useCallback(
-    async (email, password) => {
-      const { data } = await authService.login(email, password);
+    async (email, password, recaptchaToken) => {
+      const { data } = await authService.login(email, password, recaptchaToken);
       const nextSession = { token: data.token, user: data.user };
       storage.setSession(nextSession);
       dispatch(setSession(nextSession));
@@ -32,7 +32,6 @@ export const useAuth = () => {
     try {
       await authService.logout();
     } catch {}
-
     storage.clearSession();
     dispatch(clearSession());
     queryClient.removeQueries({ queryKey: QK.ME });

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 import { useAuth } from "../../context/AuthContext.jsx";
 import ForceChangePassword from "./ForceChangePassword.jsx";
 
@@ -7,19 +8,21 @@ const Login = () => {
   const { login }  = useAuth();
   const navigate   = useNavigate();
 
-  const [formData,      setFormData]      = useState({ email: "", password: "", rememberMe: false });
-  const [loading,       setLoading]       = useState(false);
-  const [error,         setError]         = useState("");
-  const [showPassword,  setShowPassword]  = useState(false);
-  const [isRateLimited, setIsRateLimited] = useState(false);
-  const [countdown,     setCountdown]     = useState(0);
+  const [formData,       setFormData]      = useState({ email: "", password: "", rememberMe: false });
+  const [loading,        setLoading]       = useState(false);
+  const [error,          setError]         = useState("");
+  const [showPassword,   setShowPassword]  = useState(false);
+  const [isRateLimited,  setIsRateLimited] = useState(false);
+  const [countdown,      setCountdown]     = useState(0);
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
 
   // ── Force change password state ───────────────────────────────
   const [showForceChange, setShowForceChange] = useState(false);
   const [tempToken,       setTempToken]       = useState("");
   const [pendingRedirect, setPendingRedirect] = useState("");
 
-  const timerRef = useRef(null);
+  const timerRef     = useRef(null);
+  const recaptchaRef = useRef(null);
 
   useEffect(() => {
     if (isRateLimited && countdown > 0) {
@@ -53,11 +56,17 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isRateLimited) return;
+
+    if (!recaptchaToken) {
+      setError("Please complete the reCAPTCHA verification.");
+      return;
+    }
+
     setLoading(true);
     setError("");
+
     try {
-      const result = await login(formData.email, formData.password);
-      // login() se { redirectTo, mustChangePassword, token } milega
+      const result = await login(formData.email, formData.password, recaptchaToken);
       if (result.mustChangePassword) {
         setTempToken(result.token);
         setPendingRedirect(result.redirectTo);
@@ -66,8 +75,13 @@ const Login = () => {
         navigate(result.redirectTo);
       }
     } catch (err) {
+      // Reset reCAPTCHA on every failed attempt — token is one-time use
+      recaptchaRef.current?.reset();
+      setRecaptchaToken(null);
+
       const status  = err.response?.status;
       const message = err.response?.data?.message || err.message || "Invalid email or password";
+
       if (status === 429) {
         setIsRateLimited(true);
         setCountdown(15 * 60);
@@ -104,6 +118,7 @@ const Login = () => {
         @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
         .countdown-ring { animation: ring-pulse 1s ease-in-out infinite; }
         @keyframes ring-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3);} 50%{box-shadow:0 0 0 8px rgba(239,68,68,0);} }
+        .recaptcha-wrap { display:flex; justify-content:center; }
       `}</style>
 
       {/* ── Force Change Password Modal ── */}
@@ -197,26 +212,39 @@ const Login = () => {
             )}
 
             <form onSubmit={handleSubmit}>
+              {/* Email */}
               <div className="mb-5">
                 <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Email Address</label>
                 <div className="relative">
-                  <input name="email" type="email" required value={formData.email} onChange={handleChange} disabled={isRateLimited}
+                  <input
+                    name="email" type="email" required
+                    value={formData.email} onChange={handleChange}
+                    disabled={isRateLimited}
                     placeholder="you@coreprescribing.co.uk"
-                    className="ci w-full pl-4 pr-11 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-slate-50 placeholder-slate-400 transition-all duration-200" />
+                    className="ci w-full pl-4 pr-11 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-slate-50 placeholder-slate-400 transition-all duration-200"
+                  />
                   <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
 
+              {/* Password */}
               <div className="mb-5">
                 <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Password</label>
                 <div className="relative">
-                  <input name="password" type={showPassword ? "text" : "password"} required value={formData.password} onChange={handleChange} disabled={isRateLimited}
+                  <input
+                    name="password" type={showPassword ? "text" : "password"} required
+                    value={formData.password} onChange={handleChange}
+                    disabled={isRateLimited}
                     placeholder="Enter your password"
-                    className="ci w-full pl-4 pr-11 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-slate-50 placeholder-slate-400 transition-all duration-200" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} disabled={isRateLimited}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 transition-colors bg-transparent border-none cursor-pointer flex items-center disabled:cursor-not-allowed">
+                    className="ci w-full pl-4 pr-11 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-slate-50 placeholder-slate-400 transition-all duration-200"
+                  />
+                  <button
+                    type="button" onClick={() => setShowPassword(!showPassword)}
+                    disabled={isRateLimited}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 transition-colors bg-transparent border-none cursor-pointer flex items-center disabled:cursor-not-allowed"
+                  >
                     {showPassword
                       ? <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" /></svg>
                       : <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -225,7 +253,8 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mb-7">
+              {/* Remember me + Forgot password */}
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <input name="rememberMe" type="checkbox" checked={formData.rememberMe} onChange={handleChange} className="w-4 h-4 cursor-pointer accent-blue-600" />
                   <label className="text-sm text-slate-500 cursor-pointer font-medium">Remember me</label>
@@ -233,19 +262,46 @@ const Login = () => {
                 <a href="/forgot-password" className="text-sm text-blue-600 font-semibold hover:text-blue-800 hover:underline transition-colors">Forgot password?</a>
               </div>
 
-              <button type="submit" disabled={loading || isRateLimited}
+              {/* ── Google reCAPTCHA v2 ── */}
+              <div className="recaptcha-wrap mb-6">
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                  onChange={(token) => setRecaptchaToken(token)}
+                  onExpired={() => setRecaptchaToken(null)}
+                  theme="light"
+                />
+              </div>
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading || isRateLimited || !recaptchaToken}
                 className="btn-shine w-full py-3.5 text-white rounded-xl font-bold text-base tracking-wide relative overflow-hidden transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed hover:enabled:-translate-y-px"
                 style={{
-                  background: isRateLimited ? "linear-gradient(135deg,#9ca3af 0%,#6b7280 100%)" : "linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)",
-                  boxShadow: (loading || isRateLimited) ? "none" : "0 4px 14px rgba(37,99,235,0.3)",
-                }}>
+                  background: isRateLimited
+                    ? "linear-gradient(135deg,#9ca3af 0%,#6b7280 100%)"
+                    : "linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)",
+                  boxShadow: (loading || isRateLimited || !recaptchaToken) ? "none" : "0 4px 14px rgba(37,99,235,0.3)",
+                }}
+              >
                 <div className="flex items-center justify-center gap-2 relative z-10">
                   {loading ? (
                     <><div className="spinner" /><span>Signing in…</span></>
                   ) : isRateLimited ? (
-                    <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg><span>Locked — {fmtCountdown(countdown)}</span></>
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>Locked — {fmtCountdown(countdown)}</span>
+                    </>
                   ) : (
-                    <><span>Sign In</span><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></>
+                    <>
+                      <span>Sign In</span>
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </>
                   )}
                 </div>
               </button>
