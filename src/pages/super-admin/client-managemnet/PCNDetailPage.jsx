@@ -17,9 +17,6 @@ import MassEmailModal from "./MassEmailModal.jsx";
 import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
 import ReportingArchivePanel from "./ReportingArchivePanel.jsx";
 
-/* ══════════════════════════════════════════════════════════
-   SHARED UI ATOMS
-══════════════════════════════════════════════════════════ */
 const Spinner = ({ cls = "border-white" }) => (
   <span className={`inline-block w-4 h-4 border-2 ${cls} border-t-transparent rounded-full animate-spin`} />
 );
@@ -63,7 +60,7 @@ const EditRow = ({ label, value, onChange, type = "text", options }) => (
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
     ) : (
-      <input type={type} value={value || ""} onChange={e => onChange(e.target.value)}
+      <input type={type} value={value ?? ""} onChange={e => onChange(e.target.value)}
         className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 transition-all" />
     )}
   </div>
@@ -96,100 +93,56 @@ const M_STATUS = {
 ══════════════════════════════════════════════════════════ */
 const ContactModal = ({ mode, existing, onClose, onSave }) => {
   const isEdit = mode === "edit";
-
   const [form, setForm] = useState({
-    name:      "",
-    role:      "",
-    email:     "",
-    phone:     "",
-    type:      "general",
-    isPrimary: false,
+    name: "", role: "", email: "", phone: "", type: "general", isPrimary: false,
     ...(isEdit && existing ? existing : {}),
   });
   const [saving, setSaving] = useState(false);
-
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
   const handle = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    try {
-      await onSave(form);
-      onClose();
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setSaving(false);
-    }
+    try { await onSave(form); onClose(); }
+    catch (e) { alert(e.message); }
+    finally { setSaving(false); }
   };
 
   const Field = ({ label, k, type = "text", opts }) => (
     <div>
       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{label}</label>
-      {opts
-        ? (
-          <select
-            value={form[k] || ""}
-            onChange={e => set(k)(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer"
-          >
-            {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        )
-        : (
-          <input
-            type={type}
-            value={form[k] || ""}
-            onChange={e => set(k)(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
-          />
-        )
-      }
+      {opts ? (
+        <select value={form[k] || ""} onChange={e => set(k)(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 cursor-pointer">
+          {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      ) : (
+        <input type={type} value={form[k] || ""} onChange={e => set(k)(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
+      )}
     </div>
   );
 
   return (
-    <ModalShell
-      title={isEdit ? "Edit Contact" : "Add Contact"}
-      onClose={onClose}
+    <ModalShell title={isEdit ? "Edit Contact" : "Add Contact"} onClose={onClose}
       footer={
         <>
           <Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn>
-          <Btn
-            cls="flex-1"
-            onClick={handle}
-            disabled={saving || !form.name.trim()}
-          >
+          <Btn cls="flex-1" onClick={handle} disabled={saving || !form.name.trim()}>
             {saving ? <Spinner /> : <Check size={14} />}
             {isEdit ? "Save Changes" : "Add Contact"}
           </Btn>
         </>
-      }
-    >
+      }>
       <Field label="Name *" k="name" />
       <Field label="Role" k="role" />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Email" k="email" type="email" />
         <Field label="Phone" k="phone" />
       </div>
-      <Field
-        label="Type"
-        k="type"
-        opts={[
-          ["general",        "General"],
-          ["decision_maker", "Decision Maker"],
-          ["finance",        "Finance"],
-          ["clinical_lead",  "Clinical Lead"],
-          ["operations",     "Operations"],
-        ]}
-      />
+      <Field label="Type" k="type" opts={[["general","General"],["decision_maker","Decision Maker"],["finance","Finance"],["clinical_lead","Clinical Lead"],["operations","Operations"]]} />
       <label className="flex items-center gap-2.5 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={!!form.isPrimary}
-          onChange={e => set("isPrimary")(e.target.checked)}
-          className="accent-blue-600 w-4 h-4"
-        />
+        <input type="checkbox" checked={!!form.isPrimary} onChange={e => set("isPrimary")(e.target.checked)} className="accent-blue-600 w-4 h-4" />
         <span className="text-sm text-slate-700 font-medium">Primary Contact</span>
       </label>
     </ModalShell>
@@ -197,21 +150,13 @@ const ContactModal = ({ mode, existing, onClose, onSave }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   MEETING MODAL  #2: useEffect to sync form when existing changes
+   MEETING MODAL
 ══════════════════════════════════════════════════════════ */
 const MeetingModal = ({ existing, onClose, onSave }) => {
-  const [form, setForm] = useState({
-    month:     "",
-    date:      "",
-    type:      "monthly_review",
-    status:    "scheduled",
-    notes:     "",
-    attendees: "",
-  });
+  const [form, setForm] = useState({ month: "", date: "", type: "monthly_review", status: "scheduled", notes: "", attendees: "" });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
-  // #2: useEffect so form stays in sync if existing prop changes
   useEffect(() => {
     if (existing) {
       setForm({
@@ -223,14 +168,7 @@ const MeetingModal = ({ existing, onClose, onSave }) => {
         attendees: existing.attendees?.join(", ") || "",
       });
     } else {
-      setForm({
-        month:     "",
-        date:      "",
-        type:      "monthly_review",
-        status:    "scheduled",
-        notes:     "",
-        attendees: "",
-      });
+      setForm({ month: "", date: "", type: "monthly_review", status: "scheduled", notes: "", attendees: "" });
     }
   }, [existing]);
 
@@ -243,11 +181,8 @@ const MeetingModal = ({ existing, onClose, onSave }) => {
         attendees: form.attendees.split(",").map(a => a.trim()).filter(Boolean),
       });
       onClose();
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { alert(e.message); }
+    finally { setSaving(false); }
   };
 
   const Sel = ({ label, k, opts }) => (
@@ -260,18 +195,13 @@ const MeetingModal = ({ existing, onClose, onSave }) => {
   );
 
   return (
-    <ModalShell
-      title={existing?._id ? "Edit Meeting" : "Add Meeting"}
-      onClose={onClose}
+    <ModalShell title={existing?._id ? "Edit Meeting" : "Add Meeting"} onClose={onClose}
       footer={
         <>
           <Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn>
-          <Btn cls="flex-1" onClick={handle} disabled={saving}>
-            {saving ? <Spinner /> : <Check size={14} />} Save
-          </Btn>
+          <Btn cls="flex-1" onClick={handle} disabled={saving}>{saving ? <Spinner /> : <Check size={14} />} Save</Btn>
         </>
-      }
-    >
+      }>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Month</label>
@@ -297,22 +227,16 @@ const MeetingModal = ({ existing, onClose, onSave }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   TEMPLATE MODAL  #3: useEffect to sync form when existing changes
+   TEMPLATE MODAL
 ══════════════════════════════════════════════════════════ */
 const TemplateModal = ({ existing, onClose, onSave }) => {
   const [form, setForm] = useState({ name: "", subject: "", body: "" });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
-  // #3: useEffect so form stays in sync if existing prop changes
   useEffect(() => {
     if (existing) {
-      setForm({
-        name:    existing.name    || "",
-        subject: existing.subject || "",
-        body:    existing.body    || "",
-        _id:     existing._id,
-      });
+      setForm({ name: existing.name || "", subject: existing.subject || "", body: existing.body || "", _id: existing._id });
     } else {
       setForm({ name: "", subject: "", body: "" });
     }
@@ -323,11 +247,15 @@ const TemplateModal = ({ existing, onClose, onSave }) => {
     setSaving(true);
     try { await onSave(form); onClose(); } catch (e) { alert(e.message); } finally { setSaving(false); }
   };
+
   return (
     <ModalShell wide title={existing?._id ? "Edit Template" : "Add Email Template"} onClose={onClose}
       footer={<><Btn variant="ghost" cls="flex-1" onClick={onClose}>Cancel</Btn><Btn cls="flex-1" onClick={handle} disabled={saving || !form.name.trim()}>{saving ? <Spinner /> : <Check size={14} />} Save</Btn></>}>
       {["name","subject"].map(k => (
-        <div key={k}><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{k} *</label><input value={form[k] || ""} onChange={e => set(k)(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white" /></div>
+        <div key={k}>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">{k} *</label>
+          <input value={form[k] || ""} onChange={e => set(k)(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white" />
+        </div>
       ))}
       <div>
         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Body <span className="normal-case font-normal text-slate-400">(HTML supported)</span></label>
@@ -363,7 +291,7 @@ export default function PCNDetailPage() {
   const { data, isLoading, refetch } = usePCN(id);
   const updatePCNMutation     = useUpdatePCN();
   const upsertMeetingMutation = useUpsertMeeting(id);
-  const { data: groupsData } = useDocumentGroups({ active: true });
+  const { data: groupsData }  = useDocumentGroups({ active: true });
 
   const pcn    = data?.pcn    ?? null;
   const groups = groupsData?.groups || [];
@@ -373,20 +301,14 @@ export default function PCNDetailPage() {
   const [massEmail,     setMassEmail]     = useState(false);
   const [meetingModal,  setMeetingModal]  = useState(null);
   const [templateModal, setTemplateModal] = useState(null);
-
-  // null           → modal closed
-  // { mode:"add" } → Add Contact modal open
-  // { mode:"edit", contact: {...} } → Edit Contact modal open
-  const [contactModal, setContactModal] = useState(null);
+  const [contactModal,  setContactModal]  = useState(null);
 
   const openAddContact  = () => setContactModal({ mode: "add" });
   const openEditContact = (c) => setContactModal({ mode: "edit", contact: c });
   const closeContact    = () => setContactModal(null);
 
   useEffect(() => {
-    if (!TABS.some((item) => item.id === tab)) {
-      dispatch(setActivePcnDetailTab("overview"));
-    }
+    if (!TABS.some((item) => item.id === tab)) dispatch(setActivePcnDetailTab("overview"));
   }, [dispatch, tab]);
 
   const patch = useCallback(async (body, fieldKey) => {
@@ -401,21 +323,14 @@ export default function PCNDetailPage() {
     await patch({ requiredSystems: rs }, `sys_${sys}`);
   }, [pcn, patch]);
 
-  // #4: new contacts get a generated _id
   const saveContact = async (form) => {
     const contacts = [...(pcn?.contacts || [])];
     if (form._id) {
       const i = contacts.findIndex(c => c._id === form._id);
-      if (i > -1) {
-        contacts[i] = { ...contacts[i], ...form };
-      } else {
-        contacts.push(form);
-      }
+      if (i > -1) contacts[i] = { ...contacts[i], ...form };
+      else contacts.push(form);
     } else {
-      contacts.push({
-        ...form,
-        _id: crypto?.randomUUID?.() || `c_${Date.now()}`,
-      });
+      contacts.push({ ...form, _id: crypto?.randomUUID?.() || `c_${Date.now()}` });
     }
     await patch({ contacts });
   };
@@ -462,42 +377,59 @@ export default function PCNDetailPage() {
 
   /* ════════════ TAB PANELS ════════════════════════════════ */
 
+  /* ── UPDATED OverviewPanel — annualSpend REMOVED, hourlyRate kept ── */
   const OverviewPanel = () => {
     const [editing, setEditing] = useState(false);
     const [saving,  setSaving]  = useState(false);
+
     const buildForm = () => ({
-      contractType:        pcn.contractType       || "",
-      annualSpend:         pcn.annualSpend        || "",
-      hourlyRate:          pcn.hourlyRate         ?? "",
-      xeroCode:            pcn.xeroCode           || "",
-      xeroCategory:        pcn.xeroCategory       || "",
-      contractStartDate:   pcn.contractStartDate   ? new Date(pcn.contractStartDate).toISOString().split("T")[0]   : "",
-      contractRenewalDate: pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
-      contractExpiryDate:  pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
+      contractType:        pcn.contractType        || "",
+      hourlyRate:          pcn.hourlyRate          ?? "",
+      xeroCode:            pcn.xeroCode            || "",
+      xeroCategory:        pcn.xeroCategory        || "",
+      contractStartDate:   pcn.contractStartDate
+        ? new Date(pcn.contractStartDate).toISOString().split("T")[0]   : "",
+      contractRenewalDate: pcn.contractRenewalDate
+        ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
+      contractExpiryDate:  pcn.contractExpiryDate
+        ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
       complianceGroups: (pcn.complianceGroups?.length
         ? pcn.complianceGroups.map((g) => g?._id || g).filter(Boolean)
         : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
       notes: pcn.notes || "",
     });
-    const [form, setForm] = useState(buildForm);
 
-    // #5: depend on full pcn object, not just pcn._id
+    const [form, setForm] = useState(buildForm);
     useEffect(() => { setForm(buildForm()); }, [pcn]); // eslint-disable-line
 
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
+
     const toggleGroup = (groupId) => setForm((cur) => {
       const sel = cur.complianceGroups || [];
-      return { ...cur, complianceGroups: sel.includes(groupId) ? sel.filter(id => id !== groupId) : [...sel, groupId] };
+      return {
+        ...cur,
+        complianceGroups: sel.includes(groupId)
+          ? sel.filter(id => id !== groupId)
+          : [...sel, groupId],
+      };
     });
+
     const handleSave   = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
     const handleCancel = () => { setForm(buildForm()); setEditing(false); };
-    const SYSTEMS    = ["emis","systmOne","ice","accurx","docman","softphone","vpn"];
-    const SYS_LABEL  = { systmOne:"SystmOne", emis:"EMIS", ice:"ICE", accurx:"AccuRx", docman:"Docman", softphone:"Softphone", vpn:"VPN" };
-    const selectedGroupNames = (pcn.complianceGroups?.length ? pcn.complianceGroups : (pcn.complianceGroup ? [pcn.complianceGroup] : []))
+
+    const SYSTEMS   = ["emis","systmOne","ice","accurx","docman","softphone","vpn"];
+    const SYS_LABEL = { systmOne:"SystmOne", emis:"EMIS", ice:"ICE", accurx:"AccuRx", docman:"Docman", softphone:"Softphone", vpn:"VPN" };
+
+    const selectedGroupNames = (pcn.complianceGroups?.length
+      ? pcn.complianceGroups : (pcn.complianceGroup ? [pcn.complianceGroup] : []))
       .map(g => g?.name || "").filter(Boolean).join(", ") || "No compliance groups assigned";
+
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB") : null;
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        {/* ── Contract & Finance ── */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Contract & Finance</h3>
@@ -509,21 +441,24 @@ export default function PCNDetailPage() {
                 </button>
               )}
               <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editing ? "bg-green-600 text-white hover:bg-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                  ${editing ? "bg-green-600 text-white hover:bg-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
                 {saving ? <Spinner cls="border-white" /> : editing ? <><Save size={12} /> Save</> : <><Edit2 size={12} /> Edit</>}
               </button>
             </div>
           </div>
+
           {editing ? (
             <div>
-              <EditRow label="Contract Type"   value={form.contractType}        onChange={set("contractType")}        options={["ARRS","EA","Direct","Mixed"]} />
-              <EditRow label="Annual Spend £"  value={form.annualSpend}         onChange={set("annualSpend")}         type="number" />
-              <EditRow label="Hourly Rate £/hr" value={form.hourlyRate}         onChange={set("hourlyRate")}          type="number" />
-              <EditRow label="Xero Code"      value={form.xeroCode}            onChange={set("xeroCode")} />
-              <EditRow label="Xero Category"  value={form.xeroCategory}        onChange={set("xeroCategory")}        options={["PCN","GPX","EAX"]} />
-              <EditRow label="Start Date"     value={form.contractStartDate}   onChange={set("contractStartDate")}   type="date" />
-              <EditRow label="Renewal Date"   value={form.contractRenewalDate} onChange={set("contractRenewalDate")} type="date" />
-              <EditRow label="Expiry Date"    value={form.contractExpiryDate}  onChange={set("contractExpiryDate")}  type="date" />
+              <EditRow label="Contract Type"    value={form.contractType}        onChange={set("contractType")}        options={["ARRS","EA","Direct","Mixed"]} />
+              <EditRow label="Hourly Rate £/hr" value={form.hourlyRate}          onChange={set("hourlyRate")}          type="number" />
+              <EditRow label="Xero Code"        value={form.xeroCode}            onChange={set("xeroCode")} />
+              <EditRow label="Xero Category"    value={form.xeroCategory}        onChange={set("xeroCategory")}        options={["PCN","GPX","EAX"]} />
+              <EditRow label="Start Date"       value={form.contractStartDate}   onChange={set("contractStartDate")}   type="date" />
+              <EditRow label="Renewal Date"     value={form.contractRenewalDate} onChange={set("contractRenewalDate")} type="date" />
+              <EditRow label="Expiry Date"      value={form.contractExpiryDate}  onChange={set("contractExpiryDate")}  type="date" />
+
+              {/* Compliance Groups */}
               <div className="pt-3">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Compliance Groups</span>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
@@ -531,13 +466,18 @@ export default function PCNDetailPage() {
                     ? <p className="text-xs text-slate-400">No groups available</p>
                     : groups.map(group => (
                       <label key={group._id} className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
-                        <input type="checkbox" checked={(form.complianceGroups || []).includes(group._id)}
-                          onChange={() => toggleGroup(group._id)} className="w-4 h-4 accent-blue-600" />
+                        <input type="checkbox"
+                          checked={(form.complianceGroups || []).includes(group._id)}
+                          onChange={() => toggleGroup(group._id)}
+                          className="w-4 h-4 accent-blue-600" />
                         <span>{group.name}</span>
                       </label>
-                    ))}
+                    ))
+                  }
                 </div>
               </div>
+
+              {/* Notes */}
               <div className="pt-3">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes</span>
                 <textarea rows={3} value={form.notes} onChange={e => set("notes")(e.target.value)}
@@ -550,13 +490,12 @@ export default function PCNDetailPage() {
               <DetailRow label="Federation"        value={pcn.federation?.name || pcn.federationName} />
               <DetailRow label="Compliance Groups" value={selectedGroupNames} />
               <DetailRow label="Contract Type"     value={pcn.contractType} />
-              <DetailRow label="Annual Spend"      value={pcn.annualSpend ? `£${Number(pcn.annualSpend).toLocaleString()}` : null} />
               <DetailRow label="Hourly Rate"       value={pcn.hourlyRate != null && pcn.hourlyRate !== "" ? `£${Number(pcn.hourlyRate).toFixed(2)}/hr` : null} />
               <DetailRow label="Xero Code"         value={pcn.xeroCode} />
               <DetailRow label="Xero Category"     value={pcn.xeroCategory} />
-              <DetailRow label="Contract Start"    value={pcn.contractStartDate   ? new Date(pcn.contractStartDate).toLocaleDateString("en-GB")   : null} />
-              <DetailRow label="Renewal Date"      value={pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toLocaleDateString("en-GB") : null} />
-              <DetailRow label="Expiry Date"       value={pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toLocaleDateString("en-GB")  : null} />
+              <DetailRow label="Contract Start"    value={fmtDate(pcn.contractStartDate)} />
+              <DetailRow label="Renewal Date"      value={fmtDate(pcn.contractRenewalDate)} />
+              <DetailRow label="Expiry Date"       value={fmtDate(pcn.contractExpiryDate)} />
               {pcn.notes && (
                 <div className="pt-4 mt-2 border-t border-slate-50">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p>
@@ -567,6 +506,7 @@ export default function PCNDetailPage() {
           )}
         </div>
 
+        {/* ── Required Systems ── */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Required Systems</h3>
           <p className="text-xs text-slate-400 mb-4">Click any system to toggle</p>
@@ -593,19 +533,13 @@ export default function PCNDetailPage() {
             {contacts.length} Contact{contacts.length !== 1 ? "s" : ""}
           </p>
           <div className="flex gap-2">
-            <Btn variant="outline" size="sm" onClick={() => setMassEmail(true)}>
-              <Mail size={13} /> Mass Email
-            </Btn>
-            <Btn size="sm" onClick={openAddContact}>
-              <Plus size={13} /> Add Contact
-            </Btn>
+            <Btn variant="outline" size="sm" onClick={() => setMassEmail(true)}><Mail size={13} /> Mass Email</Btn>
+            <Btn size="sm" onClick={openAddContact}><Plus size={13} /> Add Contact</Btn>
           </div>
         </div>
-
         {contacts.length === 0 ? (
           <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
-            <Users size={32} className="opacity-40" />
-            <p className="font-semibold">No contacts yet</p>
+            <Users size={32} className="opacity-40" /><p className="font-semibold">No contacts yet</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -623,36 +557,14 @@ export default function PCNDetailPage() {
                   )}
                 </div>
                 <div className="space-y-1.5 mb-3">
-                  {c.email && (
-                    <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 truncate">
-                      <Mail size={12} className="shrink-0" /> {c.email}
-                    </a>
-                  )}
-                  {c.phone && (
-                    <p className="flex items-center gap-2 text-sm text-slate-500">
-                      <Phone size={12} className="shrink-0" /> {c.phone}
-                    </p>
-                  )}
+                  {c.email && <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 truncate"><Mail size={12} className="shrink-0" /> {c.email}</a>}
+                  {c.phone && <p className="flex items-center gap-2 text-sm text-slate-500"><Phone size={12} className="shrink-0" /> {c.phone}</p>}
                 </div>
                 <div className="flex items-center pt-2.5 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {c.isPrimary && (
-                    <span className="text-[10px] bg-amber-50 text-amber-600 font-bold px-2 py-0.5 rounded-md border border-amber-200 mr-2">
-                      Primary
-                    </span>
-                  )}
+                  {c.isPrimary && <span className="text-[10px] bg-amber-50 text-amber-600 font-bold px-2 py-0.5 rounded-md border border-amber-200 mr-2">Primary</span>}
                   <div className="ml-auto flex gap-1">
-                    <button
-                      onClick={() => openEditContact(c)}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50"
-                    >
-                      <Edit2 size={11} /> Edit
-                    </button>
-                    <button
-                      onClick={() => deleteContact(c._id)}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50"
-                    >
-                      <Trash2 size={11} /> Del
-                    </button>
+                    <button onClick={() => openEditContact(c)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50"><Edit2 size={11} /> Edit</button>
+                    <button onClick={() => deleteContact(c._id)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50"><Trash2 size={11} /> Del</button>
                   </div>
                 </div>
               </div>
@@ -663,13 +575,11 @@ export default function PCNDetailPage() {
     );
   };
 
-  const DocumentsPanel = () => (
-    <EntityDocumentsTab entityType="PCN" entityId={pcn._id} accent="blue" />
-  );
+  const DocumentsPanel = () => <EntityDocumentsTab entityType="PCN" entityId={pcn._id} accent="blue" />;
 
   const PracticesPanel = () => {
     const practices = pcn.practices || [];
-    const totalFTE = practices.reduce((s, p) => { const n = parseFloat(p.fte); return s + (isNaN(n) ? 0 : n); }, 0);
+    const totalFTE  = practices.reduce((s, p) => { const n = parseFloat(p.fte); return s + (isNaN(n) ? 0 : n); }, 0);
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -682,10 +592,10 @@ export default function PCNDetailPage() {
         {practices.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Practices",  value: practices.length,                                  color: "bg-teal-50 text-teal-700"    },
-              { label: "NDA Signed", value: practices.filter(p => p.ndaSigned).length,         color: "bg-green-50 text-green-700"  },
-              { label: "Templates",  value: practices.filter(p => p.templateInstalled).length, color: "bg-blue-50 text-blue-700"    },
-              { label: "Reports",    value: practices.filter(p => p.reportsImported).length,   color: "bg-purple-50 text-purple-700" },
+              { label:"Practices",  value:practices.length,                                  color:"bg-teal-50 text-teal-700"    },
+              { label:"NDA Signed", value:practices.filter(p=>p.ndaSigned).length,           color:"bg-green-50 text-green-700"  },
+              { label:"Templates",  value:practices.filter(p=>p.templateInstalled).length,   color:"bg-blue-50 text-blue-700"    },
+              { label:"Reports",    value:practices.filter(p=>p.reportsImported).length,     color:"bg-purple-50 text-purple-700"},
             ].map(s => (
               <div key={s.label} className={`rounded-xl px-3 py-2.5 text-center ${s.color}`}>
                 <p className="text-xl font-bold">{s.value}</p><p className="text-xs font-semibold mt-0.5">{s.label}</p>
@@ -701,18 +611,18 @@ export default function PCNDetailPage() {
           <div className="grid gap-2">
             {practices.map(p => {
               const compScore = [p.ndaSigned,p.dsaSigned,p.mouReceived,p.welcomePackSent,p.mobilisationPlanSent,p.templateInstalled,p.reportsImported].filter(Boolean).length;
-              const compPct   = Math.round((compScore / 7) * 100);
+              const compPct   = Math.round((compScore/7)*100);
               return (
                 <button key={p._id} onClick={() => navigate(`/dashboard/super-admin/clients/practice/${p._id}`)}
                   className="w-full bg-white rounded-2xl border border-slate-200 hover:border-teal-300 hover:shadow-sm transition-all px-4 py-4 flex items-center gap-4 group text-left">
                   <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0"><Stethoscope size={17} className="text-teal-600" /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[15px] font-bold text-slate-800 truncate">{p.name}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{[p.odsCode && `ODS: ${p.odsCode}`, p.fte, p.contractType].filter(Boolean).join(" · ")}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{[p.odsCode&&`ODS: ${p.odsCode}`,p.fte,p.contractType].filter(Boolean).join(" · ")}</p>
                   </div>
                   <div className="shrink-0 flex items-center gap-3">
                     <div className="text-right">
-                      <p className={`text-sm font-bold ${compPct === 100 ? "text-green-600" : compPct >= 50 ? "text-amber-500" : "text-red-500"}`}>{compPct}%</p>
+                      <p className={`text-sm font-bold ${compPct===100?"text-green-600":compPct>=50?"text-amber-500":"text-red-500"}`}>{compPct}%</p>
                       <p className="text-[10px] text-slate-400">compliance</p>
                     </div>
                     <ChevronRight size={15} className="text-slate-300 group-hover:text-teal-500 transition-colors" />
@@ -727,12 +637,12 @@ export default function PCNDetailPage() {
   };
 
   const MeetingsPanel = () => {
-    const meetings = [...(pcn.monthlyMeetings || [])].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    const meetings   = [...(pcn.monthlyMeetings||[])].sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
     const TYPE_LABEL = { monthly_review:"Monthly Review", clinician_meeting:"Clinician Meeting", governance:"Governance", other:"Other" };
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{meetings.length} Meeting{meetings.length !== 1 ? "s" : ""} logged</p>
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{meetings.length} Meeting{meetings.length!==1?"s":""} logged</p>
           <Btn size="sm" onClick={() => setMeetingModal({})}><Plus size={13} /> Add Meeting</Btn>
         </div>
         {meetings.length === 0 ? (
@@ -747,12 +657,12 @@ export default function PCNDetailPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-[15px] font-bold text-slate-800">{m.month}</p>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-md border capitalize ${M_STATUS[m.status] || M_STATUS.not_booked}`}>{m.status?.replace("_"," ")}</span>
-                    <span className="text-xs text-slate-400">{TYPE_LABEL[m.type] || m.type}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-md border capitalize ${M_STATUS[m.status]||M_STATUS.not_booked}`}>{m.status?.replace("_"," ")}</span>
+                    <span className="text-xs text-slate-400">{TYPE_LABEL[m.type]||m.type}</span>
                   </div>
                   {m.date && <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><Clock size={10} />{new Date(m.date).toLocaleDateString("en-GB",{weekday:"short",day:"2-digit",month:"short",year:"numeric"})}</p>}
                   {m.notes && <p className="text-sm text-slate-600 mt-2 leading-relaxed">{m.notes}</p>}
-                  {m.attendees?.length > 0 && <p className="text-xs text-slate-400 mt-1.5">👥 {m.attendees.join(", ")}</p>}
+                  {m.attendees?.length>0 && <p className="text-xs text-slate-400 mt-1.5">👥 {m.attendees.join(", ")}</p>}
                 </div>
                 <button onClick={() => setMeetingModal(m)} className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0"><Edit2 size={14} /></button>
               </div>
@@ -768,7 +678,7 @@ export default function PCNDetailPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{templates.length} Template{templates.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{templates.length} Template{templates.length!==1?"s":""}</p>
           <Btn size="sm" onClick={() => setTemplateModal({})}><Plus size={13} /> Add Template</Btn>
         </div>
         {templates.length === 0 ? (
@@ -806,30 +716,22 @@ export default function PCNDetailPage() {
     const [newRole,   setNewRole]   = useState("");
     const [newReason, setNewReason] = useState("");
     const [saving,    setSaving]    = useState(false);
-
     const resetForm = () => { setNewName(""); setNewEmail(""); setNewRole(""); setNewReason(""); };
 
     const handleAdd = async () => {
       if (!newName.trim()) return;
       setSaving(true);
       try {
-        const updated = [
-          ...restricted,
-          { _id: `manual-${Date.now()}`, name: newName.trim(), email: newEmail.trim(), role: newRole.trim() || "clinician", reason: newReason.trim() },
-        ];
+        const updated = [...restricted, { _id:`manual-${Date.now()}`, name:newName.trim(), email:newEmail.trim(), role:newRole.trim()||"clinician", reason:newReason.trim() }];
         await patch({ restrictedClinicians: updated });
-        setAddModal(false);
-        resetForm();
+        setAddModal(false); resetForm();
       } catch (e) { alert(e.message); }
       finally { setSaving(false); }
     };
 
     const handleRemove = async (cid) => {
       if (!confirm("Remove this restriction?")) return;
-      const updated = restricted.filter(c => {
-        const id = typeof c === "object" ? (c._id || c.id) : c;
-        return String(id) !== String(cid);
-      });
+      const updated = restricted.filter(c => String(typeof c==="object"?(c._id||c.id):c) !== String(cid));
       await patch({ restrictedClinicians: updated });
     };
 
@@ -845,7 +747,6 @@ export default function PCNDetailPage() {
           </div>
           <Btn variant="danger" size="sm" onClick={() => { resetForm(); setAddModal(true); }}><Plus size={13} /> Add Restriction</Btn>
         </div>
-
         {restricted.length === 0 ? (
           <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 py-14 flex flex-col items-center text-slate-400 gap-3">
             <UserX size={32} className="opacity-40" /><p className="font-semibold">No restricted clinicians</p>
@@ -853,17 +754,17 @@ export default function PCNDetailPage() {
         ) : (
           <div className="grid gap-2.5">
             {restricted.map(c => {
-              const cId = typeof c === "object" ? (c._id || c.id) : c;
-              const cName = typeof c === "object" ? c.name : "Unknown";
-              const cEmail = typeof c === "object" ? c.email : "";
-              const cRole = typeof c === "object" ? c.role : "";
-              const cReason = typeof c === "object" ? c.reason : "";
+              const cId     = typeof c==="object"?(c._id||c.id):c;
+              const cName   = typeof c==="object"?c.name:"Unknown";
+              const cEmail  = typeof c==="object"?c.email:"";
+              const cRole   = typeof c==="object"?c.role:"";
+              const cReason = typeof c==="object"?c.reason:"";
               return (
                 <div key={String(cId)} className="bg-white rounded-2xl border border-red-100 p-4 flex items-center gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0"><UserX size={17} className="text-red-500" /></div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-bold text-slate-800">{cName}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{cEmail}{cRole ? ` · ${cRole}` : ""}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{cEmail}{cRole?` · ${cRole}`:""}</p>
                     {cReason && <p className="text-xs text-red-500 mt-1">Reason: {cReason}</p>}
                   </div>
                   <button onClick={() => handleRemove(cId)}
@@ -875,31 +776,26 @@ export default function PCNDetailPage() {
             })}
           </div>
         )}
-
         {addModal && (
           <ModalShell title="Add Restricted Clinician" onClose={() => { setAddModal(false); resetForm(); }}
-            footer={<><Btn variant="ghost" cls="flex-1" onClick={() => { setAddModal(false); resetForm(); }}>Cancel</Btn><Btn variant="danger" cls="flex-1" onClick={handleAdd} disabled={saving || !newName.trim()}>{saving ? <Spinner /> : <UserX size={14} />} Flag as Restricted</Btn></>}>
+            footer={<><Btn variant="ghost" cls="flex-1" onClick={() => { setAddModal(false); resetForm(); }}>Cancel</Btn><Btn variant="danger" cls="flex-1" onClick={handleAdd} disabled={saving||!newName.trim()}>{saving?<Spinner/>:<UserX size={14}/>} Flag as Restricted</Btn></>}>
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Clinician Name *</label>
-              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Dr. John Smith"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+              <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Dr. John Smith" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
-                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email"
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+                <input value={newEmail} onChange={e=>setNewEmail(e.target.value)} type="email" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Role</label>
-                <input value={newRole} onChange={e => setNewRole(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
+                <input value={newRole} onChange={e=>setNewRole(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 transition-all" />
               </div>
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Reason for Restriction</label>
-              <textarea rows={3} value={newReason} onChange={e => setNewReason(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 resize-none transition-all" />
+              <textarea rows={3} value={newReason} onChange={e=>setNewReason(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-red-400 resize-none transition-all" />
             </div>
           </ModalShell>
         )}
@@ -922,7 +818,7 @@ export default function PCNDetailPage() {
   return (
     <div className="space-y-4 pb-8">
       <nav className="flex items-center gap-1.5 text-sm flex-wrap">
-        {[{ label:"Client Management", path:"/dashboard/super-admin/clients" }, { label:"Clients", path:"/dashboard/super-admin/clients/pcn" }].map((c, i) => (
+        {[{label:"Client Management",path:"/dashboard/super-admin/clients"},{label:"Clients",path:"/dashboard/super-admin/clients/pcn"}].map((c,i) => (
           <span key={i} className="flex items-center gap-1.5">
             <button onClick={() => navigate(c.path)} className="text-slate-400 hover:text-blue-600 font-medium transition-colors">{c.label}</button>
             <ChevronRight size={13} className="text-slate-300" />
@@ -938,15 +834,17 @@ export default function PCNDetailPage() {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{pcn.name}</h1>
             <div className="flex flex-wrap items-center gap-3 mt-2">
               {pcn.icb?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={12} /> {pcn.icb.name}</span>}
-              {(pcn.federation?.name || pcn.federationName) && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {pcn.federation?.name || pcn.federationName}</span>}
+              {(pcn.federation?.name||pcn.federationName) && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {pcn.federation?.name||pcn.federationName}</span>}
               {pcn.contractType && <span className="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-md border border-purple-200">{pcn.contractType}</span>}
-              {pcn.hourlyRate > 0 && <span className="text-sm text-green-600 font-bold flex items-center gap-1"><DollarSign size={12} />£{Number(pcn.hourlyRate).toLocaleString()}/hr</span>}
-              {pcn.priority && pcn.priority !== "normal" && (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${pcn.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+              {pcn.hourlyRate != null && pcn.hourlyRate !== "" && (
+                <span className="text-sm text-green-600 font-bold flex items-center gap-1"><DollarSign size={12} />£{Number(pcn.hourlyRate).toFixed(2)}/hr</span>
+              )}
+              {pcn.priority&&pcn.priority!=="normal" && (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${pcn.priority==="high"?"bg-red-50 text-red-700 border-red-200":"bg-amber-50 text-amber-700 border-amber-200"}`}>
                   {pcn.priority.toUpperCase()}
                 </span>
               )}
-              {(pcn.tags || []).map(tag => (
+              {(pcn.tags||[]).map(tag=>(
                 <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{tag}</span>
               ))}
             </div>
@@ -962,46 +860,27 @@ export default function PCNDetailPage() {
         <div className="flex gap-1 p-2 overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
           {TABS.map(t => { const Icon = t.icon; return (
             <button key={t.id} onClick={() => dispatch(setActivePcnDetailTab(t.id))}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 ${tab === t.id ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}>
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 ${tab===t.id?"bg-blue-600 text-white shadow-sm":"text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}>
               <Icon size={14} /> {t.label}
             </button>
-          ); })}
+          );})}
         </div>
       </div>
 
       <div>{PANELS[tab]}</div>
 
       {contactModal !== null && (
-        <ContactModal
-          mode={contactModal.mode}
-          existing={contactModal.mode === "edit" ? contactModal.contact : null}
-          onClose={closeContact}
-          onSave={saveContact}
-        />
+        <ContactModal mode={contactModal.mode} existing={contactModal.mode==="edit"?contactModal.contact:null} onClose={closeContact} onSave={saveContact} />
       )}
-
       {meetingModal !== null && (
-        <MeetingModal
-          existing={meetingModal?._id ? meetingModal : null}
-          onClose={() => setMeetingModal(null)}
-          onSave={saveMeeting}
-        />
+        <MeetingModal existing={meetingModal?._id?meetingModal:null} onClose={() => setMeetingModal(null)} onSave={saveMeeting} />
       )}
       {templateModal !== null && (
-        <TemplateModal
-          existing={templateModal?._id ? templateModal : null}
-          onClose={() => setTemplateModal(null)}
-          onSave={saveTemplate}
-        />
+        <TemplateModal existing={templateModal?._id?templateModal:null} onClose={() => setTemplateModal(null)} onSave={saveTemplate} />
       )}
       {massEmail && (
-        <MassEmailModal
-          entityType="PCN"
-          entityId={pcn._id}
-          contacts={pcn.contacts || []}
-          onClose={() => setMassEmail(false)}
-        />
+        <MassEmailModal entityType="PCN" entityId={pcn._id} contacts={pcn.contacts||[]} onClose={() => setMassEmail(false)} />
       )}
     </div>
   );
-} 
+}
