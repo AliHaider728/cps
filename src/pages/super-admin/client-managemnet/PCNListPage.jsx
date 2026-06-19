@@ -65,9 +65,11 @@ const buildPCNForm = (existing) => ({
   icb:                getId(existing?.icb)         || "",
   federation:         getId(existing?.federation)  || "",
   contractType:       existing?.contractType       || "",
-  annualSpend:        existing?.annualSpend        || "",
+  hourlyRate:         existing?.hourlyRate         || "",
   xeroCode:           existing?.xeroCode           || "",
   xeroCategory:       existing?.xeroCategory       || "",
+  contractStartDate: existing?.contractStartDate
+    ? new Date(existing.contractStartDate).toISOString().split("T")[0] : "",
   contractRenewalDate: existing?.contractRenewalDate
     ? new Date(existing.contractRenewalDate).toISOString().split("T")[0] : "",
   contractExpiryDate: existing?.contractExpiryDate
@@ -245,7 +247,7 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
                 handleContractTypeChange   // ✅ triggers group filter
               )}
             </F>
-            <F label="Annual Spend (£)">{inp("annualSpend", "0", "number")}</F>
+            <F label="Hourly Rate (£)">{inp("hourlyRate", "0", "number")}</F>
           </div>
 
           {/* ── Compliance Groups (filtered by contract type) ─────────── */}
@@ -317,9 +319,10 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
             <F label="Xero Category">{sel("xeroCategory", [["PCN","PCN"],["GPX","GPX"],["EAX","EAX"]])}</F>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <F label="Contract Renewal">{inp("contractRenewalDate", "", "date")}</F>
-            <F label="Contract Expiry">{inp("contractExpiryDate",   "", "date")}</F>
+          <div className="grid grid-cols-3 gap-3">
+            <F label="Start Date">{inp("contractStartDate", "", "date")}</F>
+            <F label="Renewal Date">{inp("contractRenewalDate", "", "date")}</F>
+            <F label="Expiry Date">{inp("contractExpiryDate",   "", "date")}</F>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -399,8 +402,11 @@ export default function PCNListPage() {
     });
   }, [filters, pcns, fedMap]);
 
-  const totalSpend = useMemo(() =>
-    filteredPCNs.reduce((s, p) => s + (Number(p.annualSpend) || 0), 0), [filteredPCNs]);
+  const avgHourlyRate = useMemo(() => {
+    const rated = filteredPCNs.filter((p) => Number(p.hourlyRate) > 0);
+    if (!rated.length) return 0;
+    return rated.reduce((s, p) => s + Number(p.hourlyRate), 0) / rated.length;
+  }, [filteredPCNs]);
 
   const handleSave = async (form) => {
     const id = getId(modal);
@@ -472,30 +478,45 @@ export default function PCNListPage() {
       cellClassName: "px-4 py-3 align-top",
     },
     {
-      header: "Annual Spend",
-      id: "annualSpend",
+      header: "Hourly Rate",
+      id: "hourlyRate",
       hideOnMobile: true,
-      render: (pcn) => pcn.annualSpend
-        ? <span className="text-sm font-semibold text-green-700">£{Number(pcn.annualSpend).toLocaleString()}</span>
+      render: (pcn) => pcn.hourlyRate
+        ? <span className="text-sm font-semibold text-green-700">£{Number(pcn.hourlyRate).toLocaleString()}/hr</span>
         : <span className="text-slate-400">—</span>,
       cellClassName: "px-4 py-3 align-top whitespace-nowrap",
     },
     {
-      header: "Renewal",
-      id: "renewal",
+      header: "Contract Dates",
+      id: "dates",
       hideOnMobile: true,
       render: (pcn) => {
-        if (!pcn.contractRenewalDate) return <span className="text-slate-400">—</span>;
-        const date     = new Date(pcn.contractRenewalDate);
-        const daysLeft = Math.ceil((date - Date.now()) / 86_400_000);
-        const isUrgent = daysLeft <= 30 && daysLeft > 0;
-        const isPast   = daysLeft <= 0;
+        if (!pcn.contractStartDate && !pcn.contractRenewalDate && !pcn.contractExpiryDate) {
+          return <span className="text-slate-400">—</span>;
+        }
+        const renewal   = pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate) : null;
+        const daysLeft  = renewal ? Math.ceil((renewal - Date.now()) / 86_400_000) : null;
+        const isUrgent  = daysLeft !== null && daysLeft <= 30 && daysLeft > 0;
+        const isPast    = daysLeft !== null && daysLeft <= 0;
         return (
-          <span className={`text-sm ${isPast ? "text-red-600 font-semibold" : isUrgent ? "text-amber-600 font-semibold" : "text-slate-600"}`}>
-            {formatDate(pcn.contractRenewalDate)}
-            {isUrgent && <span className="ml-1 text-xs">({daysLeft}d)</span>}
-            {isPast   && <span className="ml-1 text-xs">(overdue)</span>}
-          </span>
+          <div className="space-y-0.5 text-xs leading-tight">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold w-11 shrink-0">Start</span>
+              <span className="text-slate-600">{formatDate(pcn.contractStartDate)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold w-11 shrink-0">Renew</span>
+              <span className={isPast ? "text-red-600 font-semibold" : isUrgent ? "text-amber-600 font-semibold" : "text-slate-600"}>
+                {formatDate(pcn.contractRenewalDate)}
+                {isUrgent && ` (${daysLeft}d)`}
+                {isPast && " (overdue)"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold w-11 shrink-0">Expiry</span>
+              <span className="text-slate-600">{formatDate(pcn.contractExpiryDate)}</span>
+            </div>
+          </div>
         );
       },
       cellClassName: "px-4 py-3 align-top whitespace-nowrap",
@@ -548,9 +569,9 @@ export default function PCNListPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Primary Care Networks</h1>
           <p className="mt-1 text-sm text-slate-500">
             {filteredPCNs.length} visible of {pcns.length} Clients
-            {totalSpend > 0 && (
+            {avgHourlyRate > 0 && (
               <span className="ml-3 text-green-700 font-semibold">
-                · Total: £{totalSpend.toLocaleString()}
+                · Avg rate: £{avgHourlyRate.toFixed(2)}/hr
               </span>
             )}
           </p>
@@ -635,4 +656,4 @@ export default function PCNListPage() {
       )}
     </div>
   );
-}
+} 

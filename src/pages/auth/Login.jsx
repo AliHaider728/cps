@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import ReCAPTCHA from "react-google-recaptcha";
+import { GoogleReCaptchaProvider, useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import { useAuth } from "../../context/AuthContext.jsx";
 import ForceChangePassword from "./ForceChangePassword.jsx";
 
-const Login = () => {
+const LoginForm = () => {
   const { login }  = useAuth();
   const navigate   = useNavigate();
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   const [formData,       setFormData]      = useState({ email: "", password: "", rememberMe: false });
   const [loading,        setLoading]       = useState(false);
@@ -14,15 +15,13 @@ const Login = () => {
   const [showPassword,   setShowPassword]  = useState(false);
   const [isRateLimited,  setIsRateLimited] = useState(false);
   const [countdown,      setCountdown]     = useState(0);
-  const [recaptchaToken, setRecaptchaToken] = useState(null);
 
   // ── Force change password state ───────────────────────────────
   const [showForceChange, setShowForceChange] = useState(false);
   const [tempToken,       setTempToken]       = useState("");
   const [pendingRedirect, setPendingRedirect] = useState("");
 
-  const timerRef     = useRef(null);
-  const recaptchaRef = useRef(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     if (isRateLimited && countdown > 0) {
@@ -57,8 +56,8 @@ const Login = () => {
     e.preventDefault();
     if (isRateLimited) return;
 
-    if (!recaptchaToken) {
-      setError("Please complete the reCAPTCHA verification.");
+    if (!executeRecaptcha) {
+      setError("reCAPTCHA not ready yet. Please try again in a moment.");
       return;
     }
 
@@ -66,6 +65,9 @@ const Login = () => {
     setError("");
 
     try {
+      // v3: token is generated fresh per submit, scoped to the "login" action
+      const recaptchaToken = await executeRecaptcha("login");
+
       const result = await login(formData.email, formData.password, recaptchaToken);
       if (result.mustChangePassword) {
         setTempToken(result.token);
@@ -75,9 +77,7 @@ const Login = () => {
         navigate(result.redirectTo);
       }
     } catch (err) {
-      // Reset reCAPTCHA on every failed attempt — token is one-time use
-      recaptchaRef.current?.reset();
-      setRecaptchaToken(null);
+      // v3 has no widget/ref to reset — a fresh token is generated on every submit anyway
 
       const status  = err.response?.status;
       const message = err.response?.data?.message || err.message || "Invalid email or password";
@@ -118,7 +118,6 @@ const Login = () => {
         @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
         .countdown-ring { animation: ring-pulse 1s ease-in-out infinite; }
         @keyframes ring-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3);} 50%{box-shadow:0 0 0 8px rgba(239,68,68,0);} }
-        .recaptcha-wrap { display:flex; justify-content:center; }
       `}</style>
 
       {/* ── Force Change Password Modal ── */}
@@ -262,27 +261,18 @@ const Login = () => {
                 <a href="/forgot-password" className="text-sm text-blue-600 font-semibold hover:text-blue-800 hover:underline transition-colors">Forgot password?</a>
               </div>
 
-              {/* ── Google reCAPTCHA v2 ── */}
-              <div className="recaptcha-wrap mb-6">
-                <ReCAPTCHA
-                  ref={recaptchaRef}
-                  sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                  onChange={(token) => setRecaptchaToken(token)}
-                  onExpired={() => setRecaptchaToken(null)}
-                  theme="light"
-                />
-              </div>
+              {/* No visible reCAPTCHA widget in v3 — verification runs invisibly on submit */}
 
               {/* Submit */}
               <button
                 type="submit"
-                disabled={loading || isRateLimited || !recaptchaToken}
+                disabled={loading || isRateLimited}
                 className="btn-shine w-full py-3.5 text-white rounded-xl font-bold text-base tracking-wide relative overflow-hidden transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed hover:enabled:-translate-y-px"
                 style={{
                   background: isRateLimited
                     ? "linear-gradient(135deg,#9ca3af 0%,#6b7280 100%)"
                     : "linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)",
-                  boxShadow: (loading || isRateLimited || !recaptchaToken) ? "none" : "0 4px 14px rgba(37,99,235,0.3)",
+                  boxShadow: (loading || isRateLimited) ? "none" : "0 4px 14px rgba(37,99,235,0.3)",
                 }}
               >
                 <div className="flex items-center justify-center gap-2 relative z-10">
@@ -318,6 +308,13 @@ const Login = () => {
 
             <div className="mt-10 text-center">
               <span className="shiny text-xs font-semibold text-slate-400 uppercase tracking-widest">Powered by TecnoSphere</span>
+              <p className="text-[10px] text-slate-400 mt-3">
+                This site is protected by reCAPTCHA and the Google{" "}
+                <a href="https://policies.google.com/privacy" className="underline" target="_blank" rel="noreferrer">Privacy Policy</a>{" "}
+                and{" "}
+                <a href="https://policies.google.com/terms" className="underline" target="_blank" rel="noreferrer">Terms of Service</a>{" "}
+                apply.
+              </p>
               <div className="flex justify-center mt-4">
                 <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-full px-4 py-1.5">
                   <div className="ndot w-2 h-2 rounded-full bg-blue-600" />
@@ -331,5 +328,12 @@ const Login = () => {
     </>
   );
 };
+
+// Wrap with the v3 provider so useGoogleReCaptcha() works inside LoginForm
+const Login = () => (
+  <GoogleReCaptchaProvider reCaptchaKey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}>
+    <LoginForm />
+  </GoogleReCaptchaProvider>
+);
 
 export default Login;

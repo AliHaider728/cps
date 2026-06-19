@@ -197,7 +197,7 @@ const ContactModal = ({ mode, existing, onClose, onSave }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   MEETING MODAL  ✅ FIX #2: useEffect to sync form when existing changes
+   MEETING MODAL  #2: useEffect to sync form when existing changes
 ══════════════════════════════════════════════════════════ */
 const MeetingModal = ({ existing, onClose, onSave }) => {
   const [form, setForm] = useState({
@@ -211,7 +211,7 @@ const MeetingModal = ({ existing, onClose, onSave }) => {
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
-  // ✅ FIX #2: useEffect so form stays in sync if existing prop changes
+  // #2: useEffect so form stays in sync if existing prop changes
   useEffect(() => {
     if (existing) {
       setForm({
@@ -297,14 +297,14 @@ const MeetingModal = ({ existing, onClose, onSave }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   TEMPLATE MODAL  ✅ FIX #3: useEffect to sync form when existing changes
+   TEMPLATE MODAL  #3: useEffect to sync form when existing changes
 ══════════════════════════════════════════════════════════ */
 const TemplateModal = ({ existing, onClose, onSave }) => {
   const [form, setForm] = useState({ name: "", subject: "", body: "" });
   const [saving, setSaving] = useState(false);
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
-  // ✅ FIX #3: useEffect so form stays in sync if existing prop changes
+  // #3: useEffect so form stays in sync if existing prop changes
   useEffect(() => {
     if (existing) {
       setForm({
@@ -401,7 +401,7 @@ export default function PCNDetailPage() {
     await patch({ requiredSystems: rs }, `sys_${sys}`);
   }, [pcn, patch]);
 
-  // ✅ FIX #4: new contacts get a generated _id
+  // #4: new contacts get a generated _id
   const saveContact = async (form) => {
     const contacts = [...(pcn?.contacts || [])];
     if (form._id) {
@@ -468,8 +468,10 @@ export default function PCNDetailPage() {
     const buildForm = () => ({
       contractType:        pcn.contractType       || "",
       annualSpend:         pcn.annualSpend        || "",
+      hourlyRate:          pcn.hourlyRate         ?? "",
       xeroCode:            pcn.xeroCode           || "",
       xeroCategory:        pcn.xeroCategory       || "",
+      contractStartDate:   pcn.contractStartDate   ? new Date(pcn.contractStartDate).toISOString().split("T")[0]   : "",
       contractRenewalDate: pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
       contractExpiryDate:  pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
       complianceGroups: (pcn.complianceGroups?.length
@@ -479,7 +481,7 @@ export default function PCNDetailPage() {
     });
     const [form, setForm] = useState(buildForm);
 
-    // ✅ FIX #5: depend on full pcn object, not just pcn._id
+    // #5: depend on full pcn object, not just pcn._id
     useEffect(() => { setForm(buildForm()); }, [pcn]); // eslint-disable-line
 
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
@@ -514,10 +516,12 @@ export default function PCNDetailPage() {
           </div>
           {editing ? (
             <div>
-              <EditRow label="Contract Type"  value={form.contractType}        onChange={set("contractType")}        options={["ARRS","EA","Direct","Mixed"]} />
-              <EditRow label="Annual Spend £" value={form.annualSpend}         onChange={set("annualSpend")}         type="number" />
+              <EditRow label="Contract Type"   value={form.contractType}        onChange={set("contractType")}        options={["ARRS","EA","Direct","Mixed"]} />
+              <EditRow label="Annual Spend £"  value={form.annualSpend}         onChange={set("annualSpend")}         type="number" />
+              <EditRow label="Hourly Rate £/hr" value={form.hourlyRate}         onChange={set("hourlyRate")}          type="number" />
               <EditRow label="Xero Code"      value={form.xeroCode}            onChange={set("xeroCode")} />
               <EditRow label="Xero Category"  value={form.xeroCategory}        onChange={set("xeroCategory")}        options={["PCN","GPX","EAX"]} />
+              <EditRow label="Start Date"     value={form.contractStartDate}   onChange={set("contractStartDate")}   type="date" />
               <EditRow label="Renewal Date"   value={form.contractRenewalDate} onChange={set("contractRenewalDate")} type="date" />
               <EditRow label="Expiry Date"    value={form.contractExpiryDate}  onChange={set("contractExpiryDate")}  type="date" />
               <div className="pt-3">
@@ -547,8 +551,10 @@ export default function PCNDetailPage() {
               <DetailRow label="Compliance Groups" value={selectedGroupNames} />
               <DetailRow label="Contract Type"     value={pcn.contractType} />
               <DetailRow label="Annual Spend"      value={pcn.annualSpend ? `£${Number(pcn.annualSpend).toLocaleString()}` : null} />
+              <DetailRow label="Hourly Rate"       value={pcn.hourlyRate != null && pcn.hourlyRate !== "" ? `£${Number(pcn.hourlyRate).toFixed(2)}/hr` : null} />
               <DetailRow label="Xero Code"         value={pcn.xeroCode} />
               <DetailRow label="Xero Category"     value={pcn.xeroCategory} />
+              <DetailRow label="Contract Start"    value={pcn.contractStartDate   ? new Date(pcn.contractStartDate).toLocaleDateString("en-GB")   : null} />
               <DetailRow label="Renewal Date"      value={pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate).toLocaleDateString("en-GB") : null} />
               <DetailRow label="Expiry Date"       value={pcn.contractExpiryDate  ? new Date(pcn.contractExpiryDate).toLocaleDateString("en-GB")  : null} />
               {pcn.notes && (
@@ -934,7 +940,7 @@ export default function PCNDetailPage() {
               {pcn.icb?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={12} /> {pcn.icb.name}</span>}
               {(pcn.federation?.name || pcn.federationName) && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {pcn.federation?.name || pcn.federationName}</span>}
               {pcn.contractType && <span className="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-md border border-purple-200">{pcn.contractType}</span>}
-              {pcn.annualSpend > 0 && <span className="text-sm text-green-600 font-bold flex items-center gap-1"><DollarSign size={12} />£{Number(pcn.annualSpend).toLocaleString()}</span>}
+              {pcn.hourlyRate > 0 && <span className="text-sm text-green-600 font-bold flex items-center gap-1"><DollarSign size={12} />£{Number(pcn.hourlyRate).toLocaleString()}/hr</span>}
               {pcn.priority && pcn.priority !== "normal" && (
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${pcn.priority === "high" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
                   {pcn.priority.toUpperCase()}
@@ -998,4 +1004,4 @@ export default function PCNDetailPage() {
       )}
     </div>
   );
-}
+} 
