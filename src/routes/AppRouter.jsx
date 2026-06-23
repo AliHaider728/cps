@@ -12,6 +12,7 @@ import NotFound       from "../pages/errors/NotFound.jsx";
 const SuperAdminDashboard = lazy(() => import("../pages/super-admin/SuperAdminDashboard.jsx"));
 const ManageUsers         = lazy(() => import("../pages/super-admin/ManageUsers.jsx"));
 const AuditTrail          = lazy(() => import("../pages/super-admin/AuditTrail.jsx"));
+const AuditDetailPage     = lazy(() => import("../pages/super-admin/AuditDetailPage.jsx"));
 
 // ── Module 2 — Client Management
 const ClientsPage        = lazy(() => import("../pages/super-admin/client-managemnet/ClientsPage.jsx"));
@@ -99,6 +100,7 @@ const AppRouter = () => (
     <Route path="/dashboard/super-admin"       element={<P roles={["super_admin"]}><SuperAdminDashboard /></P>} />
     <Route path="/dashboard/super-admin/users" element={<P roles={["super_admin"]}><ManageUsers /></P>} />
     <Route path="/dashboard/super-admin/audit" element={<P roles={["super_admin"]}><AuditTrail /></P>} />
+    <Route path="/dashboard/super-admin/audit/:id" element={<P roles={["super_admin"]}><AuditDetailPage /></P>} />
 
     {/* ── Module 2 — Client Management ─────────────────── */}
     <Route path="/dashboard/super-admin/clients"

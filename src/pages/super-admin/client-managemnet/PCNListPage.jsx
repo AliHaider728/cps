@@ -41,7 +41,7 @@ const resolveFederationName = (pcn, fedMap) => {
   return null;
 };
 
-/* ─── Helper: get id (Supabase uses `id`, not `_id`) ─────────────────── */
+/* ─── Helper: get id ──────────────────────────────────────────────────── */
 const getId = (g) => g?.id ?? g?._id ?? g;
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
@@ -78,7 +78,6 @@ const buildPCNForm = (existing) => ({
   tags:     existing?.tags?.join(", ") || "",
   notes:    existing?.notes || "",
 
-  /* ── compliance groups: normalize to array of IDs ── */
   complianceGroups: existing?.complianceGroups?.length
     ? existing.complianceGroups.map(getId).filter(Boolean)
     : existing?.complianceGroup
@@ -96,33 +95,69 @@ const PRIORITY_STYLE = {
 };
 
 /* ─── PCN Modal ───────────────────────────────────────────────────────── */
-const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
-  const [form,   setForm]  = useState(() => buildPCNForm(existing));
+const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, onSave }) => {
+  const [form,   setForm]   = useState(() => buildPCNForm(existing));
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState("");
 
   useEffect(() => { setForm(buildPCNForm(existing)); }, [existing]);
 
-  /* ── Federations filtered by selected ICB ── */
-  const filteredFeds = federations.filter(
-    (f) => !form.icb || String(getId(f.icb) || "") === String(form.icb)
-  );
+  /* ── KEY FIX: Federations filtered by selected ICB ──────────────────
+     Previously: filtering was too strict on initial load — if icb wasn't
+     loaded yet, filteredFeds was empty and the saved federation value
+     couldn't match any option, so the select fell back to "None".
 
-  /* ── ✅ KEY FIX: Filter groups by selected contract type ──────────────
-     Rules:
-      - If group.applicableContractTypes is empty → show for ALL contract types
-      - If contractType is not yet selected → show ALL groups
-      - Otherwise → only show groups that include the selected contractType
+     Now: we ALWAYS include the currently-saved federation in the list
+     (even if the ICB filter would normally exclude it), so the value
+     is always selectable and never silently reset to "".
   ─────────────────────────────────────────────────────────────────────── */
+  const filteredFeds = useMemo(() => {
+    const savedFedId = String(form.federation || "");
+
+    return federations.filter((f) => {
+      const fedId = String(getId(f) || "");
+
+      // Always keep the currently selected federation so it stays visible
+      if (savedFedId && fedId === savedFedId) return true;
+
+      // If no ICB selected yet, show all
+      if (!form.icb) return true;
+
+      // Otherwise filter by matching ICB
+      return String(getId(f.icb) || "") === String(form.icb);
+    });
+  }, [federations, form.icb, form.federation]);
+
+  /* ── Compliance groups filtered by contract type ─────────────────── */
   const filteredGroups = useMemo(() => {
-    if (!form.contractType) return groups; // no contract type selected → show all
+    if (!form.contractType) return groups;
     return groups.filter((g) => {
       const types = g.applicableContractTypes || g.applicable_contract_types || [];
       return types.length === 0 || types.includes(form.contractType);
     });
   }, [groups, form.contractType]);
 
-  /* When contract type changes, remove any selected groups that are no longer valid */
+  /* ── When ICB changes, reset federation ONLY if the current
+     federation doesn't belong to the newly selected ICB ────────────── */
+  const handleIcbChange = (newIcb) => {
+    setForm((cur) => {
+      // Check if current federation belongs to the new ICB
+      const currentFed = federations.find(
+        (f) => String(getId(f)) === String(cur.federation)
+      );
+      const fedBelongsToNewIcb =
+        currentFed && String(getId(currentFed.icb) || "") === String(newIcb);
+
+      return {
+        ...cur,
+        icb: newIcb,
+        // Only clear federation if it doesn't belong to the new ICB
+        federation: fedBelongsToNewIcb ? cur.federation : "",
+      };
+    });
+  };
+
+  /* When contract type changes, remove groups that are no longer valid */
   const handleContractTypeChange = (newType) => {
     setForm((cur) => {
       const validGroupIds = new Set(
@@ -136,7 +171,6 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
       return {
         ...cur,
         contractType:     newType,
-        // auto-deselect groups that don't apply to the new contract type
         complianceGroups: cur.complianceGroups.filter((id) => validGroupIds.has(String(id))),
       };
     });
@@ -156,8 +190,7 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
 
   const handle = async () => {
     if (!form.name.trim()) { setError("Client name is required"); return; }
-    if (!form.icb)          { setError("ICB is required"); return; }
-    setSaving(true); setError("");
+        setSaving(true); setError("");
     try {
       const payload = {
         ...form,
@@ -211,10 +244,10 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
           <F label="Client Name *">{inp("name", "e.g. Salford Central Client")}</F>
 
           <div className="grid grid-cols-2 gap-3">
-            <F label="ICB *">
+            <F label="ICB">
               <select
                 value={form.icb} autoComplete="off"
-                onChange={(e) => setForm((cur) => ({ ...cur, icb: e.target.value, federation: "" }))}
+                onChange={(e) => handleIcbChange(e.target.value)}
                 className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
               >
                 <option value="">Select ICB…</option>
@@ -225,32 +258,34 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
             </F>
             <F label="Federation / INT">
               <select
-                value={form.federation} autoComplete="off"
+                value={fedsLoading ? "" : form.federation}
+                autoComplete="off"
+                disabled={fedsLoading}
                 onChange={(e) => setForm((cur) => ({ ...cur, federation: e.target.value }))}
-                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none disabled:opacity-60 disabled:cursor-wait"
               >
-                <option value="">None</option>
-                {filteredFeds.map((fed) => (
+                <option value="">{fedsLoading ? "Loading…" : "None"}</option>
+                {!fedsLoading && filteredFeds.map((fed) => (
                   <option key={getId(fed)} value={getId(fed)}>{fed.name}</option>
                 ))}
               </select>
             </F>
           </div>
 
-          {/* Contract Type — uses custom onChange to also filter groups */}
+          {/* Contract Type */}
           <div className="grid grid-cols-2 gap-3">
             <F label="Contract Type">
               {sel(
                 "contractType",
                 [["ARRS","ARRS"],["EA","EA"],["Direct","Direct"],["Mixed","Mixed"]],
                 "Select type…",
-                handleContractTypeChange   // ✅ triggers group filter
+                handleContractTypeChange
               )}
             </F>
             <F label="Hourly Rate (£)">{inp("hourlyRate", "0", "number")}</F>
           </div>
 
-          {/* ── Compliance Groups (filtered by contract type) ─────────── */}
+          {/* Compliance Groups */}
           <F label="Compliance Groups">
             {!form.contractType ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
@@ -263,9 +298,9 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
             ) : (
               <div className="space-y-1.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 max-h-44 [scrollbar-width:thin]">
                 {filteredGroups.map((g) => {
-                  const gId      = String(getId(g));
-                  const checked  = (form.complianceGroups || []).map(String).includes(gId);
-                  const types    = g.applicableContractTypes || g.applicable_contract_types || [];
+                  const gId     = String(getId(g));
+                  const checked = (form.complianceGroups || []).map(String).includes(gId);
+                  const types   = g.applicableContractTypes || g.applicable_contract_types || [];
 
                   return (
                     <label key={gId} className="flex cursor-pointer items-start gap-2.5 rounded-lg p-2 hover:bg-slate-100 transition-colors">
@@ -277,13 +312,11 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          {/* colour dot */}
                           {g.colour && (
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.colour }} />
                           )}
                           <span className="text-sm font-medium text-slate-700">{g.name}</span>
                         </div>
-                        {/* show applicable contract type badges */}
                         {types.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-0.5">
                             {types.map((t) => (
@@ -305,8 +338,6 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
                 })}
               </div>
             )}
-
-            {/* selected count */}
             {(form.complianceGroups || []).length > 0 && (
               <p className="mt-1.5 text-xs font-semibold text-purple-700">
                 {form.complianceGroups.length} group{form.complianceGroups.length !== 1 ? "s" : ""} selected
@@ -322,7 +353,7 @@ const PCNModal = ({ existing, icbs, federations, groups, onClose, onSave }) => {
           <div className="grid grid-cols-3 gap-3">
             <F label="Start Date">{inp("contractStartDate", "", "date")}</F>
             <F label="Renewal Date">{inp("contractRenewalDate", "", "date")}</F>
-            <F label="Expiry Date">{inp("contractExpiryDate",   "", "date")}</F>
+            <F label="Expiry Date">{inp("contractExpiryDate", "", "date")}</F>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -366,7 +397,7 @@ export default function PCNListPage() {
 
   const { data: pcnData, isLoading, refetch } = usePCNs();
   const { data: icbData }   = useICBs();
-  const { data: fedData }   = useFederations();
+  const { data: fedData, isLoading: fedsLoading }   = useFederations();
   const { data: groupData } = useDocumentGroups({ active: true });
 
   const pcns   = pcnData?.pcns        || [];
@@ -421,7 +452,6 @@ export default function PCNListPage() {
     catch (e) { alert(e.message); }
   };
 
-  /* ─── Table columns ─────────────────────────────────────────── */
   const columns = [
     {
       header: "PCN / Client",
@@ -494,10 +524,10 @@ export default function PCNListPage() {
         if (!pcn.contractStartDate && !pcn.contractRenewalDate && !pcn.contractExpiryDate) {
           return <span className="text-slate-400">—</span>;
         }
-        const renewal   = pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate) : null;
-        const daysLeft  = renewal ? Math.ceil((renewal - Date.now()) / 86_400_000) : null;
-        const isUrgent  = daysLeft !== null && daysLeft <= 30 && daysLeft > 0;
-        const isPast    = daysLeft !== null && daysLeft <= 0;
+        const renewal  = pcn.contractRenewalDate ? new Date(pcn.contractRenewalDate) : null;
+        const daysLeft = renewal ? Math.ceil((renewal - Date.now()) / 86_400_000) : null;
+        const isUrgent = daysLeft !== null && daysLeft <= 30 && daysLeft > 0;
+        const isPast   = daysLeft !== null && daysLeft <= 0;
         return (
           <div className="space-y-0.5 text-xs leading-tight">
             <div className="flex items-center gap-1.5">
@@ -649,6 +679,7 @@ export default function PCNListPage() {
           existing={modal === "add" ? null : modal}
           icbs={icbs}
           federations={feds}
+          fedsLoading={fedsLoading}
           groups={groups}
           onClose={() => setModal(null)}
           onSave={handleSave}
@@ -656,4 +687,4 @@ export default function PCNListPage() {
       )}
     </div>
   );
-} 
+}

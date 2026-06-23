@@ -377,22 +377,28 @@ export default function PCNDetailPage() {
 
   /* ════════════ TAB PANELS ════════════════════════════════ */
 
-  /* ── UPDATED OverviewPanel — annualSpend REMOVED, hourlyRate kept ── */
+  /* ── UPDATED OverviewPanel ──
+     - annualSpend removed, hourlyRate kept
+     - ✅ NEW: Name, Priority, Tags now editable (parity with list-page modal)
+  ── */
   const OverviewPanel = () => {
     const [editing, setEditing] = useState(false);
     const [saving,  setSaving]  = useState(false);
 
     const buildForm = () => ({
-      contractType:        pcn.contractType        || "",
-      hourlyRate:          pcn.hourlyRate          ?? "",
-      xeroCode:            pcn.xeroCode            || "",
-      xeroCategory:        pcn.xeroCategory        || "",
-      contractStartDate:   pcn.contractStartDate
+      name:                 pcn.name                 || "",                 // ✅ NEW
+      contractType:         pcn.contractType        || "",
+      hourlyRate:           pcn.hourlyRate          ?? "",
+      xeroCode:             pcn.xeroCode            || "",
+      xeroCategory:         pcn.xeroCategory        || "",
+      contractStartDate:    pcn.contractStartDate
         ? new Date(pcn.contractStartDate).toISOString().split("T")[0]   : "",
-      contractRenewalDate: pcn.contractRenewalDate
+      contractRenewalDate:  pcn.contractRenewalDate
         ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
-      contractExpiryDate:  pcn.contractExpiryDate
+      contractExpiryDate:   pcn.contractExpiryDate
         ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
+      priority: pcn.priority || "normal",                                   // ✅ NEW
+      tags:     pcn.tags?.join(", ") || "",                                 // ✅ NEW
       complianceGroups: (pcn.complianceGroups?.length
         ? pcn.complianceGroups.map((g) => g?._id || g).filter(Boolean)
         : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
@@ -414,7 +420,20 @@ export default function PCNDetailPage() {
       };
     });
 
-    const handleSave   = async () => { setSaving(true); try { await patch(form); setEditing(false); } finally { setSaving(false); } };
+    const handleSave = async () => {
+      if (!form.name.trim()) { alert("Client name is required"); return; }
+      setSaving(true);
+      try {
+        const payload = {
+          ...form,
+          tags: form.tags
+            ? form.tags.split(",").map((t) => t.trim()).filter(Boolean)
+            : [],
+        };
+        await patch(payload);
+        setEditing(false);
+      } finally { setSaving(false); }
+    };
     const handleCancel = () => { setForm(buildForm()); setEditing(false); };
 
     const SYSTEMS   = ["emis","systmOne","ice","accurx","docman","softphone","vpn"];
@@ -450,6 +469,7 @@ export default function PCNDetailPage() {
 
           {editing ? (
             <div>
+              <EditRow label="Client Name *"    value={form.name}                onChange={set("name")} />
               <EditRow label="Contract Type"    value={form.contractType}        onChange={set("contractType")}        options={["ARRS","EA","Direct","Mixed"]} />
               <EditRow label="Hourly Rate £/hr" value={form.hourlyRate}          onChange={set("hourlyRate")}          type="number" />
               <EditRow label="Xero Code"        value={form.xeroCode}            onChange={set("xeroCode")} />
@@ -457,6 +477,8 @@ export default function PCNDetailPage() {
               <EditRow label="Start Date"       value={form.contractStartDate}   onChange={set("contractStartDate")}   type="date" />
               <EditRow label="Renewal Date"     value={form.contractRenewalDate} onChange={set("contractRenewalDate")} type="date" />
               <EditRow label="Expiry Date"      value={form.contractExpiryDate}  onChange={set("contractExpiryDate")}  type="date" />
+              <EditRow label="Priority"         value={form.priority}            onChange={set("priority")}            options={["normal","high","low"]} />
+              <EditRow label="Tags"             value={form.tags}                onChange={set("tags")}                />
 
               {/* Compliance Groups */}
               <div className="pt-3">
@@ -486,6 +508,7 @@ export default function PCNDetailPage() {
             </div>
           ) : (
             <div>
+              <DetailRow label="Client Name"       value={pcn.name} />
               <DetailRow label="ICB"               value={pcn.icb?.name} />
               <DetailRow label="Federation"        value={pcn.federation?.name || pcn.federationName} />
               <DetailRow label="Compliance Groups" value={selectedGroupNames} />
@@ -496,6 +519,8 @@ export default function PCNDetailPage() {
               <DetailRow label="Contract Start"    value={fmtDate(pcn.contractStartDate)} />
               <DetailRow label="Renewal Date"      value={fmtDate(pcn.contractRenewalDate)} />
               <DetailRow label="Expiry Date"       value={fmtDate(pcn.contractExpiryDate)} />
+              <DetailRow label="Priority"          value={pcn.priority && pcn.priority !== "normal" ? pcn.priority.toUpperCase() : "Normal"} />
+              <DetailRow label="Tags"               value={pcn.tags?.length ? pcn.tags.join(", ") : null} />
               {pcn.notes && (
                 <div className="pt-4 mt-2 border-t border-slate-50">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p>

@@ -1,9 +1,10 @@
-// src/hooks/useFederation.js
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { federationAPI } from "../api/api";
 import { QK } from "../lib/queryKeys";
 
 // ── GET: all federations (optional icbId filter)
+// FIX: now returns full query object including isLoading, isError etc.
+// so consumers (e.g. PCNModal) can wait for data before rendering the select
 export const useFederations = (icbId) =>
   useQuery({
     queryKey: icbId ? QK.FEDERATIONS_BY_ICB(icbId) : QK.FEDERATIONS,
