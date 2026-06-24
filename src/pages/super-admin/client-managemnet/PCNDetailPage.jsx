@@ -8,6 +8,8 @@ import {
   Archive
 } from "lucide-react";
 import { usePCN, useUpdatePCN, useUpsertMeeting } from "../../../hooks/usePCN";
+import { useICBs } from "../../../hooks/useICB";
+import { useFederations } from "../../../hooks/useFederation";
 import { useDocumentGroups } from "../../../hooks/useCompliance";
 import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
 import { setActivePcnDetailTab } from "../../../slices/pcnSlice";
@@ -16,6 +18,19 @@ import ContactHistoryPanel from "./ContactHistoryPanel.jsx";
 import MassEmailModal from "./MassEmailModal.jsx";
 import EntityDocumentsTab from "./EntityDocumentsTab.jsx";
 import ReportingArchivePanel from "./ReportingArchivePanel.jsx";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "../../../components/ui/alert-dialog";
+
+/* ── helpers ─────────────────────────────────────────────────────── */
+const getId = (g) => g?.id ?? g?._id ?? g;
 
 const Spinner = ({ cls = "border-white" }) => (
   <span className={`inline-block w-4 h-4 border-2 ${cls} border-t-transparent rounded-full animate-spin`} />
@@ -66,6 +81,18 @@ const EditRow = ({ label, value, onChange, type = "text", options }) => (
   </div>
 );
 
+/* Special EditRow for select with key-value pairs */
+const EditRowSelect = ({ label, value, onChange, options }) => (
+  <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 py-2.5 border-b border-slate-50 last:border-0">
+    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0">{label}</span>
+    <select value={value || ""} onChange={e => onChange(e.target.value)}
+      className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 transition-all cursor-pointer">
+      <option value="">—</option>
+      {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    </select>
+  </div>
+);
+
 const DetailRow = ({ label, value }) => (
   <div className="flex justify-between gap-3 py-2.5 border-b border-slate-50 last:border-0">
     <span className="text-sm text-slate-500 font-medium">{label}</span>
@@ -87,6 +114,32 @@ const M_STATUS = {
   cancelled:  "bg-red-50 text-red-700 border-red-200",
   not_booked: "bg-slate-50 text-slate-500 border-slate-200",
 };
+
+/* ══════════════════════════════════════════════════════════
+   DELETE CONFIRM DIALOG (shadcn AlertDialog)
+══════════════════════════════════════════════════════════ */
+const DeleteDialog = ({ open, title, description, onConfirm, onCancel, loading }) => (
+  <AlertDialog open={open}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{title || "Are you sure?"}</AlertDialogTitle>
+        <AlertDialogDescription>
+          {description || "This action cannot be undone."}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel onClick={onCancel} disabled={loading}>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onConfirm}
+          disabled={loading}
+          className="bg-red-500 hover:bg-red-600 text-white focus:ring-red-500">
+          {loading ? <Spinner /> : <Trash2 size={13} />}
+          Delete
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
 
 /* ══════════════════════════════════════════════════════════
    CONTACT MODAL
@@ -292,9 +345,13 @@ export default function PCNDetailPage() {
   const updatePCNMutation     = useUpdatePCN();
   const upsertMeetingMutation = useUpsertMeeting(id);
   const { data: groupsData }  = useDocumentGroups({ active: true });
+  const { data: icbData }     = useICBs();
+  const { data: fedData, isLoading: fedsLoading } = useFederations();
 
   const pcn    = data?.pcn    ?? null;
-  const groups = groupsData?.groups || [];
+  const groups = groupsData?.groups    || [];
+  const icbs   = icbData?.icbs         || [];
+  const feds   = fedData?.federations  || [];
 
   const tab = useAppSelector((state) => state.pcn.activeDetailTab);
   const [fieldSaving,   setFieldSaving]   = useState({});
@@ -302,6 +359,19 @@ export default function PCNDetailPage() {
   const [meetingModal,  setMeetingModal]  = useState(null);
   const [templateModal, setTemplateModal] = useState(null);
   const [contactModal,  setContactModal]  = useState(null);
+
+  // Delete dialog state
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, title: "", description: "", onConfirm: null, loading: false });
+
+  const showDeleteDialog = ({ title, description, onConfirm }) => {
+    setDeleteDialog({ open: true, title, description, onConfirm, loading: false });
+  };
+  const closeDeleteDialog = () => setDeleteDialog(d => ({ ...d, open: false, loading: false }));
+  const confirmDelete = async () => {
+    setDeleteDialog(d => ({ ...d, loading: true }));
+    try { await deleteDialog.onConfirm(); closeDeleteDialog(); }
+    catch (e) { alert(e.message); setDeleteDialog(d => ({ ...d, loading: false })); }
+  };
 
   const openAddContact  = () => setContactModal({ mode: "add" });
   const openEditContact = (c) => setContactModal({ mode: "edit", contact: c });
@@ -335,9 +405,14 @@ export default function PCNDetailPage() {
     await patch({ contacts });
   };
 
-  const deleteContact = async (cid) => {
-    if (!confirm("Delete this contact?")) return;
-    await patch({ contacts: (pcn?.contacts || []).filter(c => c._id !== cid) });
+  const deleteContact = (cid, name) => {
+    showDeleteDialog({
+      title: "Delete Contact",
+      description: `Are you sure you want to delete "${name}"? This cannot be undone.`,
+      onConfirm: async () => {
+        await patch({ contacts: (pcn?.contacts || []).filter(c => c._id !== cid) });
+      },
+    });
   };
 
   const saveMeeting = async (form) => {
@@ -357,9 +432,14 @@ export default function PCNDetailPage() {
     await patch({ emailTemplates: templates });
   };
 
-  const deleteTemplate = async (tid) => {
-    if (!confirm("Delete template?")) return;
-    await patch({ emailTemplates: (pcn?.emailTemplates || []).filter(t => t._id !== tid) });
+  const deleteTemplate = (tid, name) => {
+    showDeleteDialog({
+      title: "Delete Template",
+      description: `Are you sure you want to delete "${name}"? This cannot be undone.`,
+      onConfirm: async () => {
+        await patch({ emailTemplates: (pcn?.emailTemplates || []).filter(t => t._id !== tid) });
+      },
+    });
   };
 
   if (isLoading) return (
@@ -377,28 +457,27 @@ export default function PCNDetailPage() {
 
   /* ════════════ TAB PANELS ════════════════════════════════ */
 
-  /* ── UPDATED OverviewPanel ──
-     - annualSpend removed, hourlyRate kept
-     - ✅ NEW: Name, Priority, Tags now editable (parity with list-page modal)
-  ── */
+  /* ── OverviewPanel — NOW WITH ICB + Federation fields ── */
   const OverviewPanel = () => {
     const [editing, setEditing] = useState(false);
     const [saving,  setSaving]  = useState(false);
 
     const buildForm = () => ({
-      name:                 pcn.name                 || "",                 // ✅ NEW
-      contractType:         pcn.contractType        || "",
-      hourlyRate:           pcn.hourlyRate          ?? "",
-      xeroCode:             pcn.xeroCode            || "",
-      xeroCategory:         pcn.xeroCategory        || "",
-      contractStartDate:    pcn.contractStartDate
+      name:                pcn.name                 || "",
+      icb:                 String(getId(pcn.icb) || ""),
+      federation:          String(getId(pcn.federation) || ""),
+      contractType:        pcn.contractType         || "",
+      hourlyRate:          pcn.hourlyRate            ?? "",
+      xeroCode:            pcn.xeroCode             || "",
+      xeroCategory:        pcn.xeroCategory         || "",
+      contractStartDate:   pcn.contractStartDate
         ? new Date(pcn.contractStartDate).toISOString().split("T")[0]   : "",
-      contractRenewalDate:  pcn.contractRenewalDate
+      contractRenewalDate: pcn.contractRenewalDate
         ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
-      contractExpiryDate:   pcn.contractExpiryDate
+      contractExpiryDate:  pcn.contractExpiryDate
         ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
-      priority: pcn.priority || "normal",                                   // ✅ NEW
-      tags:     pcn.tags?.join(", ") || "",                                 // ✅ NEW
+      priority:        pcn.priority || "normal",
+      tags:            pcn.tags?.join(", ") || "",
       complianceGroups: (pcn.complianceGroups?.length
         ? pcn.complianceGroups.map((g) => g?._id || g).filter(Boolean)
         : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
@@ -409,6 +488,23 @@ export default function PCNDetailPage() {
     useEffect(() => { setForm(buildForm()); }, [pcn]); // eslint-disable-line
 
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
+
+    // Federations filtered by selected ICB (same logic as PCNListPage)
+    const filteredFeds = feds.filter((f) => {
+      const fedId     = String(getId(f) || "");
+      const savedFedId = String(form.federation || "");
+      if (savedFedId && fedId === savedFedId) return true;
+      if (!form.icb) return true;
+      return String(getId(f.icb) || "") === String(form.icb);
+    });
+
+    const handleIcbChange = (newIcb) => {
+      setForm(cur => {
+        const currentFed = feds.find(f => String(getId(f)) === String(cur.federation));
+        const fedBelongs = currentFed && String(getId(currentFed.icb) || "") === String(newIcb);
+        return { ...cur, icb: newIcb, federation: fedBelongs ? cur.federation : "" };
+      });
+    };
 
     const toggleGroup = (groupId) => setForm((cur) => {
       const sel = cur.complianceGroups || [];
@@ -469,7 +565,36 @@ export default function PCNDetailPage() {
 
           {editing ? (
             <div>
+              {/* ✅ Client Name */}
               <EditRow label="Client Name *"    value={form.name}                onChange={set("name")} />
+
+              {/* ✅ ICB — was missing */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 py-2.5 border-b border-slate-50">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0">ICB</span>
+                <select value={form.icb} onChange={e => handleIcbChange(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer">
+                  <option value="">— None —</option>
+                  {icbs.map(icb => (
+                    <option key={getId(icb)} value={getId(icb)}>{icb.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* ✅ Federation — was missing */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 py-2.5 border-b border-slate-50">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0">Federation</span>
+                <select
+                  value={fedsLoading ? "" : form.federation}
+                  onChange={e => set("federation")(e.target.value)}
+                  disabled={fedsLoading}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer disabled:opacity-60">
+                  <option value="">{fedsLoading ? "Loading…" : "— None —"}</option>
+                  {!fedsLoading && filteredFeds.map(f => (
+                    <option key={getId(f)} value={getId(f)}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <EditRow label="Contract Type"    value={form.contractType}        onChange={set("contractType")}        options={["ARRS","EA","Direct","Mixed"]} />
               <EditRow label="Hourly Rate £/hr" value={form.hourlyRate}          onChange={set("hourlyRate")}          type="number" />
               <EditRow label="Xero Code"        value={form.xeroCode}            onChange={set("xeroCode")} />
@@ -478,7 +603,7 @@ export default function PCNDetailPage() {
               <EditRow label="Renewal Date"     value={form.contractRenewalDate} onChange={set("contractRenewalDate")} type="date" />
               <EditRow label="Expiry Date"      value={form.contractExpiryDate}  onChange={set("contractExpiryDate")}  type="date" />
               <EditRow label="Priority"         value={form.priority}            onChange={set("priority")}            options={["normal","high","low"]} />
-              <EditRow label="Tags"             value={form.tags}                onChange={set("tags")}                />
+              <EditRow label="Tags"             value={form.tags}                onChange={set("tags")} />
 
               {/* Compliance Groups */}
               <div className="pt-3">
@@ -520,7 +645,7 @@ export default function PCNDetailPage() {
               <DetailRow label="Renewal Date"      value={fmtDate(pcn.contractRenewalDate)} />
               <DetailRow label="Expiry Date"       value={fmtDate(pcn.contractExpiryDate)} />
               <DetailRow label="Priority"          value={pcn.priority && pcn.priority !== "normal" ? pcn.priority.toUpperCase() : "Normal"} />
-              <DetailRow label="Tags"               value={pcn.tags?.length ? pcn.tags.join(", ") : null} />
+              <DetailRow label="Tags"              value={pcn.tags?.length ? pcn.tags.join(", ") : null} />
               {pcn.notes && (
                 <div className="pt-4 mt-2 border-t border-slate-50">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p>
@@ -589,7 +714,11 @@ export default function PCNDetailPage() {
                   {c.isPrimary && <span className="text-[10px] bg-amber-50 text-amber-600 font-bold px-2 py-0.5 rounded-md border border-amber-200 mr-2">Primary</span>}
                   <div className="ml-auto flex gap-1">
                     <button onClick={() => openEditContact(c)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50"><Edit2 size={11} /> Edit</button>
-                    <button onClick={() => deleteContact(c._id)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50"><Trash2 size={11} /> Del</button>
+                    <button
+                      onClick={() => deleteContact(c._id, c.name)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50">
+                      <Trash2 size={11} /> Del
+                    </button>
                   </div>
                 </div>
               </div>
@@ -617,10 +746,10 @@ export default function PCNDetailPage() {
         {practices.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label:"Practices",  value:practices.length,                                  color:"bg-teal-50 text-teal-700"    },
-              { label:"NDA Signed", value:practices.filter(p=>p.ndaSigned).length,           color:"bg-green-50 text-green-700"  },
-              { label:"Templates",  value:practices.filter(p=>p.templateInstalled).length,   color:"bg-blue-50 text-blue-700"    },
-              { label:"Reports",    value:practices.filter(p=>p.reportsImported).length,     color:"bg-purple-50 text-purple-700"},
+              { label:"Practices",  value:practices.length,                                color:"bg-teal-50 text-teal-700"    },
+              { label:"NDA Signed", value:practices.filter(p=>p.ndaSigned).length,         color:"bg-green-50 text-green-700"  },
+              { label:"Templates",  value:practices.filter(p=>p.templateInstalled).length, color:"bg-blue-50 text-blue-700"    },
+              { label:"Reports",    value:practices.filter(p=>p.reportsImported).length,   color:"bg-purple-50 text-purple-700"},
             ].map(s => (
               <div key={s.label} className={`rounded-xl px-3 py-2.5 text-center ${s.color}`}>
                 <p className="text-xl font-bold">{s.value}</p><p className="text-xs font-semibold mt-0.5">{s.label}</p>
@@ -722,7 +851,11 @@ export default function PCNDetailPage() {
                   </div>
                   <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => setTemplateModal(t)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50"><Edit2 size={14} /></button>
-                    <button onClick={() => deleteTemplate(t._id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
+                    <button
+                      onClick={() => deleteTemplate(t._id, t.name)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -754,10 +887,15 @@ export default function PCNDetailPage() {
       finally { setSaving(false); }
     };
 
-    const handleRemove = async (cid) => {
-      if (!confirm("Remove this restriction?")) return;
-      const updated = restricted.filter(c => String(typeof c==="object"?(c._id||c.id):c) !== String(cid));
-      await patch({ restrictedClinicians: updated });
+    const handleRemove = (cid, name) => {
+      showDeleteDialog({
+        title: "Remove Restriction",
+        description: `Remove restriction for "${name}"? They will no longer be blocked from bookings at this Client.`,
+        onConfirm: async () => {
+          const updated = restricted.filter(c => String(typeof c==="object"?(c._id||c.id):c) !== String(cid));
+          await patch({ restrictedClinicians: updated });
+        },
+      });
     };
 
     return (
@@ -792,7 +930,8 @@ export default function PCNDetailPage() {
                     <p className="text-xs text-slate-400 mt-0.5">{cEmail}{cRole?` · ${cRole}`:""}</p>
                     {cReason && <p className="text-xs text-red-500 mt-1">Reason: {cReason}</p>}
                   </div>
-                  <button onClick={() => handleRemove(cId)}
+                  <button
+                    onClick={() => handleRemove(cId, cName)}
                     className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-red-200 shrink-0">
                     <Trash2 size={11} /> Remove
                   </button>
@@ -893,6 +1032,16 @@ export default function PCNDetailPage() {
       </div>
 
       <div>{PANELS[tab]}</div>
+
+      {/* Global Delete Dialog */}
+      <DeleteDialog
+        open={deleteDialog.open}
+        title={deleteDialog.title}
+        description={deleteDialog.description}
+        onConfirm={confirmDelete}
+        onCancel={closeDeleteDialog}
+        loading={deleteDialog.loading}
+      />
 
       {contactModal !== null && (
         <ContactModal mode={contactModal.mode} existing={contactModal.mode==="edit"?contactModal.contact:null} onClose={closeContact} onSave={saveContact} />

@@ -2,12 +2,12 @@
  * sidebarConfig.js
  *
  * UPDATED (May 2026):
- *   ✅ Clinician Management simplified to single direct link
- *   ✅ All tabs removed from dropdown
- *   ✅ Applied across: super_admin, ops_manager, workforce, director
- *   ✅ All other paths and sections unchanged
- *   ✅ System Settings dropdown kept at bottom for all roles
- *   ✅ FIX: Clinician "My Timesheet" path corrected → /portal/clinician/my-timesheet
+ *    Clinician Management simplified to single direct link
+ *    All tabs removed from dropdown
+ *    Applied across: super_admin, ops_manager, workforce, director
+ *    All other paths and sections unchanged
+ *    System Settings dropdown kept at bottom for all roles
+ *    FIX: Clinician "My Timesheet" path corrected → /portal/clinician/my-timesheet
  */
 
 export const sidebarConfig = {
@@ -36,6 +36,7 @@ export const sidebarConfig = {
         },
         { icon: "FileText", label: "Compliance Documents", path: "/dashboard/super-admin/compliance/documents" },
         { icon: "Layers",   label: "Compliance Groups",    path: "/dashboard/super-admin/compliance/groups"    },
+        
       ],
     },
     {
@@ -50,10 +51,16 @@ export const sidebarConfig = {
       section: "FINANCE",
       items: [
         { icon: "BarChart3",  label: "Finance Dashboard", path: "/dashboard/finance"    },
+        {
+  icon: "History",
+  label: "Rate History",
+  path: "/dashboard/super-admin/rate-history",
+},
         { icon: "Clock",      label: "Timesheets",         path: "/dashboard/timesheets" },
         { icon: "Receipt",    label: "Invoices",           path: "/dashboard/invoices"   },
         { icon: "Hash",       label: "Xero Codes",         path: "/dashboard/xero"       },
         { icon: "TrendingUp", label: "Headcount",          path: "/dashboard/headcount"  },
+        
       ],
     },
     {

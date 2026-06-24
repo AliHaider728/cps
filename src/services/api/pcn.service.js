@@ -11,6 +11,10 @@ export const pcnService = {
     apiClient.patch(`/clients/pcn/${id}/restricted`, { clinicianIds }),
   getMeetings: (id) => apiClient.get(`/clients/pcn/${id}/meetings`),
   upsertMeeting: (id, data) => apiClient.post(`/clients/pcn/${id}/meetings`, data),
+
+  //  NEW — Rate & Contract History
+  getRateSummary: () => apiClient.get("/clients/pcn/rate-history/summary"),
+  getRateHistory: (id) => apiClient.get(`/clients/pcn/${id}/rate-history`),
 };
 
 export default pcnService;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Network, Plus, Eye, Edit2, Trash2, X, Check,
   ChevronRight, Search, Filter, Building2, Layers,
@@ -94,6 +95,95 @@ const PRIORITY_STYLE = {
   normal: "",
 };
 
+/* ─── Portal wrapper ──────────────────────────────────────────────────────
+   Renders children into document.body, completely outside the React tree's
+   DOM position. This escapes ANY ancestor that has transform, overflow,
+   will-change, contain, or filter — all of which break position:fixed by
+   creating a new "containing block" per the CSS spec.
+───────────────────────────────────────────────────────────────────────── */
+const Portal = ({ children }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Lock body scroll while a portal overlay is open
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+      setMounted(false);
+    };
+  }, []);
+
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+};
+
+/* ─── Delete Confirm Dialog ───────────────────────────────────────────── */
+const DeleteDialog = ({ pcn, onConfirm, onCancel, deleting }) => {
+  if (!pcn) return null;
+  return (
+    <Portal>
+      {/*
+        ┌─ ROOT CAUSE NOTE ────────────────────────────────────────────────┐
+        │ Previously this div lived inside PCNListPage's DOM subtree.      │
+        │ If any ancestor (DashboardLayout, <main>, a sidebar wrapper…)    │
+        │ has `transform`, `will-change: transform`, `filter`,             │
+        │ `overflow: hidden/auto`, or `contain: layout|paint|strict`,      │
+        │ the browser redefines the "containing block" for position:fixed  │
+        │ to that ancestor rather than the viewport — so inset-0 only      │
+        │ covers that element, leaving the top of the screen exposed.      │
+        │                                                                  │
+        │ createPortal() appends directly to <body>, which has NONE of    │
+        │ those properties, so fixed + inset-0 reliably means 0,0 →       │
+        │ 100vw × 100vh.                                                   │
+        └──────────────────────────────────────────────────────────────────┘
+      */}
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 9999 }}
+        className="flex items-center justify-center p-4"
+      >
+        {/* Backdrop */}
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 0 }}
+          className="bg-black/50 backdrop-blur-sm"
+          onClick={!deleting ? onCancel : undefined}
+        />
+        {/* Dialog */}
+        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <h2 className="mb-2 text-base font-bold text-slate-800">Delete Client</h2>
+          <p className="mb-6 text-sm text-slate-500 leading-relaxed">
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-slate-700">"{pcn.name}"</span>?
+            This action cannot be undone.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              disabled={deleting}
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={deleting}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              {deleting ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <Trash2 size={14} />
+              )}
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Portal>
+  );
+};
+
 /* ─── PCN Modal ───────────────────────────────────────────────────────── */
 const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, onSave }) => {
   const [form,   setForm]   = useState(() => buildPCNForm(existing));
@@ -102,33 +192,23 @@ const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, o
 
   useEffect(() => { setForm(buildPCNForm(existing)); }, [existing]);
 
-  /* ── KEY FIX: Federations filtered by selected ICB ──────────────────
-     Previously: filtering was too strict on initial load — if icb wasn't
-     loaded yet, filteredFeds was empty and the saved federation value
-     couldn't match any option, so the select fell back to "None".
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
-     Now: we ALWAYS include the currently-saved federation in the list
-     (even if the ICB filter would normally exclude it), so the value
-     is always selectable and never silently reset to "".
-  ─────────────────────────────────────────────────────────────────────── */
   const filteredFeds = useMemo(() => {
     const savedFedId = String(form.federation || "");
-
     return federations.filter((f) => {
       const fedId = String(getId(f) || "");
-
-      // Always keep the currently selected federation so it stays visible
       if (savedFedId && fedId === savedFedId) return true;
-
-      // If no ICB selected yet, show all
       if (!form.icb) return true;
-
-      // Otherwise filter by matching ICB
       return String(getId(f.icb) || "") === String(form.icb);
     });
   }, [federations, form.icb, form.federation]);
 
-  /* ── Compliance groups filtered by contract type ─────────────────── */
   const filteredGroups = useMemo(() => {
     if (!form.contractType) return groups;
     return groups.filter((g) => {
@@ -137,27 +217,21 @@ const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, o
     });
   }, [groups, form.contractType]);
 
-  /* ── When ICB changes, reset federation ONLY if the current
-     federation doesn't belong to the newly selected ICB ────────────── */
   const handleIcbChange = (newIcb) => {
     setForm((cur) => {
-      // Check if current federation belongs to the new ICB
       const currentFed = federations.find(
         (f) => String(getId(f)) === String(cur.federation)
       );
       const fedBelongsToNewIcb =
         currentFed && String(getId(currentFed.icb) || "") === String(newIcb);
-
       return {
         ...cur,
         icb: newIcb,
-        // Only clear federation if it doesn't belong to the new ICB
         federation: fedBelongsToNewIcb ? cur.federation : "",
       };
     });
   };
 
-  /* When contract type changes, remove groups that are no longer valid */
   const handleContractTypeChange = (newType) => {
     setForm((cur) => {
       const validGroupIds = new Set(
@@ -190,7 +264,7 @@ const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, o
 
   const handle = async () => {
     if (!form.name.trim()) { setError("Client name is required"); return; }
-        setSaving(true); setError("");
+    setSaving(true); setError("");
     try {
       const payload = {
         ...form,
@@ -222,169 +296,185 @@ const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, o
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 p-0 sm:p-4 backdrop-blur-sm">
-      <div className="flex w-full sm:max-w-lg max-h-[95dvh] sm:max-h-[90vh] flex-col rounded-t-2xl sm:rounded-2xl border border-slate-200 bg-white shadow-2xl">
-
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h3 className="text-base font-bold text-slate-800">
-            {existing ? "Edit Client" : "Add Client"}
-          </h3>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100">
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 space-y-4 overflow-y-auto p-5 [scrollbar-width:thin]">
-          {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>
-          )}
-
-          <F label="Client Name *">{inp("name", "e.g. Salford Central Client")}</F>
-
-          <div className="grid grid-cols-2 gap-3">
-            <F label="ICB">
-              <select
-                value={form.icb} autoComplete="off"
-                onChange={(e) => handleIcbChange(e.target.value)}
-                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
-              >
-                <option value="">Select ICB…</option>
-                {icbs.map((icb) => (
-                  <option key={getId(icb)} value={getId(icb)}>{icb.name}</option>
-                ))}
-              </select>
-            </F>
-            <F label="Federation / INT">
-              <select
-                value={fedsLoading ? "" : form.federation}
-                autoComplete="off"
-                disabled={fedsLoading}
-                onChange={(e) => setForm((cur) => ({ ...cur, federation: e.target.value }))}
-                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none disabled:opacity-60 disabled:cursor-wait"
-              >
-                <option value="">{fedsLoading ? "Loading…" : "None"}</option>
-                {!fedsLoading && filteredFeds.map((fed) => (
-                  <option key={getId(fed)} value={getId(fed)}>{fed.name}</option>
-                ))}
-              </select>
-            </F>
+    <Portal>
+      {/*
+        Inline style for the outermost overlay uses `position: fixed` +
+        explicit pixel/percentage values rather than Tailwind's `inset-0`
+        to guarantee no class-level specificity fight can override it.
+        zIndex 9999 sits above any dashboard chrome (sidebars, topbars,
+        sticky headers) which typically max out at z-index ~100–200.
+      */}
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 9999 }}
+        className="flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      >
+        <div
+          className="flex w-full sm:max-w-lg max-h-[95dvh] sm:max-h-[90vh] flex-col rounded-t-2xl sm:rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
+            <h3 className="text-base font-bold text-slate-800">
+              {existing ? "Edit Client" : "Add Client"}
+            </h3>
+            <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100">
+              <X size={16} />
+            </button>
           </div>
 
-          {/* Contract Type */}
-          <div className="grid grid-cols-2 gap-3">
-            <F label="Contract Type">
-              {sel(
-                "contractType",
-                [["ARRS","ARRS"],["EA","EA"],["Direct","Direct"],["Mixed","Mixed"]],
-                "Select type…",
-                handleContractTypeChange
+          {/* Body */}
+          <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:thin]">
+            <div className="space-y-4 p-5">
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>
               )}
-            </F>
-            <F label="Hourly Rate (£)">{inp("hourlyRate", "0", "number")}</F>
-          </div>
 
-          {/* Compliance Groups */}
-          <F label="Compliance Groups">
-            {!form.contractType ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
-                Select a contract type first to see applicable groups
-              </div>
-            ) : filteredGroups.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-600">
-                No compliance groups available for <strong>{form.contractType}</strong>
-              </div>
-            ) : (
-              <div className="space-y-1.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 max-h-44 [scrollbar-width:thin]">
-                {filteredGroups.map((g) => {
-                  const gId     = String(getId(g));
-                  const checked = (form.complianceGroups || []).map(String).includes(gId);
-                  const types   = g.applicableContractTypes || g.applicable_contract_types || [];
+              <F label="Client Name *">{inp("name", "e.g. Salford Central Client")}</F>
 
-                  return (
-                    <label key={gId} className="flex cursor-pointer items-start gap-2.5 rounded-lg p-2 hover:bg-slate-100 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleGroup(gId)}
-                        className="h-4 w-4 accent-purple-600 mt-0.5 shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {g.colour && (
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.colour }} />
-                          )}
-                          <span className="text-sm font-medium text-slate-700">{g.name}</span>
-                        </div>
-                        {types.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-0.5">
-                            {types.map((t) => (
-                              <span key={t} className={`text-[10px] font-bold px-1.5 py-0.5 rounded border
-                                ${t === form.contractType
-                                  ? "bg-purple-100 text-purple-700 border-purple-300"
-                                  : "bg-slate-100 text-slate-500 border-slate-200"}`}>
-                                {t}
-                              </span>
-                            ))}
+              <div className="grid grid-cols-2 gap-3">
+                <F label="ICB">
+                  <select
+                    value={form.icb} autoComplete="off"
+                    onChange={(e) => handleIcbChange(e.target.value)}
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+                  >
+                    <option value="">Select ICB…</option>
+                    {icbs.map((icb) => (
+                      <option key={getId(icb)} value={getId(icb)}>{icb.name}</option>
+                    ))}
+                  </select>
+                </F>
+                <F label="Federation / INT">
+                  <select
+                    value={fedsLoading ? "" : form.federation}
+                    autoComplete="off"
+                    disabled={fedsLoading}
+                    onChange={(e) => setForm((cur) => ({ ...cur, federation: e.target.value }))}
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    <option value="">{fedsLoading ? "Loading…" : "None"}</option>
+                    {!fedsLoading && filteredFeds.map((fed) => (
+                      <option key={getId(fed)} value={getId(fed)}>{fed.name}</option>
+                    ))}
+                  </select>
+                </F>
+              </div>
+
+              {/* Contract Type */}
+              <div className="grid grid-cols-2 gap-3">
+                <F label="Contract Type">
+                  {sel(
+                    "contractType",
+                    [["ARRS","ARRS"],["EA","EA"],["Direct","Direct"],["Mixed","Mixed"]],
+                    "Select type…",
+                    handleContractTypeChange
+                  )}
+                </F>
+                <F label="Hourly Rate (£)">{inp("hourlyRate", "0", "number")}</F>
+              </div>
+
+              {/* Compliance Groups */}
+              <F label="Compliance Groups">
+                {!form.contractType ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
+                    Select a contract type first to see applicable groups
+                  </div>
+                ) : filteredGroups.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-600">
+                    No compliance groups available for <strong>{form.contractType}</strong>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 max-h-44 [scrollbar-width:thin]">
+                    {filteredGroups.map((g) => {
+                      const gId     = String(getId(g));
+                      const checked = (form.complianceGroups || []).map(String).includes(gId);
+                      const types   = g.applicableContractTypes || g.applicable_contract_types || [];
+                      return (
+                        <label key={gId} className="flex cursor-pointer items-start gap-2.5 rounded-lg p-2 hover:bg-slate-100 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleGroup(gId)}
+                            className="h-4 w-4 accent-purple-600 mt-0.5 shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {g.colour && (
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.colour }} />
+                              )}
+                              <span className="text-sm font-medium text-slate-700">{g.name}</span>
+                            </div>
+                            {types.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {types.map((t) => (
+                                  <span key={t} className={`text-[10px] font-bold px-1.5 py-0.5 rounded border
+                                    ${t === form.contractType
+                                      ? "bg-purple-100 text-purple-700 border-purple-300"
+                                      : "bg-slate-100 text-slate-500 border-slate-200"}`}>
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {types.length === 0 && (
+                              <span className="text-[10px] text-slate-400">All contract types</span>
+                            )}
                           </div>
-                        )}
-                        {types.length === 0 && (
-                          <span className="text-[10px] text-slate-400">All contract types</span>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {(form.complianceGroups || []).length > 0 && (
+                  <p className="mt-1.5 text-xs font-semibold text-purple-700">
+                    {form.complianceGroups.length} group{form.complianceGroups.length !== 1 ? "s" : ""} selected
+                  </p>
+                )}
+              </F>
+
+              <div className="grid grid-cols-2 gap-3">
+                <F label="Xero Code">{inp("xeroCode", "SAL1")}</F>
+                <F label="Xero Category">{sel("xeroCategory", [["PCN","PCN"],["GPX","GPX"],["EAX","EAX"]])}</F>
               </div>
-            )}
-            {(form.complianceGroups || []).length > 0 && (
-              <p className="mt-1.5 text-xs font-semibold text-purple-700">
-                {form.complianceGroups.length} group{form.complianceGroups.length !== 1 ? "s" : ""} selected
-              </p>
-            )}
-          </F>
 
-          <div className="grid grid-cols-2 gap-3">
-            <F label="Xero Code">{inp("xeroCode", "SAL1")}</F>
-            <F label="Xero Category">{sel("xeroCategory", [["PCN","PCN"],["GPX","GPX"],["EAX","EAX"]])}</F>
+              <div className="grid grid-cols-3 gap-3">
+                <F label="Start Date">{inp("contractStartDate", "", "date")}</F>
+                <F label="Renewal Date">{inp("contractRenewalDate", "", "date")}</F>
+                <F label="Expiry Date">{inp("contractExpiryDate", "", "date")}</F>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <F label="Priority">{sel("priority", [["normal","Normal"],["high","High"],["low","Low"]])}</F>
+                <F label="Tags (comma separated)">{inp("tags", "urgent, renewal-due")}</F>
+              </div>
+
+              <F label="Notes">
+                <textarea
+                  value={form.notes} autoComplete="off" rows={3}
+                  onChange={(e) => setForm((cur) => ({ ...cur, notes: e.target.value }))}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none"
+                />
+              </F>
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <F label="Start Date">{inp("contractStartDate", "", "date")}</F>
-            <F label="Renewal Date">{inp("contractRenewalDate", "", "date")}</F>
-            <F label="Expiry Date">{inp("contractExpiryDate", "", "date")}</F>
+          {/* Footer */}
+          <div className="flex shrink-0 gap-3 border-t border-slate-100 px-5 py-3">
+            <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+              Cancel
+            </button>
+            <button onClick={handle} disabled={saving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-50">
+              {saving
+                ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                : <Check size={15} />}
+              {existing ? "Save Changes" : "Create Client"}
+            </button>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <F label="Priority">{sel("priority", [["normal","Normal"],["high","High"],["low","Low"]])}</F>
-            <F label="Tags (comma separated)">{inp("tags", "urgent, renewal-due")}</F>
-          </div>
-
-          <F label="Notes">
-            <textarea
-              value={form.notes} autoComplete="off" rows={3}
-              onChange={(e) => setForm((cur) => ({ ...cur, notes: e.target.value }))}
-              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none"
-            />
-          </F>
-        </div>
-
-        {/* Footer */}
-        <div className="flex shrink-0 gap-3 border-t border-slate-100 px-5 pb-6 pt-3 sm:pb-4">
-          <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-            Cancel
-          </button>
-          <button onClick={handle} disabled={saving}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-50">
-            {saving
-              ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              : <Check size={15} />}
-            {existing ? "Save Changes" : "Create Client"}
-          </button>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 };
 
@@ -393,7 +483,9 @@ export default function PCNListPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const filters  = useAppSelector((state) => state.pcn.filters);
-  const [modal, setModal] = useState(null);
+  const [modal,        setModal]       = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting,     setDeleting]    = useState(false);
 
   const { data: pcnData, isLoading, refetch } = usePCNs();
   const { data: icbData }   = useICBs();
@@ -446,10 +538,17 @@ export default function PCNListPage() {
     setModal(null);
   };
 
-  const handleDelete = async (pcn) => {
-    if (!confirm(`Delete "${pcn.name}"? This cannot be undone.`)) return;
-    try { await deletePCN.mutateAsync(getId(pcn)); }
-    catch (e) { alert(e.message); }
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deletePCN.mutateAsync(getId(deleteTarget));
+      setDeleteTarget(null);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const columns = [
@@ -576,7 +675,7 @@ export default function PCNListPage() {
             className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors" title="Edit">
             <Edit2 size={15} />
           </button>
-          <button onClick={() => handleDelete(pcn)}
+          <button onClick={() => setDeleteTarget(pcn)}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Delete">
             <Trash2 size={15} />
           </button>
@@ -672,7 +771,7 @@ export default function PCNListPage() {
         pageSizeOptions={[10, 20, 50]}
       />
 
-      {/* Modal */}
+      {/* Add / Edit Modal — rendered via Portal into document.body */}
       {modal && (
         <PCNModal
           key={modal === "add" ? "pcn-add" : `pcn-${getId(modal)}`}
@@ -685,6 +784,14 @@ export default function PCNListPage() {
           onSave={handleSave}
         />
       )}
+
+      {/* Delete Confirmation Dialog — rendered via Portal into document.body */}
+      <DeleteDialog
+        pcn={deleteTarget}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+        deleting={deleting}
+      />
     </div>
   );
 }

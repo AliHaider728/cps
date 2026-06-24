@@ -29,6 +29,27 @@ export const usePCNMeetings = (id) =>
     enabled: !!id,
   });
 
+/* ══════════════════════════════════════════════════════════════════
+   ✅ NEW — Rate & Contract History hooks
+══════════════════════════════════════════════════════════════════ */
+
+// Summary list of ALL clients with current rate/dates + change count.
+// Powers the main RateHistoryPage list.
+export const usePCNRateSummary = () =>
+  useQuery({
+    queryKey: QK.PCN_RATE_SUMMARY,
+    queryFn: () => pcnService.getRateSummary().then((response) => response.data),
+  });
+
+// Full chronological rate/contract-date history for ONE client.
+// `enabled` lets you lazy-load it only when a row is expanded.
+export const usePCNRateHistory = (id, enabled = true) =>
+  useQuery({
+    queryKey: QK.PCN_RATE_HISTORY(id),
+    queryFn: () => pcnService.getRateHistory(id).then((response) => response.data),
+    enabled: !!id && enabled,
+  });
+
 export const useCreatePCN = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -53,6 +74,9 @@ export const useUpdatePCN = () => {
       queryClient.invalidateQueries({ queryKey: QK.PCNS });
       queryClient.invalidateQueries({ queryKey: QK.PCN(id) });
       queryClient.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS("PCN", id) });
+      // ✅ NEW — keep rate history fresh after a PCN update (rate/date may have changed)
+      queryClient.invalidateQueries({ queryKey: QK.PCN_RATE_SUMMARY });
+      queryClient.invalidateQueries({ queryKey: QK.PCN_RATE_HISTORY(id) });
     },
   });
 };
