@@ -457,7 +457,7 @@ export default function PCNDetailPage() {
 
   /* ════════════ TAB PANELS ════════════════════════════════ */
 
-  /* ── OverviewPanel — NOW WITH ICB + Federation fields ── */
+  /* ── OverviewPanel ── */
   const OverviewPanel = () => {
     const [editing, setEditing] = useState(false);
     const [saving,  setSaving]  = useState(false);
@@ -470,8 +470,10 @@ export default function PCNDetailPage() {
       hourlyRate:          pcn.hourlyRate            ?? "",
       xeroCode:            pcn.xeroCode             || "",
       xeroCategory:        pcn.xeroCategory         || "",
+      // ✅ contractStartDate intentionally NOT included in form —
+      //    it is set only at creation and never updated again.
       contractStartDate:   pcn.contractStartDate
-        ? new Date(pcn.contractStartDate).toISOString().split("T")[0]   : "",
+        ? new Date(pcn.contractStartDate).toISOString().split("T")[0] : "",
       contractRenewalDate: pcn.contractRenewalDate
         ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
       contractExpiryDate:  pcn.contractExpiryDate
@@ -489,9 +491,9 @@ export default function PCNDetailPage() {
 
     const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
-    // Federations filtered by selected ICB (same logic as PCNListPage)
+    // Federations filtered by selected ICB
     const filteredFeds = feds.filter((f) => {
-      const fedId     = String(getId(f) || "");
+      const fedId      = String(getId(f) || "");
       const savedFedId = String(form.federation || "");
       if (savedFedId && fedId === savedFedId) return true;
       if (!form.icb) return true;
@@ -520,8 +522,11 @@ export default function PCNDetailPage() {
       if (!form.name.trim()) { alert("Client name is required"); return; }
       setSaving(true);
       try {
+        // ✅ IMPORTANT: contractStartDate is excluded from payload
+        //    Backend also deletes it in updatePCN, double protection.
+        const { contractStartDate, ...rest } = form;
         const payload = {
-          ...form,
+          ...rest,
           tags: form.tags
             ? form.tags.split(",").map((t) => t.trim()).filter(Boolean)
             : [],
@@ -565,10 +570,10 @@ export default function PCNDetailPage() {
 
           {editing ? (
             <div>
-              {/* ✅ Client Name */}
+              {/* Client Name */}
               <EditRow label="Client Name *"    value={form.name}                onChange={set("name")} />
 
-              {/* ✅ ICB — was missing */}
+              {/* ICB */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 py-2.5 border-b border-slate-50">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0">ICB</span>
                 <select value={form.icb} onChange={e => handleIcbChange(e.target.value)}
@@ -580,7 +585,7 @@ export default function PCNDetailPage() {
                 </select>
               </div>
 
-              {/* ✅ Federation — was missing */}
+              {/* Federation */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 py-2.5 border-b border-slate-50">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0">Federation</span>
                 <select
@@ -599,9 +604,30 @@ export default function PCNDetailPage() {
               <EditRow label="Hourly Rate £/hr" value={form.hourlyRate}          onChange={set("hourlyRate")}          type="number" />
               <EditRow label="Xero Code"        value={form.xeroCode}            onChange={set("xeroCode")} />
               <EditRow label="Xero Category"    value={form.xeroCategory}        onChange={set("xeroCategory")}        options={["PCN","GPX","EAX"]} />
-              <EditRow label="Start Date"       value={form.contractStartDate}   onChange={set("contractStartDate")}   type="date" />
+
+              {/* ✅ Contract Start Date — READ ONLY (set at creation only) */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 py-2.5 border-b border-slate-50">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0">
+                  Start Date
+                </span>
+                <div className="flex-1 flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-lg border border-slate-100 bg-slate-50 text-sm text-slate-400 flex-1">
+                    {form.contractStartDate
+                      ? new Date(form.contractStartDate).toLocaleDateString("en-GB")
+                      : "—"}
+                  </span>
+                  <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-md font-bold whitespace-nowrap shrink-0">
+                    Set at creation only
+                  </span>
+                </div>
+              </div>
+
+              {/* ✅ Renewal Date — EDITABLE */}
               <EditRow label="Renewal Date"     value={form.contractRenewalDate} onChange={set("contractRenewalDate")} type="date" />
+
+              {/* ✅ Expiry Date — EDITABLE */}
               <EditRow label="Expiry Date"      value={form.contractExpiryDate}  onChange={set("contractExpiryDate")}  type="date" />
+
               <EditRow label="Priority"         value={form.priority}            onChange={set("priority")}            options={["normal","high","low"]} />
               <EditRow label="Tags"             value={form.tags}                onChange={set("tags")} />
 

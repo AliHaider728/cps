@@ -53,7 +53,7 @@ export const sidebarConfig = {
         { icon: "BarChart3",  label: "Finance Dashboard", path: "/dashboard/finance"    },
         {
   icon: "History",
-  label: "Rate History",
+  label: "Client History",
   path: "/dashboard/super-admin/rate-history",
 },
         { icon: "Clock",      label: "Timesheets",         path: "/dashboard/timesheets" },

@@ -69,6 +69,7 @@ const buildPCNForm = (existing) => ({
   hourlyRate:         existing?.hourlyRate         || "",
   xeroCode:           existing?.xeroCode           || "",
   xeroCategory:       existing?.xeroCategory       || "",
+  // ✅ contractStartDate stored for display only — never sent in edit payload
   contractStartDate: existing?.contractStartDate
     ? new Date(existing.contractStartDate).toISOString().split("T")[0] : "",
   contractRenewalDate: existing?.contractRenewalDate
@@ -95,18 +96,12 @@ const PRIORITY_STYLE = {
   normal: "",
 };
 
-/* ─── Portal wrapper ──────────────────────────────────────────────────────
-   Renders children into document.body, completely outside the React tree's
-   DOM position. This escapes ANY ancestor that has transform, overflow,
-   will-change, contain, or filter — all of which break position:fixed by
-   creating a new "containing block" per the CSS spec.
-───────────────────────────────────────────────────────────────────────── */
+/* ─── Portal wrapper ──────────────────────────────────────────────────────*/
 const Portal = ({ children }) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    // Lock body scroll while a portal overlay is open
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -124,32 +119,15 @@ const DeleteDialog = ({ pcn, onConfirm, onCancel, deleting }) => {
   if (!pcn) return null;
   return (
     <Portal>
-      {/*
-        ┌─ ROOT CAUSE NOTE ────────────────────────────────────────────────┐
-        │ Previously this div lived inside PCNListPage's DOM subtree.      │
-        │ If any ancestor (DashboardLayout, <main>, a sidebar wrapper…)    │
-        │ has `transform`, `will-change: transform`, `filter`,             │
-        │ `overflow: hidden/auto`, or `contain: layout|paint|strict`,      │
-        │ the browser redefines the "containing block" for position:fixed  │
-        │ to that ancestor rather than the viewport — so inset-0 only      │
-        │ covers that element, leaving the top of the screen exposed.      │
-        │                                                                  │
-        │ createPortal() appends directly to <body>, which has NONE of    │
-        │ those properties, so fixed + inset-0 reliably means 0,0 →       │
-        │ 100vw × 100vh.                                                   │
-        └──────────────────────────────────────────────────────────────────┘
-      */}
       <div
         style={{ position: "fixed", inset: 0, zIndex: 9999 }}
         className="flex items-center justify-center p-4"
       >
-        {/* Backdrop */}
         <div
           style={{ position: "fixed", inset: 0, zIndex: 0 }}
           className="bg-black/50 backdrop-blur-sm"
           onClick={!deleting ? onCancel : undefined}
         />
-        {/* Dialog */}
         <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
           <h2 className="mb-2 text-base font-bold text-slate-800">Delete Client</h2>
           <p className="mb-6 text-sm text-slate-500 leading-relaxed">
@@ -186,13 +164,14 @@ const DeleteDialog = ({ pcn, onConfirm, onCancel, deleting }) => {
 
 /* ─── PCN Modal ───────────────────────────────────────────────────────── */
 const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, onSave }) => {
+  const isEdit = !!existing; // ✅ true = edit mode, false = create mode
+
   const [form,   setForm]   = useState(() => buildPCNForm(existing));
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState("");
 
   useEffect(() => { setForm(buildPCNForm(existing)); }, [existing]);
 
-  // Close on Escape key
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
@@ -266,8 +245,11 @@ const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, o
     if (!form.name.trim()) { setError("Client name is required"); return; }
     setSaving(true); setError("");
     try {
+      // ✅ In edit mode: exclude contractStartDate from payload
+      //    In create mode: include it (it's set only at creation)
+      const { contractStartDate, ...restForm } = form;
       const payload = {
-        ...form,
+        ...(isEdit ? restForm : form), // create mode sends contractStartDate, edit mode does NOT
         tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       };
       await onSave(payload);
@@ -297,13 +279,6 @@ const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, o
 
   return (
     <Portal>
-      {/*
-        Inline style for the outermost overlay uses `position: fixed` +
-        explicit pixel/percentage values rather than Tailwind's `inset-0`
-        to guarantee no class-level specificity fight can override it.
-        zIndex 9999 sits above any dashboard chrome (sidebars, topbars,
-        sticky headers) which typically max out at z-index ~100–200.
-      */}
       <div
         style={{ position: "fixed", inset: 0, zIndex: 9999 }}
         className="flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4"
@@ -438,11 +413,33 @@ const PCNModal = ({ existing, icbs, federations, fedsLoading, groups, onClose, o
                 <F label="Xero Category">{sel("xeroCategory", [["PCN","PCN"],["GPX","GPX"],["EAX","EAX"]])}</F>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <F label="Start Date">{inp("contractStartDate", "", "date")}</F>
-                <F label="Renewal Date">{inp("contractRenewalDate", "", "date")}</F>
-                <F label="Expiry Date">{inp("contractExpiryDate", "", "date")}</F>
-              </div>
+              {/* ✅ Contract Dates — Start Date read-only in EDIT mode, editable in CREATE mode */}
+              {isEdit ? (
+                // ── EDIT MODE: Start Date locked, Renewal + Expiry editable ──
+                <div className="grid grid-cols-3 gap-3">
+                  <F label="Start Date">
+                    <div className="relative">
+                      <div className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-400 cursor-not-allowed">
+                        {form.contractStartDate
+                          ? new Date(form.contractStartDate).toLocaleDateString("en-GB")
+                          : "—"}
+                      </div>
+                      <span className="absolute -top-1 -right-1 text-[9px] bg-amber-100 text-amber-600 border border-amber-200 px-1 py-0.5 rounded font-bold leading-none">
+                        Locked
+                      </span>
+                    </div>
+                  </F>
+                  <F label="Renewal Date">{inp("contractRenewalDate", "", "date")}</F>
+                  <F label="Expiry Date">{inp("contractExpiryDate", "", "date")}</F>
+                </div>
+              ) : (
+                // ── CREATE MODE: All 3 dates editable ──
+                <div className="grid grid-cols-3 gap-3">
+                  <F label="Start Date">{inp("contractStartDate", "", "date")}</F>
+                  <F label="Renewal Date">{inp("contractRenewalDate", "", "date")}</F>
+                  <F label="Expiry Date">{inp("contractExpiryDate", "", "date")}</F>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <F label="Priority">{sel("priority", [["normal","Normal"],["high","High"],["low","Low"]])}</F>
@@ -771,7 +768,7 @@ export default function PCNListPage() {
         pageSizeOptions={[10, 20, 50]}
       />
 
-      {/* Add / Edit Modal — rendered via Portal into document.body */}
+      {/* Add / Edit Modal */}
       {modal && (
         <PCNModal
           key={modal === "add" ? "pcn-add" : `pcn-${getId(modal)}`}
@@ -785,7 +782,7 @@ export default function PCNListPage() {
         />
       )}
 
-      {/* Delete Confirmation Dialog — rendered via Portal into document.body */}
+      {/* Delete Confirmation Dialog */}
       <DeleteDialog
         pcn={deleteTarget}
         onConfirm={handleDeleteConfirm}
@@ -794,4 +791,4 @@ export default function PCNListPage() {
       />
     </div>
   );
-}
+} 

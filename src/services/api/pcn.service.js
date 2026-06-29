@@ -12,7 +12,7 @@ export const pcnService = {
   getMeetings: (id) => apiClient.get(`/clients/pcn/${id}/meetings`),
   upsertMeeting: (id, data) => apiClient.post(`/clients/pcn/${id}/meetings`, data),
 
-  //  NEW — Rate & Contract History
+  //  NEW — Rate & Contract History (Jun 2026)
   getRateSummary: () => apiClient.get("/clients/pcn/rate-history/summary"),
   getRateHistory: (id) => apiClient.get(`/clients/pcn/${id}/rate-history`),
 };

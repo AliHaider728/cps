@@ -22,10 +22,12 @@ export const QK = {
   FEDERATIONS_BY_ICB:   (icbId) => ["federations", "icb", icbId],
 
   // ── PCNs ────────────────────────────────────────────────
-  PCNS:         ["pcns"],
-  PCN:          (id) => ["pcns", id],
-  PCN_ROLLUP:   (id) => ["pcns", id, "rollup"],
-  PCN_MEETINGS: (id) => ["pcns", id, "meetings"],
+  PCNS:             ["pcns"],
+  PCN:              (id) => ["pcns", id],
+  PCN_ROLLUP:       (id) => ["pcns", id, "rollup"],
+  PCN_MEETINGS:     (id) => ["pcns", id, "meetings"],
+  PCN_RATE_HISTORY: (id) => ["pcns", id, "rate-history"], // ✅ NEW — Jun 2026
+  PCN_RATE_SUMMARY: ["pcn-rate-summary"],                  // ✅ NEW — Jun 2026
 
   // ── Practices ───────────────────────────────────────────
   PRACTICES: ["practices"],
