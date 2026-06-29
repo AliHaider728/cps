@@ -1,0 +1,433 @@
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Stethoscope, ArrowLeft, ShieldAlert, ShieldCheck, Mail, Phone,
+  User, ShieldCheck as ShieldIcon, Building2, CalendarDays,
+  Users as UsersIcon, GraduationCap, Rocket, ShieldAlert as ScopeIcon,
+  Eye, ChevronDown, Clock, CalendarCheck,
+} from "lucide-react";
+
+import { useQueryClient } from "@tanstack/react-query";
+import { useClinician, useUpdateClinician } from "../../../hooks/useClinician";
+import { clinicianService } from "../../../services/api/clinicianService";
+import { QK } from "../../../lib/queryKeys";
+import { useAllUsers } from "../../../hooks/useAuth";
+import { usePCNs } from "../../../hooks/usePCN";
+import { usePractices } from "../../../hooks/usePractice";
+import { useAppSelector } from "../../../hooks/redux";
+
+import BasicInfoPanel     from "./panels/BasicInfoPanel";
+import CompliancePanel    from "./panels/CompliancePanel";
+// import ClientHistoryPanel from "./panels/ClientHistoryPanel"; // temporarily hidden
+import CalendarPanel      from "./panels/Timeline";
+import SupervisionPanel   from "./panels/SupervisionPanel";
+import CPPEPanel          from "./panels/CPPEPanel";
+import OnboardingPanel    from "./panels/OnboardingPanel";
+import ScopePanel         from "./panels/ScopePanel";
+import ProjectMappingPanel from "./panels/ProjectMappingPanel";
+import { Briefcase } from "lucide-react";
+import { Spinner } from "./panels/shared";
+import { fmtDate } from "../../../lib/formatters";
+
+// NOTE: "skills" tab removed — SkillsPanel is now embedded inside BasicInfoPanel
+
+interface Tab {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+}
+
+const TABS: Tab[] = [
+  { id: "basic",       label: "Basic Info",     icon: User          },
+  { id: "compliance",  label: "Compliance",     icon: ShieldIcon    },
+  // { id: "history",  label: "Client History", icon: Building2     }, // temporarily hidden
+  { id: "projects",    label: "Project Mapping", icon: Briefcase    },
+  { id: "calendar",    label: "Timeline",      icon: CalendarDays  },
+  { id: "supervision", label: "Supervision",    icon: UsersIcon     },
+  { id: "cppe",        label: "CPPE",           icon: GraduationCap },
+  { id: "onboarding",  label: "Onboarding",     icon: Rocket        },
+  { id: "scope",       label: "Scope",          icon: ScopeIcon     },
+];
+
+const TAB_IDS = TABS.map((t) => t.id);
+const TAB_ALIASES: Record<string, string> = {
+  "basic-info":      "basic",
+  // "client-history": "history", // temporarily hidden
+  "supervision-log": "supervision",
+  "cppe-status":     "cppe",
+  "project-mapping": "projects",
+  // skills now redirects to basic since it's embedded there
+  "skills":          "basic",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  Pharmacist: "bg-purple-50 text-purple-700 border-purple-200",
+  Technician: "bg-amber-50  text-amber-700  border-amber-200",
+  IP:         "bg-teal-50   text-teal-700   border-teal-200",
+};
+
+const CONTRACT_COLORS: Record<string, string> = {
+  ARRS:   "bg-blue-50   text-blue-700   border-blue-200",
+  EA:     "bg-green-50  text-green-700  border-green-200",
+  Direct: "bg-orange-50 text-orange-700 border-orange-200",
+  Mixed:  "bg-pink-50   text-pink-700   border-pink-200",
+};
+
+export default function CliniciansDetailPage() {
+  const { id }   = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const [activeTab, setActiveTab] = useState<string>("basic");
+  const role           = useAppSelector((s: any) => s.auth?.user?.role) || "";
+  const [mobileTabOpen, setMobileTabOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const raw = searchParams.get("tab");
+    const tab = raw ? TAB_ALIASES[raw] || raw : null;
+    setActiveTab(tab && TAB_IDS.includes(tab) ? tab : "basic");
+  }, [id, searchParams]);
+
+  // @ts-ignore
+  const { data, isLoading, isError } = useClinician(id);
+  const usersQ     = useAllUsers();
+  const pcnsQ      = usePCNs();
+  const practicesQ = usePractices();
+  const updateM    = useUpdateClinician();
+  const qc         = useQueryClient();
+
+  const canManage   = ["super_admin", "director", "ops_manager"].includes(role);
+  const canRestrict = ["super_admin", "ops_manager"].includes(role);
+
+  const changeTab = (tabId: string) => {
+    if (TAB_IDS.includes(tabId)) setActiveTab(tabId);
+    setMobileTabOpen(false);
+  };
+
+  /* ── Loading ── */
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Spinner cls="border-blue-600" />
+      </div>
+    );
+  }
+
+  /* ── Error ── */
+  if (isError || !data?.clinician) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+        <Stethoscope size={32} className="mx-auto mb-3 text-slate-300" />
+        <p className="text-sm font-bold text-slate-700">Clinician not found.</p>
+        <button
+          onClick={() => navigate("/dashboard/clinicians")}
+          className="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center gap-1.5"
+        >
+          <ArrowLeft size={13} /> Back to list
+        </button>
+      </div>
+    );
+  }
+
+  const clinician     = data.clinician;
+  // @ts-ignore
+  const users         = usersQ.data?.users        || usersQ.data       || [];
+  // @ts-ignore
+  const pcns          = pcnsQ.data?.pcns           || pcnsQ.data        || [];
+  // @ts-ignore
+  const practices     = practicesQ.data?.practices || practicesQ.data   || [];
+  const activeTabMeta = TABS.find((t) => t.id === activeTab) || TABS[0];
+
+  const handlePatch = async (patch: any) => {
+    if (id) {
+      await updateM.mutateAsync({ id, data: patch });
+    }
+  };
+
+  const handleLinkUser = async (userId: string) => {
+    if (id) {
+      await clinicianService.linkUser(id, userId);
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
+    }
+  };
+
+  /* ── Render active panel ── */
+  const renderActive = () => {
+    switch (activeTab) {
+      case "basic":
+        return (
+          <BasicInfoPanel
+            clinician={clinician}
+            onPatch={handlePatch}
+            // @ts-ignore
+            onLinkUser={role === "super_admin" ? handleLinkUser : undefined}
+            canManage={role === "super_admin"}
+            users={users}
+          />
+        );
+      case "compliance":
+        // @ts-ignore
+        return <CompliancePanel clinicianId={id} canManage={canManage} />;
+      // case "history": // temporarily hidden
+      //   return <ClientHistoryPanel clinicianId={id} canManage={canManage} pcns={pcns} practices={practices} />;
+      case "projects":
+        return (
+          // @ts-ignore
+          <ProjectMappingPanel clinicianId={id} canManage={canManage} />
+        );
+      case "calendar":
+        return (
+          <CalendarPanel
+            // @ts-ignore
+            clinicianId={id}
+            clinician={clinician}
+            canManage={canManage}
+            userRole={role}
+          />
+        );
+      case "supervision":
+        return <SupervisionPanel clinicianId={id} canManage={canManage} users={users} />;
+      case "cppe":
+        // @ts-ignore
+        return <CPPEPanel clinicianId={id} canManage={canManage} />;
+      case "onboarding":
+        // @ts-ignore
+        return <OnboardingPanel clinicianId={id} clinician={clinician} canManage={canManage} />;
+      case "scope":
+        return <ScopePanel clinician={clinician} canRestrict={canRestrict} canManage={canManage} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-4 sm:space-y-5">
+
+      {/* ── Top bar ── */}
+      <div className="flex items-center justify-between gap-3">
+        <button
+          onClick={() => navigate("/dashboard/clinicians")}
+          className="h-9 lg:h-10 px-3 lg:px-4 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold hover:bg-slate-50 hover:border-slate-300 inline-flex items-center gap-1.5 transition-all shadow-sm"
+        >
+          <ArrowLeft size={14} />
+          <span className="hidden sm:inline">Clinicians</span>
+        </button>
+
+        <div className="flex items-center gap-2 text-xs lg:text-sm text-slate-400 bg-white border border-slate-200 rounded-xl px-3 lg:px-4 py-2 shadow-sm">
+          <Eye size={12} />
+          <span>Viewing as</span>
+          <span className="font-bold text-slate-600 capitalize">{role || "user"}</span>
+        </div>
+      </div>
+
+      {/* ── Header card ── */}
+      <div className="relative bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        {/* Decorative */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 via-white to-indigo-50/40 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-indigo-100/30 to-transparent rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        {/* Top accent line */}
+        <div className="relative h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+
+        <div className="relative p-5 sm:p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5 lg:gap-8">
+
+            {/* Left — avatar + info */}
+            <div className="flex items-start gap-4 lg:gap-5 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-14 h-14 sm:w-[68px] sm:h-[68px] lg:w-20 lg:h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-200/60">
+                  <Stethoscope size={24} className="text-white sm:w-7 sm:h-7 lg:w-9 lg:h-9" />
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 lg:w-4 lg:h-4 rounded-full border-2 border-white bg-emerald-400" />
+              </div>
+
+              <div className="min-w-0 flex-1 pt-0.5">
+                <h1 className="text-xl sm:text-2xl lg:text-[1.75rem] font-extrabold text-slate-800 leading-tight">
+                  // @ts-ignore
+                  {clinician.fullName || "—"}
+                </h1>
+
+                {/* Badges */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                  // @ts-ignore
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border ${TYPE_COLORS[clinician.clinicianType] || "bg-slate-50 text-slate-600 border-slate-200"}`}>
+                    // @ts-ignore
+                    {clinician.clinicianType || "—"}
+                  </span>
+                  // @ts-ignore
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border ${CONTRACT_COLORS[clinician.contractType] || "bg-slate-50 text-slate-600 border-slate-200"}`}>
+                    // @ts-ignore
+                    {clinician.contractType || "—"}
+                  </span>
+                  {clinician.restricted ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-red-50 text-red-700 border-red-200">
+                      <ShieldAlert size={10} /> Restricted
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
+                      <ShieldCheck size={10} /> Active
+                    </span>
+                  )}
+                </div>
+
+                {/* Contact */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3">
+                  // @ts-ignore
+                  {clinician.email && (
+                    <a href={`mailto:${clinician.email}`}
+                      className="text-xs lg:text-sm text-slate-500 inline-flex items-center gap-1.5 hover:text-blue-600 transition-colors group">
+                      <span className="w-5 h-5 rounded-md bg-slate-100 group-hover:bg-blue-50 flex items-center justify-center transition-colors">
+                        <Mail size={11} className="group-hover:text-blue-500 transition-colors" />
+                      </span>
+                      // @ts-ignore
+                      {clinician.email}
+                    </a>
+                  )}
+                  // @ts-ignore
+                  {clinician.phone && (
+                    <a href={`tel:${clinician.phone}`}
+                      className="text-xs lg:text-sm text-slate-500 inline-flex items-center gap-1.5 hover:text-blue-600 transition-colors group">
+                      <span className="w-5 h-5 rounded-md bg-slate-100 group-hover:bg-blue-50 flex items-center justify-center transition-colors">
+                        <Phone size={11} className="group-hover:text-blue-500 transition-colors" />
+                      </span>
+                      // @ts-ignore
+                      {clinician.phone}
+                    </a>
+                  )}
+                  // @ts-ignore
+                  {clinician.gphcNumber && (
+                    <span className="text-xs lg:text-sm font-mono text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-lg">
+                      // @ts-ignore
+                      GPhC {clinician.gphcNumber}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right — stats */}
+            <div className="grid grid-cols-3 sm:grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-2.5 sm:min-w-[180px] lg:min-w-[250px]">
+              {[
+                {
+                  icon: Clock,
+                  label: "Hrs / wk",
+                  value: clinician.workingHours || "—",
+                  big: true,
+                },
+                {
+                  icon: CalendarCheck,
+                  label: "Started",
+                  // @ts-ignore
+                  value: fmtDate(clinician.startDate) || "—",
+                  big: false,
+                },
+                {
+                  icon: CalendarDays,
+                  label: "Leave",
+                  value: (
+                    <span>
+                      // @ts-ignore
+                      {clinician?.leaveBalances?.annual?.taken ?? 0}
+                      <span className="text-slate-400 font-normal text-[10px] lg:text-xs">
+                        // @ts-ignore
+                        {" "}/{" "}{clinician?.leaveBalances?.annual?.allowance ?? clinician?.annualLeaveAllowance ?? 28}
+                      </span>
+                    </span>
+                  ),
+                  big: false,
+                },
+              ].map(({ icon: Icon, label, value, big }) => (
+                <div key={label} className="rounded-xl bg-white/80 border border-slate-200/80 p-3 lg:p-4 text-center shadow-sm">
+                  <div className="flex items-center justify-center gap-1 mb-1.5">
+                    <Icon size={10} className="text-slate-400 lg:w-3 lg:h-3" />
+                    <p className="text-[9px] lg:text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                  </div>
+                  <p className={`font-extrabold text-slate-800 ${big ? "text-xl lg:text-2xl" : "text-xs lg:text-sm"}`}>
+                    // @ts-ignore
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MOBILE: Dropdown Tab ── */}
+      <div className="sm:hidden relative">
+        <button
+          onClick={() => setMobileTabOpen(!mobileTabOpen)}
+          className="w-full min-h-11 bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 shadow-sm"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+              <activeTabMeta.icon size={14} className="text-white" />
+            </div>
+            <span className="text-sm font-bold text-slate-800">{activeTabMeta.label}</span>
+          </div>
+          <ChevronDown
+            size={16}
+            className={`text-slate-400 transition-transform duration-200 ${mobileTabOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {mobileTabOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 overflow-hidden">
+            {TABS.map((t, i) => {
+              const Icon   = t.icon;
+              const active = activeTab === t.id;
+              return (
+                <button
+                  type="button"
+                  key={t.id}
+                  onClick={() => changeTab(t.id)}
+                  className={`w-full min-h-11 flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-colors text-left
+                    ${active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"}
+                    ${i > 0 ? "border-t border-slate-100" : ""}`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${active ? "bg-blue-600" : "bg-slate-100"}`}>
+                    <Icon size={14} className={active ? "text-white" : "text-slate-500"} />
+                  </div>
+                  {t.label}
+                  {active && <span className="ml-auto w-2 h-2 rounded-full bg-blue-600" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── DESKTOP: Tab strip ── */}
+      <div className="hidden sm:block">
+        <div className="bg-white rounded-2xl border border-slate-200 px-3 py-2.5 lg:px-4 shadow-sm">
+          <div className="flex flex-wrap gap-1 lg:gap-1.5">
+            {TABS.map((t) => {
+              const Icon   = t.icon;
+              const active = activeTab === t.id;
+              return (
+                <button
+                  type="button"
+                  key={t.id}
+                  onClick={() => changeTab(t.id)}
+                  className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-2.5 lg:py-2.5 min-h-11 sm:min-h-9 rounded-xl text-xs lg:text-sm font-bold transition-all
+                    ${active
+                      ? "bg-blue-600 text-white shadow-sm shadow-blue-200"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}
+                >
+                  <Icon size={13} className="lg:w-[14px] lg:h-[14px]" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Active Panel ── */}
+      <div className="pb-8">
+        {renderActive()}
+      </div>
+
+    </div>
+  );
+}
+
