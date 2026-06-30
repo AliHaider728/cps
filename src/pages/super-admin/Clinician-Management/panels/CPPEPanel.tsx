@@ -43,7 +43,6 @@ export default function CPPEPanel({ clinicianId, canManage }: CPPEPanelProps) {
 
   useEffect(() => {
     if (data?.cppe) {
-      // @ts-ignore
       setState((prev) => ({ ...prev, ...data.cppe, modules: data.cppe.modules || [] }));
       setDirty(false);
     }
@@ -192,4 +191,5 @@ export default function CPPEPanel({ clinicianId, canManage }: CPPEPanelProps) {
     </div>
   );
 }
+
 

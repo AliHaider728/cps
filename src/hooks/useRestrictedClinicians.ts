@@ -39,3 +39,4 @@ export const useRestrictedAtClient = (entityType: string, entityId: string | num
     enabled: !!(entityType && entityId),
   });
 
+

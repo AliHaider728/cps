@@ -37,8 +37,7 @@ export default function ClientHistoryPanel({ clinicianId, canManage, pcns = [], 
   });
 
   const addM = useMutation({
-    // @ts-ignore
-    mutationFn: (data: ClientHistoryForm) => clinicianService.addClientAssignment(clinicianId, data).then((r: any) => r.data),
+    mutationFn: (data: ClientHistoryForm) => clinicianService.addClientAssignment(clinicianId, data as any).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_CLIENT_HISTORY(clinicianId) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(clinicianId) });
@@ -47,7 +46,6 @@ export default function ClientHistoryPanel({ clinicianId, canManage, pcns = [], 
 
   const endM = useMutation({
     mutationFn: ({ histId, endDate, reason }: { histId: string; endDate: string; reason: string }) =>
-      // @ts-ignore
       clinicianService.endClientAssignment(clinicianId, histId, { endDate, reason }).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_CLIENT_HISTORY(clinicianId) });
@@ -156,9 +154,7 @@ export default function ClientHistoryPanel({ clinicianId, canManage, pcns = [], 
           }
         >
           <div className="grid grid-cols-2 gap-3">
-            // @ts-ignore
             <FormField label="PCN"      value={form.pcnId || ""}      onChange={(v: string) => setForm((f) => ({ ...f, pcnId: v, practiceId: v ? "" : f.practiceId }))} options={pcnOpts} />
-            // @ts-ignore
             <FormField label="Practice" value={form.practiceId || ""} onChange={(v: string) => setForm((f) => ({ ...f, practiceId: v, pcnId: v ? "" : f.pcnId }))} options={practiceOpts} />
             <FormField label="Role"          value={form.role || ""}         onChange={(v: string) => setForm((f) => ({ ...f, role: v }))} />
             <FormField label="Contract type" value={form.contractType || ""} onChange={(v: string) => setForm((f) => ({ ...f, contractType: v }))} options={["ARRS","EA","Direct","Mixed"]} />
@@ -189,4 +185,5 @@ export default function ClientHistoryPanel({ clinicianId, canManage, pcns = [], 
     </div>
   );
 }
+
 

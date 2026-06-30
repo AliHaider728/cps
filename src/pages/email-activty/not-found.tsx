@@ -1,5 +1,4 @@
 import React from "react";
-// @ts-ignore
 import { Link } from "wouter";
 
 export default function NotFound() {
@@ -26,4 +25,5 @@ export default function NotFound() {
     </div>
   );
 }
+
 

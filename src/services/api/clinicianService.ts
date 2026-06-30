@@ -43,6 +43,8 @@ export const clinicianService = {
 
   /* ── Tab 4 — Client history ─────────────────────────── */
   getClientHistory: (id: string | number): Promise<AxiosResponse> => apiClient.get(`${base}/${id}/client-history`),
+  addClientAssignment: (id: string | number, data: Record<string, unknown>): Promise<AxiosResponse> => apiClient.post(`${base}/${id}/client-history`, data),
+  endClientAssignment: (id: string | number, recordId: string | number, data: Record<string, unknown>): Promise<AxiosResponse> => apiClient.put(`${base}/${id}/client-history/${recordId}`, data),
 
   /* ── Tab 5 — Leave ──────────────────────────────────── */
   getMyLeave:  (): Promise<AxiosResponse>                => apiClient.get(`${base}/me/leave`),
@@ -51,6 +53,7 @@ export const clinicianService = {
   resetUserPassword: (id: string | number): Promise<AxiosResponse>        => apiClient.post(`${base}/${id}/reset-login-password`),
   getProjectMappings: (id: string | number): Promise<AxiosResponse>       => apiClient.get(`${base}/${id}/project-mappings`),
   createProjectMapping: (id: string | number, data: Record<string, unknown>): Promise<AxiosResponse> => apiClient.post(`${base}/${id}/project-mappings`, data),
+  updateProjectMapping: (id: string | number, mappingId: string | number, data: Record<string, unknown>): Promise<AxiosResponse> => apiClient.put(`${base}/${id}/project-mappings/${mappingId}`, data),
   deleteProjectMapping: (id: string | number, mappingId: string | number): Promise<AxiosResponse> =>
     apiClient.delete(`${base}/${id}/project-mappings/${mappingId}`),
   addLeave:    (id: string | number, data: Record<string, unknown>): Promise<AxiosResponse>        => apiClient.post(`${base}/${id}/leave`, data),

@@ -8,3 +8,4 @@ export type AppDispatch = ReturnType<typeof useDispatch>; // Placeholder
 export const useAppDispatch = (): AppDispatch => useDispatch<AppDispatch>();
 export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 
+

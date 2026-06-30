@@ -387,21 +387,16 @@ export default function PCNDetailPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  // @ts-ignore
-  const { data, isLoading, refetch } = usePCN(id);
+  const { data, isLoading, refetch } = usePCN(id || "");
   const updatePCNMutation     = useUpdatePCN();
-  // @ts-ignore
-  const upsertMeetingMutation = useUpsertMeeting(id);
+  const upsertMeetingMutation = useUpsertMeeting(id || "");
   const { data: groupsData }  = useDocumentGroups({ active: true });
   const { data: icbData }     = useICBs();
   const { data: fedData, isLoading: fedsLoading } = useFederations();
 
   const pcn    = data?.pcn    ?? null;
-  // @ts-ignore
   const groups = groupsData?.groups    || [];
-  // @ts-ignore
   const icbs   = icbData?.icbs         || [];
-  // @ts-ignore
   const feds   = fedData?.federations  || [];
 
   const tab = useAppSelector((state: any) => state.pcn.activeDetailTab);
@@ -446,13 +441,11 @@ export default function PCNDetailPage() {
   }, [id, updatePCNMutation]);
 
   const toggleSystem = useCallback(async (sys: string) => {
-    // @ts-ignore
     const rs = { ...(pcn?.requiredSystems || {}), [sys]: !pcn?.requiredSystems?.[sys] };
     await patch({ requiredSystems: rs }, `sys_${sys}`);
   }, [pcn, patch]);
 
   const saveContact = async (form: any) => {
-    // @ts-ignore
     const contacts = [...(pcn?.contacts || [])];
     if (form._id) {
       const i = contacts.findIndex((c: any) => c._id === form._id);
@@ -469,7 +462,6 @@ export default function PCNDetailPage() {
       title: "Delete Contact",
       description: `Are you sure you want to delete "${name}"? This cannot be undone.`,
       onConfirm: async () => {
-        // @ts-ignore
         await patch({ contacts: (pcn?.contacts || []).filter((c: any) => c._id !== cid) });
       },
     });
@@ -481,7 +473,6 @@ export default function PCNDetailPage() {
   };
 
   const saveTemplate = async (form: any) => {
-    // @ts-ignore
     const templates = [...(pcn?.emailTemplates || [])];
     if (form._id) {
       const i = templates.findIndex((t: any) => t._id === form._id);
@@ -498,7 +489,6 @@ export default function PCNDetailPage() {
       title: "Delete Template",
       description: `Are you sure you want to delete "${name}"? This cannot be undone.`,
       onConfirm: async () => {
-        // @ts-ignore
         await patch({ emailTemplates: (pcn?.emailTemplates || []).filter((t: any) => t._id !== tid) });
       },
     });
@@ -525,45 +515,26 @@ export default function PCNDetailPage() {
     const [saving,  setSaving]  = useState(false);
 
     const buildForm = () => ({
-      // @ts-ignore
       name:                pcn.name                 || "",
-      // @ts-ignore
       icb:                 String(getId(pcn.icb) || ""),
-      // @ts-ignore
       federation:          String(getId(pcn.federation) || ""),
-      // @ts-ignore
       contractType:        pcn.contractType         || "",
-      // @ts-ignore
       hourlyRate:          pcn.hourlyRate            ?? "",
-      // @ts-ignore
       xeroCode:            pcn.xeroCode             || "",
-      // @ts-ignore
       xeroCategory:        pcn.xeroCategory         || "",
       // ✅ contractStartDate intentionally NOT included in form —
       //    it is set only at creation and never updated again.
-      // @ts-ignore
       contractStartDate:   pcn.contractStartDate
-        // @ts-ignore
         ? new Date(pcn.contractStartDate).toISOString().split("T")[0] : "",
-      // @ts-ignore
       contractRenewalDate: pcn.contractRenewalDate
-        // @ts-ignore
         ? new Date(pcn.contractRenewalDate).toISOString().split("T")[0] : "",
-      // @ts-ignore
       contractExpiryDate:  pcn.contractExpiryDate
-        // @ts-ignore
         ? new Date(pcn.contractExpiryDate).toISOString().split("T")[0]  : "",
-      // @ts-ignore
       priority:        pcn.priority || "normal",
-      // @ts-ignore
       tags:            pcn.tags?.join(", ") || "",
-      // @ts-ignore
       complianceGroups: (pcn.complianceGroups?.length
-        // @ts-ignore
         ? pcn.complianceGroups.map((g: any) => g?._id || g).filter(Boolean)
-        // @ts-ignore
         : (pcn.complianceGroup ? [pcn.complianceGroup?._id || pcn.complianceGroup] : [])),
-      // @ts-ignore
       notes: pcn.notes || "",
     });
 
@@ -621,9 +592,7 @@ export default function PCNDetailPage() {
     const SYSTEMS   = ["emis","systmOne","ice","accurx","docman","softphone","vpn"];
     const SYS_LABEL: Record<string, string> = { systmOne:"SystmOne", emis:"EMIS", ice:"ICE", accurx:"AccuRx", docman:"Docman", softphone:"Softphone", vpn:"VPN" };
 
-    // @ts-ignore
     const selectedGroupNames = (pcn.complianceGroups?.length
-      // @ts-ignore
       ? pcn.complianceGroups : (pcn.complianceGroup ? [pcn.complianceGroup] : []))
       .map((g: any) => g?.name || "").filter(Boolean).join(", ") || "No compliance groups assigned";
 
@@ -742,36 +711,22 @@ export default function PCNDetailPage() {
             </div>
           ) : (
             <div>
-              // @ts-ignore
               <DetailRow label="Client Name"       value={pcn.name} />
-              // @ts-ignore
               <DetailRow label="ICB"               value={pcn.icb?.name} />
-              // @ts-ignore
               <DetailRow label="Federation"        value={pcn.federation?.name || pcn.federationName} />
               <DetailRow label="Compliance Groups" value={selectedGroupNames} />
-              // @ts-ignore
               <DetailRow label="Contract Type"     value={pcn.contractType} />
-              // @ts-ignore
               <DetailRow label="Hourly Rate"       value={pcn.hourlyRate != null && pcn.hourlyRate !== "" ? `£${Number(pcn.hourlyRate).toFixed(2)}/hr` : null} />
-              // @ts-ignore
               <DetailRow label="Xero Code"         value={pcn.xeroCode} />
-              // @ts-ignore
               <DetailRow label="Xero Category"     value={pcn.xeroCategory} />
-              // @ts-ignore
               <DetailRow label="Contract Start"    value={fmtDate(pcn.contractStartDate)} />
-              // @ts-ignore
               <DetailRow label="Renewal Date"      value={fmtDate(pcn.contractRenewalDate)} />
-              // @ts-ignore
               <DetailRow label="Expiry Date"       value={fmtDate(pcn.contractExpiryDate)} />
-              // @ts-ignore
               <DetailRow label="Priority"          value={pcn.priority && pcn.priority !== "normal" ? pcn.priority.toUpperCase() : "Normal"} />
-              // @ts-ignore
               <DetailRow label="Tags"              value={pcn.tags?.length ? pcn.tags.join(", ") : null} />
-              // @ts-ignore
               {pcn.notes && (
                 <div className="pt-4 mt-2 border-t border-slate-50">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p>
-                  // @ts-ignore
                   <p className="text-sm text-slate-600 leading-relaxed">{pcn.notes}</p>
                 </div>
               )}
@@ -785,14 +740,11 @@ export default function PCNDetailPage() {
           <p className="text-xs text-slate-400 mb-4">Click any system to toggle</p>
           <div className="grid grid-cols-2 gap-2">
             {SYSTEMS.map(sys => (
-              // @ts-ignore
               <CompBadge key={sys} ok={!!pcn.requiredSystems?.[sys]} label={SYS_LABEL[sys] || sys}
                 onToggle={() => toggleSystem(sys)} saving={!!fieldSaving[`sys_${sys}`]} />
             ))}
           </div>
-          // @ts-ignore
           {pcn.requiredSystems?.other && (
-            // @ts-ignore
             <p className="text-sm text-slate-500 mt-4 pt-4 border-t border-slate-100">Other: {pcn.requiredSystems.other}</p>
           )}
         </div>
@@ -801,7 +753,6 @@ export default function PCNDetailPage() {
   };
 
   const ContactsPanel = () => {
-    // @ts-ignore
     const contacts = pcn.contacts || [];
     return (
       <div className="space-y-4">
@@ -856,11 +807,9 @@ export default function PCNDetailPage() {
     );
   };
 
-  // @ts-ignore
   const DocumentsPanel = () => <EntityDocumentsTab entityType="PCN" entityId={pcn._id} accent="blue" />;
 
   const PracticesPanel = () => {
-    // @ts-ignore
     const practices = pcn.practices || [];
     const totalFTE  = practices.reduce((s: number, p: any) => { const n = parseFloat(p.fte); return s + (isNaN(n) ? 0 : n); }, 0);
     return (
@@ -920,7 +869,6 @@ export default function PCNDetailPage() {
   };
 
   const MeetingsPanel = () => {
-    // @ts-ignore
     const meetings   = [...(pcn.monthlyMeetings||[])].sort((a: any,b: any)=>new Date(b.date||0).getTime()-new Date(a.date||0).getTime());
     const TYPE_LABEL: Record<string, string> = { monthly_review:"Monthly Review", clinician_meeting:"Clinician Meeting", governance:"Governance", other:"Other" };
     return (
@@ -958,7 +906,6 @@ export default function PCNDetailPage() {
   };
 
   const TemplatesPanel = () => {
-    // @ts-ignore
     const templates = pcn.emailTemplates || [];
     return (
       <div className="space-y-4">
@@ -998,7 +945,6 @@ export default function PCNDetailPage() {
   };
 
   const RestrictedPanel = () => {
-    // @ts-ignore
     const restricted = pcn.restrictedClinicians || [];
     const [addModal,  setAddModal]  = useState(false);
     const [newName,   setNewName]   = useState("");
@@ -1099,17 +1045,14 @@ export default function PCNDetailPage() {
     );
   };
 
-  // @ts-ignore
-  const PANELS: Record<string, JSX.Element> = {
+  const PANELS: Record<string, React.ReactElement> = {
     overview:   <OverviewPanel />,
     contacts:   <ContactsPanel />,
     documents:  <DocumentsPanel />,
     practices:  <PracticesPanel />,
     meetings:   <MeetingsPanel />,
     templates:  <TemplatesPanel />,
-    // @ts-ignore
     history:    <ContactHistoryPanel entityType="PCN" entityId={pcn._id} />,
-    // @ts-ignore
     archive:    <ReportingArchivePanel entityType="PCN" entityId={pcn._id} />,
     restricted: <RestrictedPanel />,
   };
@@ -1123,7 +1066,6 @@ export default function PCNDetailPage() {
             <ChevronRight size={13} className="text-slate-300" />
           </span>
         ))}
-        // @ts-ignore
         <span className="text-slate-700 font-bold truncate">{pcn.name}</span>
       </nav>
 
@@ -1131,29 +1073,19 @@ export default function PCNDetailPage() {
         <div className="flex flex-wrap items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shrink-0"><Network size={22} className="text-white" /></div>
           <div className="flex-1 min-w-0">
-            // @ts-ignore
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{pcn.name}</h1>
             <div className="flex flex-wrap items-center gap-3 mt-2">
-              // @ts-ignore
               {pcn.icb?.name && <span className="text-sm text-slate-400 flex items-center gap-1"><Building2 size={12} /> {pcn.icb.name}</span>}
-              // @ts-ignore
               {(pcn.federation?.name||pcn.federationName) && <span className="text-sm text-slate-400 flex items-center gap-1"><Layers size={12} /> {pcn.federation?.name||pcn.federationName}</span>}
-              // @ts-ignore
               {pcn.contractType && <span className="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-md border border-purple-200">{pcn.contractType}</span>}
-              // @ts-ignore
               {pcn.hourlyRate != null && pcn.hourlyRate !== "" && (
-                // @ts-ignore
                 <span className="text-sm text-green-600 font-bold flex items-center gap-1"><DollarSign size={12} />£{Number(pcn.hourlyRate).toFixed(2)}/hr</span>
               )}
-              // @ts-ignore
               {pcn.priority&&pcn.priority!=="normal" && (
-                // @ts-ignore
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${pcn.priority==="high"?"bg-red-50 text-red-700 border-red-200":"bg-amber-50 text-amber-700 border-amber-200"}`}>
-                  // @ts-ignore
                   {pcn.priority.toUpperCase()}
                 </span>
               )}
-              // @ts-ignore
               {(pcn.tags||[]).map((tag: string)=>(
                 <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{tag}</span>
               ))}
@@ -1199,10 +1131,10 @@ export default function PCNDetailPage() {
         <TemplateModal existing={templateModal?._id?templateModal:null} onClose={() => setTemplateModal(null)} onSave={saveTemplate} />
       )}
       {massEmail && (
-        // @ts-ignore
         <MassEmailModal entityType="PCN" entityId={pcn._id} contacts={pcn.contacts||[]} onClose={() => setMassEmail(false)} />
       )}
     </div>
   );
 }
+
 

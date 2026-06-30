@@ -12,10 +12,10 @@ export interface PracticeParams {
 }
 
 // ── GET: all practices (with optional filters e.g. { pcn: id })
-export const usePractices = (params: PracticeParams = {}): UseQueryResult<Practice[], Error> =>
+export const usePractices = (params: PracticeParams = {}): UseQueryResult<any, Error> =>
   useQuery({
     queryKey: [...QK.PRACTICES, params],
-    queryFn: () => practiceAPI.getAll(params).then((r: { data: Practice[] }) => r.data),
+    queryFn: () => practiceAPI.getAll(params).then((r: { data: any }) => r.data),
   });
 
 // ── GET: single practice
@@ -65,22 +65,23 @@ export const useDeletePractice = (): UseMutationResult<void, Error, string | num
 };
 
 // ── MUTATION: update restricted clinicians (practice level)
-export const useUpdateRestrictedPractice = (): UseMutationResult<unknown, Error, { id: string | number; clinicianIds: (string | number)[] }> => {
+export const useUpdateRestrictedPractice = (): UseMutationResult<any, Error, { id: string | number; clinicianIds: (string | number)[] }> => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, clinicianIds }: { id: string | number; clinicianIds: (string | number)[] }) =>
       // @ts-ignore
-      practiceAPI.updateRestricted(id, clinicianIds).then((r: { data: unknown }) => r.data),
+      practiceAPI.updateRestricted(id, clinicianIds).then((r: { data: any }) => r.data),
     onSuccess: (_, { id }) => qc.invalidateQueries({ queryKey: QK.PRACTICE(id) }),
   });
 };
 
 // ── MUTATION: request system access
-export const useRequestSystemAccess = (): UseMutationResult<unknown, Error, { entityType: string; entityId: string | number; data: unknown }> =>
+export const useRequestSystemAccess = (): UseMutationResult<any, Error, { entityType: string; entityId: string | number; data: unknown }> =>
   useMutation({
     mutationFn: ({ entityType, entityId, data }: { entityType: string; entityId: string | number; data: unknown }) =>
       // @ts-ignore
-      practiceAPI.requestSystemAccess(entityType, entityId, data).then((r: { data: unknown }) => r.data),
+      practiceAPI.requestSystemAccess(entityType, entityId, data).then((r: { data: any }) => r.data),
   });
+
 
 

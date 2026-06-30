@@ -10,19 +10,19 @@ export interface ComplianceGroupData {
   [key: string]: any;
 }
 
-export const useClinicianCompliance = (id: string): UseQueryResult<ComplianceData[], Error> =>
-  useQuery<ComplianceData[], Error>({
+export const useClinicianCompliance = (id: string): UseQueryResult<any, Error> =>
+  useQuery<any, Error>({
     queryKey: QK.CLINICIAN_COMPLIANCE(id),
-    queryFn:  () => clinicianService.getCompliance(id).then((r: { data: ComplianceData[] }) => r.data),
+    queryFn:  () => clinicianService.getCompliance(id).then((r: { data: any }) => r.data),
     enabled:  !!id,
   });
 
-export const useUpsertClinicianDoc = (id: string): UseMutationResult<unknown, Error, { docId?: string; data: unknown }> => {
+export const useUpsertClinicianDoc = (id: string): UseMutationResult<any, Error, { docId?: string; data: unknown }> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, { docId?: string; data: unknown }>({
     mutationFn: ({ docId, data }) =>
       // @ts-ignore
-      clinicianService.upsertComplianceDoc(id, docId || "new", data).then((r: { data: unknown }) => r.data),
+      clinicianService.upsertComplianceDoc(id, docId || "new", data).then((r: { data: any }) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
       qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
@@ -30,11 +30,11 @@ export const useUpsertClinicianDoc = (id: string): UseMutationResult<unknown, Er
   });
 };
 
-export const useApproveClinicianDoc = (id: string): UseMutationResult<unknown, Error, string> => {
+export const useApproveClinicianDoc = (id: string): UseMutationResult<any, Error, string> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, string>({
     mutationFn: (docId) =>
-      clinicianService.approveComplianceDoc(id, docId).then((r: { data: unknown }) => r.data),
+      clinicianService.approveComplianceDoc(id, docId).then((r: { data: any }) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
       qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
@@ -42,11 +42,11 @@ export const useApproveClinicianDoc = (id: string): UseMutationResult<unknown, E
   });
 };
 
-export const useRejectClinicianDoc = (id: string): UseMutationResult<unknown, Error, { docId: string; reason: string }> => {
+export const useRejectClinicianDoc = (id: string): UseMutationResult<any, Error, { docId: string; reason: string }> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, { docId: string; reason: string }>({
     mutationFn: ({ docId, reason }) =>
-      clinicianService.rejectComplianceDoc(id, docId, reason).then((r: { data: unknown }) => r.data),
+      clinicianService.rejectComplianceDoc(id, docId, reason).then((r: { data: any }) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
       qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
@@ -54,24 +54,25 @@ export const useRejectClinicianDoc = (id: string): UseMutationResult<unknown, Er
   });
 };
 
-export const useClinicianComplianceGroups = (id: string): UseQueryResult<ComplianceGroupData[], Error> =>
-  useQuery<ComplianceGroupData[], Error>({
+export const useClinicianComplianceGroups = (id: string): UseQueryResult<any, Error> =>
+  useQuery<any, Error>({
     queryKey: ["clinician", id, "compliance-groups"],
     queryFn:  () =>
-      clinicianService.getClinicianComplianceGroups(id).then((r: { data: ComplianceGroupData[] }) => r.data),
+      clinicianService.getClinicianComplianceGroups(id).then((r: { data: any }) => r.data),
     enabled: !!id,
   });
 
-export const useAssignComplianceGroups = (id: string): UseMutationResult<unknown, Error, { groupIds: string[] }> => {
+export const useAssignComplianceGroups = (id: string): UseMutationResult<any, Error, { groupIds: string[] }> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, { groupIds: string[] }>({
     mutationFn: ({ groupIds }) =>
-      clinicianService.assignComplianceGroups(id, groupIds).then((r: { data: unknown }) => r.data),
+      clinicianService.assignComplianceGroups(id, groupIds).then((r: { data: any }) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
     },
   });
 };
+
 
 

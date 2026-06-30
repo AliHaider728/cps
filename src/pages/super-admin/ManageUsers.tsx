@@ -71,7 +71,6 @@ export default function ManageUsers() {
   const updateUserMutation = useUpdateUser();
   const deleteUserMutation = useDeleteUser();
 
-  // @ts-ignore
   const users: SystemUser[] = (data as { users?: SystemUser[] })?.users || (Array.isArray(data) ? (data as SystemUser[]) : []);
   const clinicians = useMemo(() => {
     const list = (cliniciansRes as { clinicians?: unknown, data?: unknown })?.clinicians ?? (cliniciansRes as { clinicians?: unknown, data?: unknown })?.data ?? cliniciansRes ?? [];
@@ -364,4 +363,5 @@ export default function ManageUsers() {
     </div>
   );
 }
+
 

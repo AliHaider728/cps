@@ -50,19 +50,13 @@ export default function CompliancePanel({ clinicianId, canManage }: CompliancePa
   const [assignError,    setAssignError]    = useState("");
 
   const isLoading  = legacyLoading || groupsLoading;
-  // @ts-ignore
   const groups     = groupsData?.groups     || [];
-  // @ts-ignore
   const legacyDocs = legacyData?.docs       || [];
-  // @ts-ignore
   const allGroups  = allGroupsData?.groups  || allGroupsData?.data || [];
 
   /* ── Summary numbers ── */
-  // @ts-ignore
   const totalDocs     = groupsData?.totalDocs     ?? legacyDocs.length;
-  // @ts-ignore
   const totalUploaded = groupsData?.totalUploaded ?? legacyDocs.filter((d: any) => d.status === "approved").length;
-  // @ts-ignore
   const totalMissing  = groupsData?.totalMissing  ?? legacyDocs.filter((d: any) => d.status === "missing").length;
   const progressPct   = totalDocs > 0 ? Math.round((totalUploaded / totalDocs) * 100) : 0;
 
@@ -576,4 +570,5 @@ export default function CompliancePanel({ clinicianId, canManage }: CompliancePa
     </div>
   );
 }
+
 

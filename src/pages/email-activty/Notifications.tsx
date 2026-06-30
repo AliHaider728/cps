@@ -1,17 +1,11 @@
 import React, { useEffect, useCallback } from "react";
-// @ts-ignore
 import { useListNotifications, useMarkNotificationRead } from "../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
-// @ts-ignore
 import { Card } from "../components/ui/Card";
-// @ts-ignore
 import { Button } from "../components/ui/Button";
-// @ts-ignore
 import { Badge } from "../components/ui/Badge";
-// @ts-ignore
 import { Spinner } from "../components/ui/Spinner";
 import { Bell, MousePointerClick, MailOpen, Download, ArrowDownLeft, Check, CheckCheck, RefreshCw, LucideIcon } from "lucide-react";
-// @ts-ignore
 import { formatRelative } from "../lib/utils";
 
 export default function Notifications() {
@@ -137,4 +131,5 @@ export default function Notifications() {
     </div>
   );
 }
+
 

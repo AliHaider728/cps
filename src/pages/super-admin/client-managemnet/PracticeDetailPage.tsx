@@ -639,13 +639,11 @@ export default function PracticeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // @ts-ignore
-  const { data, isLoading, refetch } = usePractice(id);
+  const { data, isLoading, refetch } = usePractice(id || "");
   const updatePracticeMutation = useUpdatePractice();
   const { data: groupsData, isLoading: groupsLoading } = useDocumentGroups({ active: true });
 
   const practice = data?.practice ?? null;
-  // @ts-ignore
   const groups = groupsData?.groups || [];
 
   const [tab, setTab] = useState<string>("overview");
@@ -656,8 +654,7 @@ export default function PracticeDetailPage() {
   const patch = useCallback(
     async (body: any) => {
       try {
-        // @ts-ignore
-        await updatePracticeMutation.mutateAsync({ id, data: body });
+        await updatePracticeMutation.mutateAsync({ id: id || "", data: body });
       } catch (e: any) {
         alert(e.message);
       }
@@ -667,7 +664,6 @@ export default function PracticeDetailPage() {
 
   const saveContact = useCallback(
     async (form: any) => {
-      // @ts-ignore
       const contacts = [...(practice?.contacts || [])];
       const formId = form?._id || form?.id;
       if (formId) {
@@ -686,7 +682,6 @@ export default function PracticeDetailPage() {
     async (cid: string) => {
       if (!confirm("Delete contact?")) return;
       await patch({
-        // @ts-ignore
         contacts: (practice?.contacts || []).filter(
           (c: any) => (c?._id || c?.id) !== cid,
         ),
@@ -697,7 +692,6 @@ export default function PracticeDetailPage() {
 
   const saveAccess = useCallback(
     async (form: any) => {
-      // @ts-ignore
       const systems = [...(practice?.systemAccess || [])];
       if (form._id) {
         const i = systems.findIndex((s: any) => s._id === form._id);
@@ -715,7 +709,6 @@ export default function PracticeDetailPage() {
     async (sid: string) => {
       if (!confirm("Remove system access record?")) return;
       await patch({
-        // @ts-ignore
         systemAccess: (practice?.systemAccess || []).filter((s: any) => s._id !== sid),
       });
     },
@@ -740,7 +733,6 @@ export default function PracticeDetailPage() {
       </div>
     );
 
-  // @ts-ignore
   const linkedClient = practice.client || practice.pcn || {};
 
   const openContactAdd = () => setContactModal({});
@@ -789,7 +781,6 @@ export default function PracticeDetailPage() {
             <ChevronRight size={13} className="text-slate-300 shrink-0" />
           </>
         )}
-        // @ts-ignore
         <span className="text-slate-700 font-bold truncate">{practice.name}</span>
       </nav>
 
@@ -800,14 +791,11 @@ export default function PracticeDetailPage() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight break-words">
-              // @ts-ignore
               {practice.name}
             </h1>
             <div className="flex flex-wrap items-center gap-2.5 mt-2">
-              // @ts-ignore
               {practice.odsCode && (
                 <span className="text-sm text-slate-400 flex items-center gap-1 shrink-0">
-                  // @ts-ignore
                   <Hash size={12} /> {practice.odsCode}
                 </span>
               )}
@@ -826,40 +814,30 @@ export default function PracticeDetailPage() {
                   <Network size={12} className="shrink-0" /> {linkedClient.name}
                 </span>
               )}
-              // @ts-ignore
               {practice.contractType && (
                 <span className="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-md border border-teal-200 shrink-0">
-                  // @ts-ignore
                   {practice.contractType}
                 </span>
               )}
-              // @ts-ignore
               {practice.complianceGroup?.name && (
                 <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md border border-emerald-200 shrink-0 flex items-center gap-1">
-                  // @ts-ignore
                   <ShieldCheck size={11} /> {practice.complianceGroup.name}
                 </span>
               )}
-              // @ts-ignore
               {practice.fte && (
-                // @ts-ignore
                 <span className="text-sm text-slate-400 shrink-0">{practice.fte}</span>
               )}
-              // @ts-ignore
               {practice.priority && practice.priority !== "normal" && (
                 <span
                   className={`text-xs font-bold px-2 py-0.5 rounded-md border shrink-0 ${
-                    // @ts-ignore
                     practice.priority === "high"
                       ? "bg-red-50 text-red-700 border-red-200"
                       : "bg-amber-50 text-amber-700 border-amber-200"
                   }`}
                 >
-                  // @ts-ignore
                   {practice.priority.toUpperCase()}
                 </span>
               )}
-              // @ts-ignore
               {(practice.tags || []).map((tag: string, i: number) => (
                 <span
                   key={`${tag}-${i}`}
@@ -921,8 +899,7 @@ export default function PracticeDetailPage() {
             practice={practice}
             onAddContact={openContactAdd}
             onEditContact={openContactEdit}
-            // @ts-ignore
-            onDeleteContact={deleteContact}
+            onDeleteContact={(cid) => { if (cid) deleteContact(cid); }}
             onMassEmail={() => setMassEmail(true)}
             Btn={Btn}
           />
@@ -930,10 +907,7 @@ export default function PracticeDetailPage() {
         {tab === "documents" && (
           <EntityDocumentsTab
             entityType="Practice"
-            // @ts-ignore
             entityId={practice._id}
-            // @ts-ignore
-            complianceGroup={practice.complianceGroup || null}
             accent="teal"
           />
         )}
@@ -946,11 +920,9 @@ export default function PracticeDetailPage() {
           />
         )}
         {tab === "history" && (
-          // @ts-ignore
           <ContactHistoryPanel entityType="Practice" entityId={practice._id} />
         )}
         {tab === "archive" && (
-          // @ts-ignore
           <ReportingArchivePanel entityType="Practice" entityId={practice._id} />
         )}
         {tab === "restricted" && (
@@ -975,9 +947,7 @@ export default function PracticeDetailPage() {
       {massEmail && (
         <MassEmailModal
           entityType="Practice"
-          // @ts-ignore
           entityId={practice._id}
-          // @ts-ignore
           contacts={practice.contacts || []}
           onClose={() => setMassEmail(false)}
         />
@@ -985,4 +955,5 @@ export default function PracticeDetailPage() {
     </div>
   );
 }
+
 

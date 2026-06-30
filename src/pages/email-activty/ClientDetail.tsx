@@ -1,20 +1,12 @@
 import React, { useState } from "react";
-// @ts-ignore
 import { useParams, Link } from "wouter";
-// @ts-ignore
 import { useGetClient, useGetClientTimeline, useAddNote } from "../lib/api";
-// @ts-ignore
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
-// @ts-ignore
 import { Button } from "../components/ui/Button";
-// @ts-ignore
 import { Badge } from "../components/ui/Badge";
-// @ts-ignore
 import { Spinner } from "../components/ui/Spinner";
-// @ts-ignore
 import { ComposeEmailModal } from "../components/layout/ComposeEmailModal";
 import { ArrowLeft, Mail, Phone, Calendar, ArrowUpRight, ArrowDownLeft, StickyNote, MousePointerClick, Send, LucideIcon } from "lucide-react";
-// @ts-ignore
 import { formatSmartDate, getInitials } from "../lib/utils";
 
 const TABS = [
@@ -258,4 +250,5 @@ export default function ClientDetail() {
     </div>
   );
 }
+
 

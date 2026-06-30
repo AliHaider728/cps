@@ -57,11 +57,11 @@ export const useAddRestrictedClient = (id: string): UseMutationResult<Restricted
 };
 
 /* ─── REMOVE per-client restriction ─────────────────────── */
-export const useRemoveRestrictedClient = (id: string): UseMutationResult<unknown, Error, string> => {
+export const useRemoveRestrictedClient = (id: string): UseMutationResult<any, Error, string> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, string>({
     mutationFn: (recordId) =>
-      clinicianService.removeRestrictedClient(id, recordId).then((r: { data: unknown }) => r.data),
+      clinicianService.removeRestrictedClient(id, recordId).then((r: { data: any }) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_RESTRICTED_CLIENTS(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
@@ -70,11 +70,11 @@ export const useRemoveRestrictedClient = (id: string): UseMutationResult<unknown
 };
 
 /* ─── Global/system restrict + unrestrict ───────────────── */
-export const useRestrictClinician = (id: string): UseMutationResult<unknown, Error, string> => {
+export const useRestrictClinician = (id: string): UseMutationResult<any, Error, string> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, string>({
     mutationFn: (reason) =>
-      clinicianService.restrict(id, reason).then((r: { data: unknown }) => r.data),
+      clinicianService.restrict(id, reason).then((r: { data: any }) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIANS });
@@ -82,15 +82,16 @@ export const useRestrictClinician = (id: string): UseMutationResult<unknown, Err
   });
 };
 
-export const useUnrestrictClinician = (id: string): UseMutationResult<unknown, Error, void> => {
+export const useUnrestrictClinician = (id: string): UseMutationResult<any, Error, void> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, void>({
     mutationFn: () =>
-      clinicianService.unrestrict(id).then((r: { data: unknown }) => r.data),
+      clinicianService.unrestrict(id).then((r: { data: any }) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIANS });
     },
   });
 };
+
 

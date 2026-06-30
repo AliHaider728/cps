@@ -24,10 +24,10 @@ export interface PCNMeeting {
   [key: string]: any;
 }
 
-export const usePCNs = (params: PCNParams = {}): UseQueryResult<PCN[], Error> =>
+export const usePCNs = (params: PCNParams = {}): UseQueryResult<any, Error> =>
   useQuery({
     queryKey: [...QK.PCNS, params],
-    queryFn: () => pcnService.getAll(params).then((response: { data: PCN[] }) => response.data),
+    queryFn: () => pcnService.getAll(params).then((response: { data: any }) => response.data),
   });
 
 export const usePCN = (id: string | number): UseQueryResult<PCN, Error> =>
@@ -37,10 +37,10 @@ export const usePCN = (id: string | number): UseQueryResult<PCN, Error> =>
     enabled: !!id,
   }); 
 
-export const usePCNRollup = (id: string | number): UseQueryResult<unknown, Error> =>
+export const usePCNRollup = (id: string | number): UseQueryResult<any, Error> =>
   useQuery({
     queryKey: QK.PCN_ROLLUP(id),
-    queryFn: () => pcnService.getRollup(id).then((response: { data: unknown }) => response.data),
+    queryFn: () => pcnService.getRollup(id).then((response: { data: any }) => response.data),
     enabled: !!id,
   });
 
@@ -102,12 +102,12 @@ export const useDeletePCN = (): UseMutationResult<void, Error, string | number> 
   });
 };
 
-export const useUpdateRestrictedClinicians = (): UseMutationResult<unknown, Error, { id: string | number; clinicianIds: (string | number)[] }> => {
+export const useUpdateRestrictedClinicians = (): UseMutationResult<any, Error, { id: string | number; clinicianIds: (string | number)[] }> => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, clinicianIds }: { id: string | number; clinicianIds: (string | number)[] }) =>
       // @ts-ignore
-      pcnService.updateRestricted(id, clinicianIds).then((response: { data: unknown }) => response.data),
+      pcnService.updateRestricted(id, clinicianIds).then((response: { data: any }) => response.data),
     onSuccess: (_, { id }) => queryClient.invalidateQueries({ queryKey: QK.PCN(id) }),
   });
 };
@@ -119,5 +119,6 @@ export const useUpsertMeeting = (pcnId: string | number): UseMutationResult<PCNM
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QK.PCN_MEETINGS(pcnId) }),
   });
 };
+
 
 

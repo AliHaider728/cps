@@ -162,7 +162,6 @@ export default function ReportingArchivePanel({ entityType, entityId }: Reportin
   const addReport = useAddToReportingArchive(entityType, entityId);
   const deleteReport = useDeleteFromReportingArchive(entityType, entityId);
 
-  // @ts-ignore
   const archive: any[] = data?.archive || [];
   const years: number[] = [...new Set(archive.map((r: any) => r.year))].sort((a: any, b: any) => b - a);
   const filtered: any[] = filterYear ? archive.filter((r: any) => String(r.year) === filterYear) : archive;
@@ -173,7 +172,6 @@ export default function ReportingArchivePanel({ entityType, entityId }: Reportin
   };
 
   const handleUpload = async (jsonPayload: UploadPayload) => {
-    // @ts-ignore
     await addReport.mutateAsync(jsonPayload);
     setShowUpload(false);
   };
@@ -288,4 +286,5 @@ export default function ReportingArchivePanel({ entityType, entityId }: Reportin
     </div>
   );
 }
+
 

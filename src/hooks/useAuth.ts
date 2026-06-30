@@ -56,26 +56,27 @@ export const useUpdateUser = (): UseMutationResult<UserData, Error, { id: string
   });
 };
 
-export const useDeleteUser = (): UseMutationResult<unknown, Error, string> => {
+export const useDeleteUser = (): UseMutationResult<any, Error, string> => {
   const queryClient = useQueryClient();
   return useMutation<unknown, Error, string>({
-    mutationFn: (id) => authService.deleteUser(id).then((r: { data: unknown }) => r.data),
+    mutationFn: (id) => authService.deleteUser(id).then((r: { data: any }) => r.data),
     onSuccess:  () => { queryClient.invalidateQueries({ queryKey: QK.USERS }); },
   });
 };
 
-export const useAnonymiseUser = (): UseMutationResult<unknown, Error, string> => {
+export const useAnonymiseUser = (): UseMutationResult<any, Error, string> => {
   const queryClient = useQueryClient();
   return useMutation<unknown, Error, string>({
-    mutationFn: (id) => authService.anonymiseUser(id).then((r: { data: unknown }) => r.data),
+    mutationFn: (id) => authService.anonymiseUser(id).then((r: { data: any }) => r.data),
     onSuccess:  () => { queryClient.invalidateQueries({ queryKey: QK.USERS }); },
   });
 };
 
-export const useChangePassword = (): UseMutationResult<unknown, Error, ChangePasswordParams> =>
+export const useChangePassword = (): UseMutationResult<any, Error, ChangePasswordParams> =>
   useMutation<unknown, Error, ChangePasswordParams>({
     mutationFn: ({ newPassword, config }) =>
-      authService.changePassword(newPassword, config).then((r: { data: unknown }) => r.data),
+      authService.changePassword(newPassword, config).then((r: { data: any }) => r.data),
   });
+
 
 

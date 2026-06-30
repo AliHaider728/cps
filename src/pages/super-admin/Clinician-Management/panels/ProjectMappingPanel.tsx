@@ -51,8 +51,7 @@ export default function ProjectMappingPanel({ clinicianId, canManage }: ProjectM
 
   const createM = useMutation({
     mutationFn: (payload: ProjectMappingForm) =>
-      // @ts-ignore
-      clinicianService.createProjectMapping(clinicianId, payload).then((r: any) => r.data),
+      clinicianService.createProjectMapping(clinicianId, payload as any).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["project-mappings", clinicianId] });
       closeModal();
@@ -61,8 +60,7 @@ export default function ProjectMappingPanel({ clinicianId, canManage }: ProjectM
 
   const updateM = useMutation({
     mutationFn: ({ mappingId, payload }: { mappingId: string; payload: ProjectMappingForm }) =>
-      // @ts-ignore
-      clinicianService.updateProjectMapping(clinicianId, mappingId, payload).then((r: any) => r.data),
+      clinicianService.updateProjectMapping(clinicianId, mappingId, payload as any).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["project-mappings", clinicianId] });
       closeModal();
@@ -76,7 +74,6 @@ export default function ProjectMappingPanel({ clinicianId, canManage }: ProjectM
       qc.invalidateQueries({ queryKey: ["project-mappings", clinicianId] }),
   });
 
-  // @ts-ignore
   const practices = (practicesQ.data?.practices || practicesQ.data || []).map((p: any) => ({
     id: p._id || p.id,
     name: p.name || p.practiceName || "Practice",
@@ -266,4 +263,5 @@ export default function ProjectMappingPanel({ clinicianId, canManage }: ProjectM
     </div>
   );
 }
+
 

@@ -20,7 +20,6 @@ interface CPPEData {
 
 export default function ClinicianCPPEPage() {
   const { data: leaveData } = useClinicianLeave();
-  // @ts-ignore
   const clinicianId = leaveData?.clinicianId;
 
   const { data, isLoading } = useClinicianCPPE(clinicianId);
@@ -87,4 +86,5 @@ export default function ClinicianCPPEPage() {
     </div>
   );
 }
+
 

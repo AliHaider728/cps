@@ -71,21 +71,22 @@ export const useUpdateClinicianCPPE = (id: string): UseMutationResult<CPPEData, 
 };
 
 /* Onboarding — update + send welcome pack */
-export const useUpdateOnboarding = (id: string): UseMutationResult<unknown, Error, Record<string, unknown>> => {
+export const useUpdateOnboarding = (id: string): UseMutationResult<any, Error, Record<string, unknown>> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, Record<string, unknown>>({
     mutationFn: (data) =>
-      clinicianService.updateOnboarding(id, data).then((r: { data: unknown }) => r.data),
+      clinicianService.updateOnboarding(id, data).then((r: { data: any }) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) }); },
   });
 };
 
-export const useSendWelcomePack = (id: string): UseMutationResult<unknown, Error, Record<string, unknown>> => {
+export const useSendWelcomePack = (id: string): UseMutationResult<any, Error, Record<string, unknown>> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, Record<string, unknown>>({
     mutationFn: (data) =>
-      clinicianService.sendWelcomePack(id, data).then((r: { data: unknown }) => r.data),
+      clinicianService.sendWelcomePack(id, data).then((r: { data: any }) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) }); },
   });
 };
+
 

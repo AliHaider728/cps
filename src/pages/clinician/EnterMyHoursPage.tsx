@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useAppSelector } from "../../hooks/redux";
 import { useMyRota } from "../../hooks/useRota";
-import { usePractice } from "../../hooks/usePractice";
+import { usePractices } from "../../hooks/usePractice";
 import { useEnterMyHours, useSubmitEnterMyHours, useUpsertEnterMyHours } from "../../hooks/useEnterMyHours";
 import { buildPracticeNameMap, isWorkingShift, resolvePracticeName } from "../../lib/practiceNames";
 import {
@@ -58,13 +58,11 @@ export default function EnterMyHoursPage() {
   const [savingShiftId, setSavingShiftId] = useState<string | null>(null);
 
   const { data: rotaData,      isLoading: rotaLoading } = useMyRota(month, year);
-  // @ts-ignore
-  const { data: practicesData }                          = usePractice();
+  const { data: practicesData }                          = usePractices();
   const { data: enteredRows = [], isLoading: rowsLoading } = useEnterMyHours(month, year);
   const upsertM = useUpsertEnterMyHours();
   const submitM = useSubmitEnterMyHours();
 
-  // @ts-ignore
   const practiceMap = useMemo(() => buildPracticeNameMap(practicesData), [practicesData]);
   const rowsByShift = useMemo(() => {
     const map = new Map<string, any>();
@@ -425,4 +423,5 @@ export default function EnterMyHoursPage() {
     </div>
   );
 }
+
 

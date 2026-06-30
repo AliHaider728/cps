@@ -1,20 +1,12 @@
 import React, { useState } from "react";
-// @ts-ignore
 import { Link } from "wouter";
 import { ArrowUpRight, ArrowDownLeft, Mail, MousePointerClick, Users, RefreshCw, BarChart3, TrendingUp, AlertCircle, LucideIcon } from "lucide-react";
-// @ts-ignore
 import { useGetStatsOverview } from "../lib/api";
-// @ts-ignore
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
-// @ts-ignore
 import { Button } from "../components/ui/Button";
-// @ts-ignore
 import { Badge } from "../components/ui/Badge";
-// @ts-ignore
 import { Spinner } from "../components/ui/Spinner";
-// @ts-ignore
 import { ComposeEmailModal } from "../components/layout/ComposeEmailModal";
-// @ts-ignore
 import { formatRelative } from "../lib/utils";
 
 interface StatCardProps {
@@ -256,4 +248,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
 

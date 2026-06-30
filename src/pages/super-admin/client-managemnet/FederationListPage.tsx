@@ -136,9 +136,7 @@ export default function FederationListPage() {
   const { data: fedData, isLoading } = useFederations();
   const { data: icbData } = useICBs();
 
-  // @ts-ignore
   const feds = fedData?.federations || [];
-  // @ts-ignore
   const icbs = icbData?.icbs || [];
 
   const createFed = useCreateFederation();
@@ -146,10 +144,8 @@ export default function FederationListPage() {
   const deleteFed = useDeleteFederation();
 
   const handleSave = async (form: FedFormState) => {
-    // @ts-ignore
-    if (modal?._id) await updateFed.mutateAsync({ id: modal._id, data: form });
-    // @ts-ignore
-    else await createFed.mutateAsync(form);
+    if (modal?._id) await updateFed.mutateAsync({ id: modal._id, data: form as any });
+    else await createFed.mutateAsync(form as any);
     setModal(null);
   };
 
@@ -388,4 +384,5 @@ export default function FederationListPage() {
     </div>
   );
 }
+
 

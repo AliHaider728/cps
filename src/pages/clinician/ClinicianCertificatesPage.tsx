@@ -86,7 +86,6 @@ export default function ClinicianCertificatesPage() {
   const { data, isLoading, error } = useClinicianCompliance(clinicianId);
   const { mutateAsync: upsertDoc } = useUpsertClinicianDoc(clinicianId);
 
-  // @ts-ignore
   const docs: Document[] = data?.docs || data || [];
   const approvedCount = docs.filter((d) => (d.status || d.approvalStatus) === "approved").length;
   const progress      = docs.length > 0 ? Math.round((approvedCount / docs.length) * 100) : 0;
@@ -289,8 +288,7 @@ export default function ClinicianCertificatesPage() {
                     <input
                       type="file"
                       className="hidden"
-                      // @ts-ignore
-                      ref={(el) => (fileInputRefs.current[id] = el)}
+                      ref={(el) => { fileInputRefs.current[id] = el; }}
                       onChange={(e) => handleFileChange(id, e.target.files?.[0])}
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                     />
@@ -345,4 +343,5 @@ export default function ClinicianCertificatesPage() {
     </div>
   );
 }
+
 

@@ -649,8 +649,7 @@ interface ActiveShiftCardProps {
 }
 
 function ActiveShiftCard({ clinicianId, isOwnDashboard }: ActiveShiftCardProps) {
-  // @ts-ignore
-  const intervalRef  = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const [liveDisplay, setLiveDisplay] = useState("00:00:00");
 
   const adminQ         = useAdminTimeEntries(isOwnDashboard ? null : clinicianId);
@@ -885,11 +884,11 @@ export default function CalendarPanel({ clinicianId, canManage, userRole = "clin
         open={shiftModal.open}
         onClose={closeModal}
         clinicianId={clinicianId}
-        // @ts-ignore
-        date={shiftModal.date}
+        date={shiftModal.date || undefined}
         editShift={shiftModal.editShift}
       />
     </div>
   );
 }
+
 

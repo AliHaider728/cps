@@ -137,9 +137,7 @@ export default function AuditTrail() {
 
   const { data, isLoading, refetch } = useAuditLogs(params);
 
-  // @ts-ignore
   const logs: AuditLog[]  = data?.logs              || [];
-  // @ts-ignore
   const total: number = data?.pagination?.total || 0;
 
   const filtered = useMemo(() =>
@@ -337,4 +335,5 @@ export default function AuditTrail() {
     </div>
   );
 }
+
 

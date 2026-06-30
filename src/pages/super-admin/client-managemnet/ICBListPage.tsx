@@ -118,16 +118,13 @@ export function ICBListPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const { data, isLoading } = useICBs();
-  // @ts-ignore
   const icbs: ICB[] = data?.icbs || [];
   const createICB = useCreateICB();
   const updateICB = useUpdateICB();
   const deleteICB = useDeleteICB();
 
   const handleSave = async (form: ICBFormState) => {
-    // @ts-ignore
     if (modal && typeof modal !== "string" && modal._id) await updateICB.mutateAsync({ id: modal._id, data: form });
-    // @ts-ignore
     else await createICB.mutateAsync(form);
     setModal(null);
   };
@@ -361,4 +358,5 @@ export function ICBListPage() {
 }
 
 export default ICBListPage;
+
 

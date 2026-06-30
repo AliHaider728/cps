@@ -15,21 +15,20 @@ export interface ReportItem {
 }
 
 // ── GET: all reports for an entity ───────────────────────────────────
-export function useReportingArchive(entityType: string, entityId: string | number): UseQueryResult<ReportItem[], Error> {
+export function useReportingArchive(entityType: string, entityId: string | number): UseQueryResult<any, Error> {
   return useQuery({
     queryKey: QK.REPORTING_ARCHIVE(entityType, entityId),
-    queryFn: () => reportingArchiveAPI.getAll(entityType, entityId).then((r: { data: ReportItem[] }) => r.data),
+    queryFn: () => reportingArchiveAPI.getAll(entityType, entityId).then((r: { data: any }) => r.data),
     enabled: !!entityType && !!entityId,
   });
 }
 
 // ── MUTATION: upload a new report ────────────────────────────────────
-export function useAddToReportingArchive(entityType: string, entityId: string | number): UseMutationResult<ReportItem, Error, FormData> {
+export function useAddToReportingArchive(entityType: string, entityId: string | number): UseMutationResult<any, Error, any> {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (formData: FormData) =>
-      // @ts-ignore
-      reportingArchiveAPI.add(entityType, entityId, formData).then((r: { data: ReportItem }) => r.data),
+    mutationFn: (formData: any) =>
+      reportingArchiveAPI.add(entityType, entityId, formData).then((r: { data: any }) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.REPORTING_ARCHIVE(entityType, entityId) });
       // Also refresh the parent entity so reportingArchive summary updates
@@ -52,5 +51,6 @@ export function useDeleteFromReportingArchive(entityType: string, entityId: stri
     },
   });
 }
+
 
 

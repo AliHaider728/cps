@@ -628,7 +628,6 @@ export default function ClinicianDashboard() {
 
       {/* ── Compliance Summary ─────────────────────────────── */}
       {(() => {
-        // @ts-ignore
         const docs: ComplianceDoc[] = complianceData?.docs || complianceData || [];
         if (!Array.isArray(docs) || docs.length === 0) return null;
 
@@ -899,4 +898,5 @@ export default function ClinicianDashboard() {
     </div>
   );
 }
+
 

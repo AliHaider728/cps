@@ -64,13 +64,10 @@ export function ComplianceDocumentDetailPage() {
   const [saving,  setSaving]  = useState(false);
   const [form,    setForm]    = useState<ComplianceForm>({});
 
-  // @ts-ignore
-  const { data, isLoading } = useComplianceDoc(id);
+  const { data, isLoading } = useComplianceDoc(id || "");
   const updateDoc = useUpdateComplianceDoc();
 
-  // @ts-ignore
   const doc    = data?.doc;
-  // @ts-ignore
   const groups = data?.groups || [];
 
   useEffect(() => {
@@ -303,4 +300,5 @@ export function ComplianceDocumentDetailPage() {
 }
 
 export default ComplianceDocumentDetailPage;
+
 

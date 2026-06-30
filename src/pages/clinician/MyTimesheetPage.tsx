@@ -525,7 +525,6 @@ export default function MyTimesheetPage() {
 
           {viewMode === "month" && !timesheetReadOnly && (
             <Button
-              // @ts-ignore
               disabled={!canSubmit || submit.isLoading}
               onClick={() => setConfirming(true)}
               title={
@@ -535,7 +534,6 @@ export default function MyTimesheetPage() {
               }
             >
               <Send size={14} />
-              // @ts-ignore
               {submit.isLoading ? "Submitting…" : "Submit to Admin"}
             </Button>
           )}
@@ -908,7 +906,6 @@ export default function MyTimesheetPage() {
             </p>
             <div className="mt-4 flex justify-end gap-3">
               <Button variant="outline" onClick={() => setConfirming(false)}>Cancel</Button>
-              // @ts-ignore
               <Button onClick={handleSubmit} isLoading={submit.isLoading}>
                 <Send size={14} /> Confirm submit
               </Button>
@@ -919,4 +916,5 @@ export default function MyTimesheetPage() {
     </div>
   );
 }
+
 

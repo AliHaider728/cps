@@ -38,9 +38,9 @@ export const useAuth = (): AuthContextType => {
       dispatch(setSession(nextSession));
       queryClient.setQueryData(QK.ME as any, { success: true, user: data.user });
       return {
-        token: data.token,
-        redirectTo: data.user.redirectTo,
-        mustChangePassword: data.user.mustChangePassword ?? false,
+        token: data.token as string,
+        redirectTo: data.user.redirectTo as string | undefined,
+        mustChangePassword: !!(data.user.mustChangePassword),
       };
     },
     [dispatch, queryClient]
@@ -57,9 +57,8 @@ export const useAuth = (): AuthContextType => {
 
   const refreshUser = useCallback(async () => {
     try {
-      const { data } = await authService.getMe();
-      // @ts-ignore
-      storage.setSession({ token, user: data.user });
+      const { data } = await authService.getMe() as any;
+      storage.setSession({ token: token || "", user: data.user });
       dispatch(updateUser(data.user));
       queryClient.setQueryData(QK.ME as any, data);
       return data.user;
@@ -75,10 +74,10 @@ export const useAuth = (): AuthContextType => {
     token,
     loading: !initialized,
     isAuthenticated: !!user,
-    // @ts-ignore
     login,
     logout,
     refreshUser,
   };
 };
+
 

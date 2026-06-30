@@ -6,13 +6,13 @@ export interface LeaveData {
   [key: string]: any;
 }
 
-export const useClinicianLeave = (id?: string | null): UseQueryResult<LeaveData[], Error> =>
-  useQuery<LeaveData[], Error>({
+export const useClinicianLeave = (id?: string | null): UseQueryResult<LeaveData, Error> =>
+  useQuery<LeaveData, Error>({
     queryKey: QK.CLINICIAN_LEAVE(id || "me"),
     queryFn:  () =>
       id
-        ? clinicianService.getLeave(id).then((r: { data: LeaveData[] }) => r.data)
-        : clinicianService.getMyLeave().then((r: { data: LeaveData[] }) => r.data),
+        ? clinicianService.getLeave(id).then((r: { data: LeaveData }) => r.data)
+        : clinicianService.getMyLeave().then((r: { data: LeaveData }) => r.data),
     enabled: id !== null,
     retry: 1,
   });
@@ -44,15 +44,16 @@ export const useUpdateLeave = (id: string): UseMutationResult<LeaveData, Error, 
   });
 };
 
-export const useDeleteLeave = (id: string): UseMutationResult<unknown, Error, string> => {
+export const useDeleteLeave = (id: string): UseMutationResult<any, Error, string> => {
   const qc = useQueryClient();
   return useMutation<unknown, Error, string>({
     mutationFn: (entryId) =>
-      clinicianService.deleteLeave(id, entryId).then((r: { data: unknown }) => r.data),
+      clinicianService.deleteLeave(id, entryId).then((r: { data: any }) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_LEAVE(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });
 };
+
 

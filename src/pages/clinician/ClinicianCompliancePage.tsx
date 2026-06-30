@@ -24,7 +24,6 @@ interface ComplianceDoc {
 
 export default function ClinicianCompliancePage() {
   const { data: leaveData } = useClinicianLeave();
-  // @ts-ignore
   const clinicianId = leaveData?.clinicianId;
 
   const { data, isLoading } = useQuery({
@@ -77,4 +76,5 @@ export default function ClinicianCompliancePage() {
     </div>
   );
 }
+
 

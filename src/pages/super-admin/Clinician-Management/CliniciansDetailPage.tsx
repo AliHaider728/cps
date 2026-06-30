@@ -74,7 +74,7 @@ const CONTRACT_COLORS: Record<string, string> = {
 };
 
 export default function CliniciansDetailPage() {
-  const { id }   = useParams<{ id: string }>();
+  const { id = "" }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -88,7 +88,6 @@ export default function CliniciansDetailPage() {
     setActiveTab(tab && TAB_IDS.includes(tab) ? tab : "basic");
   }, [id, searchParams]);
 
-  // @ts-ignore
   const { data, isLoading, isError } = useClinician(id);
   const usersQ     = useAllUsers();
   const pcnsQ      = usePCNs();
@@ -130,11 +129,8 @@ export default function CliniciansDetailPage() {
   }
 
   const clinician     = data.clinician;
-  // @ts-ignore
-  const users         = usersQ.data?.users        || usersQ.data       || [];
-  // @ts-ignore
+  const users         = (usersQ.data as any)?.users        || usersQ.data       || [];
   const pcns          = pcnsQ.data?.pcns           || pcnsQ.data        || [];
-  // @ts-ignore
   const practices     = practicesQ.data?.practices || practicesQ.data   || [];
   const activeTabMeta = TABS.find((t) => t.id === activeTab) || TABS[0];
 
@@ -159,28 +155,23 @@ export default function CliniciansDetailPage() {
           <BasicInfoPanel
             clinician={clinician}
             onPatch={handlePatch}
-            // @ts-ignore
             onLinkUser={role === "super_admin" ? handleLinkUser : undefined}
             canManage={role === "super_admin"}
             users={users}
           />
         );
       case "compliance":
-        // @ts-ignore
         return <CompliancePanel clinicianId={id} canManage={canManage} />;
       // case "history": // temporarily hidden
       //   return <ClientHistoryPanel clinicianId={id} canManage={canManage} pcns={pcns} practices={practices} />;
       case "projects":
         return (
-          // @ts-ignore
           <ProjectMappingPanel clinicianId={id} canManage={canManage} />
         );
       case "calendar":
         return (
           <CalendarPanel
-            // @ts-ignore
             clinicianId={id}
-            clinician={clinician}
             canManage={canManage}
             userRole={role}
           />
@@ -188,10 +179,8 @@ export default function CliniciansDetailPage() {
       case "supervision":
         return <SupervisionPanel clinicianId={id} canManage={canManage} users={users} />;
       case "cppe":
-        // @ts-ignore
         return <CPPEPanel clinicianId={id} canManage={canManage} />;
       case "onboarding":
-        // @ts-ignore
         return <OnboardingPanel clinicianId={id} clinician={clinician} canManage={canManage} />;
       case "scope":
         return <ScopePanel clinician={clinician} canRestrict={canRestrict} canManage={canManage} />;
@@ -242,20 +231,15 @@ export default function CliniciansDetailPage() {
 
               <div className="min-w-0 flex-1 pt-0.5">
                 <h1 className="text-xl sm:text-2xl lg:text-[1.75rem] font-extrabold text-slate-800 leading-tight">
-                  // @ts-ignore
                   {clinician.fullName || "—"}
                 </h1>
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                  // @ts-ignore
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border ${TYPE_COLORS[clinician.clinicianType] || "bg-slate-50 text-slate-600 border-slate-200"}`}>
-                    // @ts-ignore
                     {clinician.clinicianType || "—"}
                   </span>
-                  // @ts-ignore
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border ${CONTRACT_COLORS[clinician.contractType] || "bg-slate-50 text-slate-600 border-slate-200"}`}>
-                    // @ts-ignore
                     {clinician.contractType || "—"}
                   </span>
                   {clinician.restricted ? (
@@ -271,32 +255,26 @@ export default function CliniciansDetailPage() {
 
                 {/* Contact */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3">
-                  // @ts-ignore
                   {clinician.email && (
                     <a href={`mailto:${clinician.email}`}
                       className="text-xs lg:text-sm text-slate-500 inline-flex items-center gap-1.5 hover:text-blue-600 transition-colors group">
                       <span className="w-5 h-5 rounded-md bg-slate-100 group-hover:bg-blue-50 flex items-center justify-center transition-colors">
                         <Mail size={11} className="group-hover:text-blue-500 transition-colors" />
                       </span>
-                      // @ts-ignore
                       {clinician.email}
                     </a>
                   )}
-                  // @ts-ignore
                   {clinician.phone && (
                     <a href={`tel:${clinician.phone}`}
                       className="text-xs lg:text-sm text-slate-500 inline-flex items-center gap-1.5 hover:text-blue-600 transition-colors group">
                       <span className="w-5 h-5 rounded-md bg-slate-100 group-hover:bg-blue-50 flex items-center justify-center transition-colors">
                         <Phone size={11} className="group-hover:text-blue-500 transition-colors" />
                       </span>
-                      // @ts-ignore
                       {clinician.phone}
                     </a>
                   )}
-                  // @ts-ignore
                   {clinician.gphcNumber && (
                     <span className="text-xs lg:text-sm font-mono text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-lg">
-                      // @ts-ignore
                       GPhC {clinician.gphcNumber}
                     </span>
                   )}
@@ -316,7 +294,6 @@ export default function CliniciansDetailPage() {
                 {
                   icon: CalendarCheck,
                   label: "Started",
-                  // @ts-ignore
                   value: fmtDate(clinician.startDate) || "—",
                   big: false,
                 },
@@ -325,10 +302,8 @@ export default function CliniciansDetailPage() {
                   label: "Leave",
                   value: (
                     <span>
-                      // @ts-ignore
                       {clinician?.leaveBalances?.annual?.taken ?? 0}
                       <span className="text-slate-400 font-normal text-[10px] lg:text-xs">
-                        // @ts-ignore
                         {" "}/{" "}{clinician?.leaveBalances?.annual?.allowance ?? clinician?.annualLeaveAllowance ?? 28}
                       </span>
                     </span>
@@ -342,7 +317,6 @@ export default function CliniciansDetailPage() {
                     <p className="text-[9px] lg:text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
                   </div>
                   <p className={`font-extrabold text-slate-800 ${big ? "text-xl lg:text-2xl" : "text-xs lg:text-sm"}`}>
-                    // @ts-ignore
                     {value}
                   </p>
                 </div>
@@ -430,4 +404,5 @@ export default function CliniciansDetailPage() {
     </div>
   );
 }
+
 

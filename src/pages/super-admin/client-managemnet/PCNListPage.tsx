@@ -560,13 +560,9 @@ export default function PCNListPage() {
   const { data: fedData, isLoading: fedsLoading }   = useFederations();
   const { data: groupData } = useDocumentGroups({ active: true });
 
-  // @ts-ignore
   const pcns: PCN[]   = pcnData?.pcns        || [];
-  // @ts-ignore
   const icbs: ICB[]   = icbData?.icbs        || [];
-  // @ts-ignore
   const feds: Federation[]   = fedData?.federations || [];
-  // @ts-ignore
   const groups: DocumentGroup[] = groupData?.groups    || [];
 
   const fedMap = useMemo(() => {
@@ -867,4 +863,5 @@ export default function PCNListPage() {
     </div>
   );
 }
+
 

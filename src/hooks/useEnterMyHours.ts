@@ -3,7 +3,7 @@ import { apiClient } from "../services/api/client";
 
 const unwrap = (r: { data?: any }) => r?.data ?? {};
 
-export function useEnterMyHours(month: number | string, year: number | string): UseQueryResult<unknown[], Error> {
+export function useEnterMyHours(month: number | string, year: number | string): UseQueryResult<any[], Error> {
   return useQuery({
     queryKey: ["enter-my-hours", month, year],
     queryFn: () =>
@@ -14,7 +14,7 @@ export function useEnterMyHours(month: number | string, year: number | string): 
   });
 }
 
-export function useUpsertEnterMyHours(): UseMutationResult<unknown, Error, Record<string, unknown>> {
+export function useUpsertEnterMyHours(): UseMutationResult<any, Error, Record<string, unknown>> {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
@@ -28,7 +28,7 @@ export function useUpsertEnterMyHours(): UseMutationResult<unknown, Error, Recor
   });
 }
 
-export function useSubmitEnterMyHours(): UseMutationResult<unknown, Error, { month: number | string; year: number | string }> {
+export function useSubmitEnterMyHours(): UseMutationResult<any, Error, { month: number | string; year: number | string }> {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ month, year }: { month: number | string; year: number | string }) =>
@@ -39,4 +39,5 @@ export function useSubmitEnterMyHours(): UseMutationResult<unknown, Error, { mon
     },
   });
 }
+
 

@@ -25,7 +25,6 @@ const SESSION_TYPE_LABELS: Record<string, string> = {
 
 export default function ClinicianSupervisionPage() {
   const { data: leaveData } = useClinicianLeave();
-  // @ts-ignore
   const clinicianId = leaveData?.clinicianId;
   const { data, isLoading } = useClinicianSupervision(clinicianId);
   const { data: usersData } = useAllUsers();
@@ -33,8 +32,7 @@ export default function ClinicianSupervisionPage() {
   const [reflectionId, setReflectionId] = useState<string | null>(null);
   const [reflectionText, setReflectionText] = useState("");
 
-  // @ts-ignore
-  const users = usersData?.users || (Array.isArray(usersData) ? usersData : []);
+  const users = (usersData as any)?.users || (Array.isArray(usersData) ? usersData : []);
 
   const getSupervisorName = (supervisorId: string) => {
     if (!supervisorId) return "Not assigned";
@@ -42,7 +40,6 @@ export default function ClinicianSupervisionPage() {
     return found?.name || found?.email || supervisorId;
   };
 
-  // @ts-ignore
   const logs = data?.logs || (Array.isArray(data) ? data : []);
 
   const submitReflection = async (logId: string) => {
@@ -121,4 +118,5 @@ export default function ClinicianSupervisionPage() {
     </div>
   );
 }
+
 

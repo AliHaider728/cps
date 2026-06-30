@@ -43,9 +43,7 @@ export default function TimesheetQueuePage() {
   const { data: pending = [], isLoading } = usePendingTimesheets();
   const { data: history }                 = useTimesheetHistory(filters);
 
-  // @ts-ignore
-  const historyItems: Timesheet[] = (Array.isArray(history) ? history : (history as { items?: Timesheet[] })?.items || []) as Timesheet[];
-  // @ts-ignore
+  const historyItems: Timesheet[] = (Array.isArray(history) ? history : (history as any)?.items || []) as Timesheet[];
   const rows: Timesheet[] = filters.status ? historyItems : (pending as Timesheet[]);
 
   const stats = useMemo(() => ({
@@ -176,4 +174,5 @@ export default function TimesheetQueuePage() {
     </div>
   );
 }
+
 

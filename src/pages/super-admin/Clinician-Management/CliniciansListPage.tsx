@@ -372,31 +372,26 @@ export default function CliniciansListPage() {
   const [pwdModal,  setPwdModal]  = useState<any>(null);
   const [userError, setUserError] = useState<string | null>(null);
 
-  // @ts-ignore
   const items = (data?.clinicians || []).map((c: any) => ({
     ...(c.data || c),
     _id:        c._id || c.id,
     restricted: c.data?.isRestricted ?? c.data?.restricted ?? c.isRestricted ?? c.restricted ?? false,
   }));
 
-  // @ts-ignore
-  const users = usersQ.data?.users || usersQ.data || [];
+  const users = (usersQ.data as any)?.users || usersQ.data || [];
 
   const setFilter = (patch: any) => {
     const key   = Object.keys(patch)[0];
     const value = Object.values(patch)[0];
-    // @ts-ignore
-    dispatch(setListFilter({ key, value }));
+    dispatch(setListFilter({ key, value: value as any }));
   };
 
   const handleSave = async (form: ClinicianForm, loginInfo: any) => {
     setUserError(null);
     if (modal?.clinician) {
-      // @ts-ignore
       await updateM.mutateAsync({ id: modal.clinician._id, data: form });
     } else {
-      // @ts-ignore
-      await createM.mutateAsync(form);
+      await createM.mutateAsync(form as any);
       if (loginInfo?.email && loginInfo?.password) {
         try {
           await createUserM.mutateAsync({
@@ -756,4 +751,5 @@ export default function CliniciansListPage() {
     </div>
   );
 }
+
 

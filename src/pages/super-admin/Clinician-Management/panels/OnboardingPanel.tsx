@@ -56,8 +56,7 @@ export default function OnboardingPanel({ clinicianId, clinician, canManage }: O
 
   useEffect(() => { setState(initial()); setDirty(false); /* eslint-disable-next-line */ }, [clinician]);
 
-  // @ts-ignore
-  const set = (patch: Partial<OnboardingState>) => { setState((s) => ({ ...s, ...patch })); setDirty(true); };
+  const set = (patch: Partial<OnboardingState>) => { setState((s) => ({ ...s, ...patch } as OnboardingState)); setDirty(true); };
 
   const handleSave = async () => {
     await saveM.mutateAsync({ ...state });
@@ -150,4 +149,5 @@ export default function OnboardingPanel({ clinicianId, clinician, canManage }: O
     </div>
   );
 }
+
 

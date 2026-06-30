@@ -782,7 +782,6 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
 
   const rows = useMemo(() => {
     const query = filters.search.trim().toLowerCase();
-    // @ts-ignore
     return (data?.documents || []).filter((row: DocumentRow) => {
       const matchesSearch = !query ||
         [row.groupName, row.name, row.latestUpload?.fileName, row.latestUpload?.reference]
@@ -791,7 +790,6 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
       const matchesStatus = !filters.status || row.status  === filters.status;
       return matchesSearch && matchesGroup && matchesStatus;
     });
-  // @ts-ignore
   }, [data?.documents, filters]);
 
   const accentButton   = accent === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700";
@@ -934,7 +932,6 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
                 ))}
               </div>
 
-              // @ts-ignore
               {(data?.documents || []).length > 0 && (
                 <button
                   onClick={() => setBulkOpen(true)}
@@ -1014,8 +1011,7 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
           row={uploadRow} accent={accent}
           onClose={() => setUploadRow(null)}
           onSave={({ groupId, documentId, data: d }) =>
-            // @ts-ignore
-            addUploads.mutateAsync({ groupId, documentId, data: d })}
+            addUploads.mutateAsync({ groupId, documentId, data: d as any })}
           saving={addUploads.isPending}
         />
       )}
@@ -1026,12 +1022,11 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
           row={manageRow} accent={accent}
           onClose={() => setManageRow(null)}
           onSave={({ groupId, documentId, uploadId, data: d }) =>
-            updateUpload.mutateAsync({ groupId, documentId, uploadId, data: d })}
+            updateUpload.mutateAsync({ groupId, documentId, uploadId, data: d as any })}
           onDelete={({ groupId, documentId, uploadId }) =>
             deleteUpload.mutateAsync({ groupId, documentId, uploadId })}
           onAdd={({ groupId, documentId, data: d }) =>
-            // @ts-ignore
-            addUploads.mutateAsync({ groupId, documentId, data: d })}
+            addUploads.mutateAsync({ groupId, documentId, data: d as any })}
           saving={updateUpload.isPending || deleteUpload.isPending || addUploads.isPending}
         />
       )}
@@ -1039,17 +1034,16 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
       {/* Bulk Upload Modal */}
       {bulkOpen && (
         <BulkUploadModal
-          // @ts-ignore
           allDocuments={data?.documents || []}
           accent={accent}
           onClose={() => setBulkOpen(false)}
           onSave={({ groupId, documentId, data: d }) =>
-            // @ts-ignore
-            addUploads.mutateAsync({ groupId, documentId, data: d })}
+            addUploads.mutateAsync({ groupId, documentId, data: d as any })}
           saving={addUploads.isPending}
         />
       )}
     </div>
   );
 }
+
 

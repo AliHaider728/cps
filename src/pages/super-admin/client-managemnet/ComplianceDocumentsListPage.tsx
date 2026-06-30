@@ -239,7 +239,6 @@ export default function ComplianceDocumentsListPage() {
   const createDoc = useCreateComplianceDoc();
   const updateDoc = useUpdateComplianceDoc();
 
-  // @ts-ignore
   const docs: ComplianceDoc[] = docsData?.docs || [];
 
   const filtered = docs
@@ -255,10 +254,8 @@ export default function ComplianceDocumentsListPage() {
     .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
 
   const handleSaveDoc = async (formData: DocFormData) => {
-    // @ts-ignore
-    if (formData._id) await updateDoc.mutateAsync({ id: formData._id, data: formData });
-    // @ts-ignore
-    else              await createDoc.mutateAsync(formData);
+    if (formData._id) await updateDoc.mutateAsync({ id: formData._id, data: formData as any });
+    else              await createDoc.mutateAsync(formData as any);
   };
 
   const columns = [
@@ -361,4 +358,5 @@ export default function ComplianceDocumentsListPage() {
     </div>
   );
 }
+
 

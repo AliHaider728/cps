@@ -313,7 +313,6 @@ export default function ContactHistoryPanel({ entityType, entityId }: ContactHis
   if (starred)              params.starred = "true";
 
   const { data, isLoading, isError, error } = useHistory(apiEntityType, entityId, params);
-  // @ts-ignore
   const logs: ContactLog[] = data?.logs ?? [];
 
   const addHistory    = useAddHistory(apiEntityType, entityId);
@@ -342,11 +341,9 @@ export default function ContactHistoryPanel({ entityType, entityId }: ContactHis
   /* ── Save handler ── */
   const handleSave = async (form: FormState) => {
     if (modalMode === "edit" && editingLog) {
-      // @ts-ignore
-      await updateHistory.mutateAsync({ logId: editingLog._id || editingLog.id || "", data: form });
+      await updateHistory.mutateAsync({ logId: editingLog._id || editingLog.id || "", data: form as any });
     } else {
-      // @ts-ignore
-      await addHistory.mutateAsync(form);
+      await addHistory.mutateAsync(form as any);
     }
   };
 
@@ -579,4 +576,5 @@ export default function ContactHistoryPanel({ entityType, entityId }: ContactHis
     </div>
   );
 }
+
 

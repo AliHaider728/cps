@@ -235,7 +235,6 @@ const HistoryItem = ({ entry, onCancel, cancelling }: { entry: LeaveEntry, onCan
 /* ── Main Page ──────────────────────────────────────────────────────────────── */
 export default function ApplyForLeavePage() {
   const { data, refetch }   = useClinicianLeave();
-  // @ts-ignore
   const clinicianId         = data?.clinicianId;
   const addLeaveM           = useAddLeave(clinicianId);
 
@@ -259,7 +258,6 @@ export default function ApplyForLeavePage() {
   const wDays       = useMemo(() => workingDays(form.startDate, form.endDate), [form.startDate, form.endDate]);
 
   const balance = useMemo(
-    // @ts-ignore
     () => (data?.balances || []).find((b: Balance) => b.contract === form.contract),
     [data, form.contract]
   );
@@ -269,7 +267,6 @@ export default function ApplyForLeavePage() {
   const endIsWeekend   = form.endDate   && isWeekend(form.endDate);
 
   /* ── Filtered + paginated history ── */
-  // @ts-ignore
   const allEntries: LeaveEntry[] = data?.entries || [];
   const filtered = useMemo(() => {
     let list = [...allEntries];
@@ -375,7 +372,6 @@ export default function ApplyForLeavePage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {CONTRACTS.map((contract) => {
           const cfg        = CONTRACT_CONFIG[contract];
-          // @ts-ignore
           const b          = (data?.balances || []).find((x: Balance) => x.contract === contract) || {};
           const total      = Number(b.total     || 0);
           const used       = Number(b.used      || 0);
@@ -703,4 +699,5 @@ export default function ApplyForLeavePage() {
     </div>
   );
 }
+
 

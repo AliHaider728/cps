@@ -11,7 +11,7 @@ import { ModalShell } from "../../../../components/ui/ModalShell";
 import { fmtDate } from "../../../../lib/formatters";
 
 // ✅ FIXED: Match backend ragStatus values exactly
-const RAG_OPTS = [
+const RAG_OPTS: [string, string][] = [
   ["green", "Green — No concerns"],
   ["amber", "Amber — Minor concerns"],
   ["red",   "Red — Significant concerns"],
@@ -45,14 +45,10 @@ interface SupervisionPanelProps {
 }
 
 export default function SupervisionPanel({ clinicianId, canManage, users = [] }: SupervisionPanelProps) {
-  // @ts-ignore
-  const { data, isLoading } = useClinicianSupervision(clinicianId);
-  // @ts-ignore
-  const addM = useAddSupervisionLog(clinicianId);
-  // @ts-ignore
-  const updM = useUpdateSupervisionLog(clinicianId);
-  // @ts-ignore
-  const delM = useDeleteSupervisionLog(clinicianId);
+  const { data, isLoading } = useClinicianSupervision(clinicianId || "");
+  const addM = useAddSupervisionLog(clinicianId || "");
+  const updM = useUpdateSupervisionLog(clinicianId || "");
+  const delM = useDeleteSupervisionLog(clinicianId || "");
 
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
   const [form,  setForm]  = useState<SupervisionForm>({});
@@ -118,9 +114,8 @@ export default function SupervisionPanel({ clinicianId, canManage, users = [] }:
     );
   }
 
-  // @ts-ignore
   const logs    = data?.logs || [];
-  const userOpts = users.map((u) => [u._id, u.fullName || u.email || u._id]);
+  const userOpts: [string, string][] = users.map((u) => [u._id, u.fullName || u.email || u._id]);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -253,7 +248,6 @@ export default function SupervisionPanel({ clinicianId, canManage, users = [] }:
               label="RAG status"
               value={form.ragStatus}
               onChange={(v: string) => setForm((f) => ({ ...f, ragStatus: v }))}
-              // @ts-ignore
               options={RAG_OPTS}
             />
           </div>
@@ -261,7 +255,6 @@ export default function SupervisionPanel({ clinicianId, canManage, users = [] }:
             label="Supervisor"
             value={form.supervisor}
             onChange={(v: string) => setForm((f) => ({ ...f, supervisor: v }))}
-            // @ts-ignore
             options={userOpts}
           />
           {/* ✅ FIXED: notes field */}
@@ -320,4 +313,5 @@ export default function SupervisionPanel({ clinicianId, canManage, users = [] }:
     </div>
   );
 }
+
 

@@ -159,11 +159,11 @@ export function AlertDialogCancel({
   return (
     <AlertDialogPrimitive.Close
       data-slot="alert-dialog-cancel"
-      // @ts-ignore
-      render={<Button variant={variant} size={size} />}
+      render={<Button variant={variant as any} size={size as any} />}
       className={cn(className)}
       {...props}
     />
   );
 }
+
 

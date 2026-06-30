@@ -400,8 +400,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, navigate, onSele
 export default function ClientsPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  // @ts-ignore
-  const search = useAppSelector((state) => state.clients.hierarchySearch);
+  const search = useAppSelector((state: any) => state.clients.hierarchySearch);
 
   const [debounced, setDebounced] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -448,11 +447,8 @@ export default function ClientsPage() {
   const { data: searchData, isFetching: searching } =
     useSearchClients(debounced);
 
-  // @ts-ignore
   const counts = data?.counts || { icbs: 0, federations: 0, pcns: 0, practices: 0 };
-  // @ts-ignore
   const tree: ICB[] = data?.tree || [];
-  // @ts-ignore
   const serverResults: SearchResult[] = searchData?.results || [];
 
   // Client-side fallback: if server returned no results but we have a query
@@ -768,4 +764,5 @@ export default function ClientsPage() {
     </div>
   );
 }
+
 

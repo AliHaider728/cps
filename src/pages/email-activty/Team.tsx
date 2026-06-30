@@ -1,20 +1,12 @@
 import React, { useState } from "react";
-// @ts-ignore
 import { useListTeamMembers, useTriggerOutlookSync } from "../lib/api";
-// @ts-ignore
 import { Card, CardContent } from "../components/ui/Card";
-// @ts-ignore
 import { Button } from "../components/ui/Button";
-// @ts-ignore
 import { Badge } from "../components/ui/Badge";
-// @ts-ignore
 import { Spinner } from "../components/ui/Spinner";
-// @ts-ignore
 import { OutlookConnectModal } from "../components/layout/OutlookConnectModal";
-// @ts-ignore
 import { InviteMemberModal } from "../components/layout/InviteMemberModal";
 import { Copy, RefreshCw, CheckCircle2, XCircle, Mail, Users, UserPlus, Wifi } from "lucide-react";
-// @ts-ignore
 import { getInitials, formatSmartDate } from "../lib/utils";
 
 export default function Team() {
@@ -169,4 +161,5 @@ export default function Team() {
     </div>
   );
 }
+
 

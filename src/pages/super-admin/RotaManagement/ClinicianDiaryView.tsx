@@ -131,7 +131,6 @@ function ActiveShiftBanner({ selectedClinicianId }: { selectedClinicianId: strin
           <p className={`font-mono text-2xl font-black tracking-tight tabular-nums ${activeEntry ? "text-slate-900" : "text-slate-300"}`}>
             {liveDisplay}
           </p>
-          // @ts-ignore
           {activeEntry?.clock_in && (
             <p className="text-[11px] text-slate-400 mt-1">
               Started{" "}
@@ -159,7 +158,6 @@ function ActiveShiftBanner({ selectedClinicianId }: { selectedClinicianId: strin
           <p className={`text-sm font-black mt-1 ${activeEntry ? "text-emerald-600" : "text-slate-400"}`}>
             {activeEntry ? "Clocked In" : "Not Clocked In"}
           </p>
-          // @ts-ignore
           {activeEntry?.planned_hours && (
             <p className="text-[11px] text-slate-400 mt-1">
               Planned: <span className="font-bold text-slate-600">{activeEntry.planned_hours as React.ReactNode}h</span>
@@ -590,4 +588,5 @@ export default function ClinicianDiaryView() {
     </div>
   );
 }
+
 

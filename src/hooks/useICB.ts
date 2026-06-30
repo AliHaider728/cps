@@ -9,10 +9,10 @@ export interface ICB {
 }
 
 // ── GET: all ICBs
-export const useICBs = (): UseQueryResult<ICB[], Error> =>
+export const useICBs = (): UseQueryResult<any, Error> =>
   useQuery({
     queryKey: QK.ICBS,
-    queryFn: () => icbAPI.getAll().then((r: { data: ICB[] }) => r.data),
+    queryFn: () => icbAPI.getAll().then((r: { data: any }) => r.data),
   });
 
 // ── GET: single ICB by id
@@ -52,4 +52,5 @@ export const useDeleteICB = (): UseMutationResult<void, Error, string | number> 
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.ICBS }),
   });
 };
+
 

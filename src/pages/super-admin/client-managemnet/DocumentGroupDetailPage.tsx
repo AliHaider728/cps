@@ -62,9 +62,7 @@ export default function DocumentGroupDetailPage() {
   const updateGroup = useUpdateDocumentGroup();
   const deleteGroup = useDeleteDocumentGroup();
 
-  // @ts-ignore
   const group   = groupData?.group;
-  // @ts-ignore
   const allDocs = docsData?.docs || [];
 
   useEffect(() => {
@@ -103,8 +101,7 @@ export default function DocumentGroupDetailPage() {
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
-    // @ts-ignore
-    try { await updateGroup.mutateAsync({ id, data: form }); setEditing(false); }
+    try { await updateGroup.mutateAsync({ id, data: form as any }); setEditing(false); }
     catch (e: any) { alert(e.message); }
     finally { setSaving(false); }
   };
@@ -330,4 +327,5 @@ export default function DocumentGroupDetailPage() {
     </div>
   );
 }
+
 

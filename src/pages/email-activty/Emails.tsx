@@ -1,20 +1,12 @@
 import React, { useState, useMemo } from "react";
-// @ts-ignore
 import { useListEmails } from "../lib/api";
-// @ts-ignore
 import { Card } from "../components/ui/Card";
-// @ts-ignore
 import { Button } from "../components/ui/Button";
-// @ts-ignore
 import { Badge } from "../components/ui/Badge";
-// @ts-ignore
 import { Input } from "../components/ui/Input";
-// @ts-ignore
 import { Spinner } from "../components/ui/Spinner";
-// @ts-ignore
 import { ComposeEmailModal } from "../components/layout/ComposeEmailModal";
 import { Search, Mail, ArrowUpRight, ArrowDownLeft, Filter, X, ChevronDown } from "lucide-react";
-// @ts-ignore
 import { formatSmartDate } from "../lib/utils";
 
 const DIRECTIONS = [
@@ -152,4 +144,5 @@ export default function Emails() {
     </div>
   );
 }
+
 

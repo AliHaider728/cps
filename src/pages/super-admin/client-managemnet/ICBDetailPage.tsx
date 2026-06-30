@@ -76,8 +76,7 @@ export default function ICBDetailPage() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // @ts-ignore
-  const { data, isLoading, refetch } = useICB(id);
+  const { data, isLoading, refetch } = useICB(id || "");
   const updateICB = useUpdateICB();
 
   const icb = data?.icb ?? null;
@@ -86,8 +85,7 @@ export default function ICBDetailPage() {
 
   const patch = useCallback(async (body: any) => {
     try {
-      // @ts-ignore
-      await updateICB.mutateAsync({ id, data: body });
+      await updateICB.mutateAsync({ id: id || "", data: body });
     } catch (e: any) {
       alert(e.message);
     }
@@ -114,13 +112,9 @@ export default function ICBDetailPage() {
     const [editing, setEditing] = useState<boolean>(false);
     const [saving,  setSaving]  = useState<boolean>(false);
     const [form, setForm] = useState({
-      // @ts-ignore
       name:   icb.name   || "",
-      // @ts-ignore
       region: icb.region || "",
-      // @ts-ignore
       code:   icb.code   || "",
-      // @ts-ignore
       notes:  icb.notes  || "",
     });
     const set = (k: keyof typeof form) => (v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -132,15 +126,10 @@ export default function ICBDetailPage() {
     };
 
     // Summary counts — seed data structure
-    // @ts-ignore
     const fedCount = icb.summary?.federationCount ?? (icb.federations?.length || 0);
-    // @ts-ignore
     const pcnCount = icb.summary?.pcnCount ?? (icb.pcns?.length || 0);
-    // @ts-ignore
     const practiceCount = icb.summary?.practiceCount ?? (icb.pcns?.reduce((s: number, p: any) => s + (p.practices?.length || 0), 0) || 0);
-    // @ts-ignore
     const totalSpend = icb.summary?.totalAnnualSpend ?? (icb.pcns?.reduce((s: number, p: any) => s + (Number(p.annualSpend) || 0), 0) || 0);
-    // @ts-ignore
     const contractBreakdown = (icb.pcns || []).reduce((acc: any, pcn: any) => {
       if (pcn.contractType) acc[pcn.contractType] = (acc[pcn.contractType] || 0) + 1;
       return acc;
@@ -176,17 +165,12 @@ export default function ICBDetailPage() {
             </div>
           ) : (
             <div>
-              // @ts-ignore
               <DetailRow label="ICB Name" value={icb.name}   />
-              // @ts-ignore
               <DetailRow label="Region"   value={icb.region} />
-              // @ts-ignore
               <DetailRow label="Code"     value={icb.code}   />
-              // @ts-ignore
               {icb.notes && (
                 <div className="pt-4 mt-2 border-t border-slate-50">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</p>
-                  // @ts-ignore
                   <p className="text-sm text-slate-600 leading-relaxed">{icb.notes}</p>
                 </div>
               )}
@@ -247,7 +231,6 @@ export default function ICBDetailPage() {
 
   /* ── Federations Panel ── */
   const FederationsPanel = () => {
-    // @ts-ignore
     const feds = icb.federations || [];
     const TYPE_STYLE: Record<string, string> = {
       federation: "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -298,7 +281,6 @@ export default function ICBDetailPage() {
 
   /* ── PCNs Panel ── */
   const PCNsPanel = () => {
-    // @ts-ignore
     const pcns = icb.pcns || [];
     const CONTRACT_COLOR: Record<string, string> = {
       ARRS:   "bg-blue-50 text-blue-700 border-blue-200",
@@ -397,7 +379,6 @@ export default function ICBDetailPage() {
     overview:    <OverviewPanel />,
     federations: <FederationsPanel />,
     pcns:        <PCNsPanel />,
-    // @ts-ignore
     history:     <ContactHistoryPanel entityType="ICB" entityId={icb._id} />,
   };
 
@@ -417,7 +398,6 @@ export default function ICBDetailPage() {
           ICBs
         </button>
         <ChevronRight size={13} className="text-slate-300" />
-        // @ts-ignore
         <span className="text-slate-700 font-bold truncate">{icb.name}</span>
       </nav>
 
@@ -428,27 +408,20 @@ export default function ICBDetailPage() {
             <Building2 size={22} className="text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            // @ts-ignore
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{icb.name}</h1>
             <div className="flex flex-wrap items-center gap-3 mt-2">
-              // @ts-ignore
               {icb.region && (
                 <span className="text-sm text-slate-400 flex items-center gap-1">
-                  // @ts-ignore
                   <MapPin size={12} /> {icb.region}
                 </span>
               )}
-              // @ts-ignore
               {icb.code && (
                 <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-md border border-blue-200 flex items-center gap-1">
-                  // @ts-ignore
                   <Hash size={10} /> {icb.code}
                 </span>
               )}
-              // @ts-ignore
               {(icb.pcns?.length > 0) && (
                 <span className="text-sm text-slate-400">
-                  // @ts-ignore
                   {icb.pcns.length} PCN{icb.pcns.length !== 1 ? "s" : ""}
                 </span>
               )}
@@ -487,4 +460,5 @@ export default function ICBDetailPage() {
     </div>
   );
 }
+
 

@@ -258,7 +258,6 @@ export default function SuperAdminDashboard() {
   const pendingTs: Timesheet[]     = useMemo(() => pendingData                 || [], [pendingData]);
   const gaps: RotaGap[]            = useMemo(() => gapsData?.gaps              || [], [gapsData]);
 
-  // @ts-ignore
   const allPCNs: PCN[] = useMemo(() => {
     if (!pcnData) return [];
     if (Array.isArray(pcnData))        return pcnData as unknown as PCN[];
@@ -268,7 +267,6 @@ export default function SuperAdminDashboard() {
     return [];
   }, [pcnData]);
 
-  // @ts-ignore
   const allPractices: Practice[] = useMemo(() => {
     if (!practiceData) return [];
     if (Array.isArray(practiceData))             return practiceData as unknown as Practice[];
@@ -641,4 +639,5 @@ export default function SuperAdminDashboard() {
     </div>
   );
 }
+
 

@@ -1,24 +1,14 @@
 import React, { useState } from "react";
-// @ts-ignore
 import { Link } from "wouter";
-// @ts-ignore
 import { useListClients, useCreateClient } from "../lib/api";
-// @ts-ignore
 import { Card, CardContent } from "../components/ui/Card";
-// @ts-ignore
 import { Button } from "../components/ui/Button";
-// @ts-ignore
 import { Badge } from "../components/ui/Badge";
-// @ts-ignore
 import { Input } from "../components/ui/Input";
-// @ts-ignore
 import { Modal } from "../components/ui/Modal";
-// @ts-ignore
 import { Spinner } from "../components/ui/Spinner";
 import { Search, Plus, Building2, Phone, Mail, ChevronRight } from "lucide-react";
-// @ts-ignore
 import { formatSmartDate, getInitials } from "../lib/utils";
-// @ts-ignore
 import DataTable from "../components/ui/DataTable";
 
 export default function Clients() {
@@ -181,4 +171,5 @@ export default function Clients() {
     </div>
   );
 }
+
 

@@ -73,12 +73,10 @@ const LoginForm: React.FC = () => {
       const result = await login(formData.email, formData.password, recaptchaToken);
       if (result.mustChangePassword) {
         setTempToken(result.token);
-        // @ts-ignore
-        setPendingRedirect(result.redirectTo);
+        setPendingRedirect(result.redirectTo || "");
         setShowForceChange(true);
       } else {
-        // @ts-ignore
-        navigate(result.redirectTo);
+        navigate(result.redirectTo || "/dashboard");
       }
     } catch (err: any) {
       // v3 has no widget/ref to reset — a fresh token is generated on every submit anyway
@@ -341,4 +339,5 @@ const Login: React.FC = () => (
 );
 
 export default Login;
+
 

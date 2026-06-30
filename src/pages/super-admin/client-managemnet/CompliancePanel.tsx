@@ -360,9 +360,7 @@ export default function CompliancePanelEnhanced() {
   const { data: docsData,   isLoading: docsLoading   } = useComplianceDocs();
   const { data: groupsData, isLoading: groupsLoading } = useDocumentGroups();
 
-  // @ts-ignore
   const docs   = docsData?.docs    || [];
-  // @ts-ignore
   const groups = groupsData?.groups || [];
 
   const createGroup = useCreateDocumentGroup();
@@ -370,10 +368,8 @@ export default function CompliancePanelEnhanced() {
   const deleteGroup = useDeleteDocumentGroup();
 
   const handleSaveGroup = async (form: DocumentGroupForm) => {
-    // @ts-ignore
-    if (form._id) await updateGroup.mutateAsync({ id: form._id, data: form });
-    // @ts-ignore
-    else          await createGroup.mutateAsync(form);
+    if (form._id) await updateGroup.mutateAsync({ id: form._id, data: form as any });
+    else          await createGroup.mutateAsync(form as any);
   };
   const handleDeleteGroup = async (id: string) => {
     if (!confirm("Delete this document group?")) return;
@@ -403,4 +399,5 @@ export default function CompliancePanelEnhanced() {
     </div>
   );
 }
+
 

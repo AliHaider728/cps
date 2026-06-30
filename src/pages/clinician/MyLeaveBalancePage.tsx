@@ -41,9 +41,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ approved }) =>
 
 export default function MyLeaveBalancePage() {
   const { data, isLoading, isError, error } = useClinicianLeave();
-  // @ts-ignore
   const balances: any[] = data?.balances || [];
-  // @ts-ignore
   const entries: any[] = data?.entries || [];
 
   const balanceFor = (contract: string) =>
@@ -225,4 +223,5 @@ export default function MyLeaveBalancePage() {
     </div>
   );
 }
+
 

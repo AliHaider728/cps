@@ -11,14 +11,15 @@ export interface AuditLogData {
   [key: string]: any;
 }
 
-export const useAuditLogs = (params: AuditLogParams = {}): UseQueryResult<AuditLogData[], Error> =>
-  useQuery<AuditLogData[], Error>({
+export const useAuditLogs = (params: AuditLogParams = {}): UseQueryResult<any, Error> =>
+  useQuery<any, Error>({
     queryKey: QK.AUDIT(params),
-    queryFn:  () => auditAPI.getLogs(params).then((r: { data: AuditLogData[] }) => r.data),
+    queryFn:  () => auditAPI.getLogs(params).then((r: { data: any }) => r.data),
     refetchInterval: 10000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     staleTime: 0,
   });
+
 

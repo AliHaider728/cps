@@ -228,11 +228,8 @@ export default function PracticeListPage() {
   const { data: pcnData }   = usePCNs();
   const { data: groupData } = useDocumentGroups({ active: true });
 
-  // @ts-ignore
   const practices: any[] = practiceData?.practices || [];
-  // @ts-ignore
   const pcns: any[]      = pcnData?.pcns           || [];
-  // @ts-ignore
   const groups: any[]    = groupData?.groups       || [];
 
   const createPractice = useCreatePractice();
@@ -265,10 +262,8 @@ export default function PracticeListPage() {
 
   const handleSave = async (form: PracticeForm) => {
     if (modal && typeof modal === 'object' && modal._id) {
-      // @ts-ignore
       await updatePractice.mutateAsync({ id: modal._id, data: form });
     } else {
-      // @ts-ignore
       await createPractice.mutateAsync(form);
     }
     setModal(null);
@@ -505,4 +500,5 @@ export default function PracticeListPage() {
     </div>
   );
 }
+
 

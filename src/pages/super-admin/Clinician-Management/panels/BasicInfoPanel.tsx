@@ -57,7 +57,7 @@ export interface UserType {
 export interface BasicInfoPanelProps {
   clinician: Clinician | null | undefined;
   onPatch: (data: Partial<Clinician>) => Promise<void>;
-  onLinkUser?: () => void;
+  onLinkUser?: (userId: string) => void;
   users?: UserType[];
   canManage?: boolean;
 }
@@ -265,9 +265,7 @@ export default function BasicInfoPanel({
             <FormField label="End date"       value={form.endDate}       onChange={set("endDate")} type="date" />
 
             <div className="md:col-span-2 mt-2 mb-1 text-xs font-bold text-slate-400 uppercase tracking-wider">People</div>
-            // @ts-ignore
             <FormField label="Ops lead"       value={form.opsLead}       onChange={set("opsLead")} options={userOpts} />
-            // @ts-ignore
             <FormField label="Supervisor"     value={form.supervisor}    onChange={set("supervisor")} options={userOpts} />
           </div>
         )}
@@ -438,4 +436,5 @@ export default function BasicInfoPanel({
     </div>
   );
 }
+
 
