@@ -46,7 +46,7 @@ interface PracticeForm {
   xeroCode: string;
   xeroCategory: string;
   patientListSize: string;
-  complianceGroup: string;
+  complianceGroup: string[];
   systemAccessNotes: string;
   notes: string;
   priority: string;
@@ -67,8 +67,10 @@ const Spinner: React.FC<{ cls?: string }> = ({ cls = "border-white" }) => (
 );
 
 /* Safe value renderer — never crashes on objects/arrays */
-const renderValue = (v: any): string => {
+const renderValue = (v: any): React.ReactNode => {
   if (v === null || v === undefined || v === "") return "—";
+  if (React.isValidElement(v)) return v;
+  if (Array.isArray(v)) return v.map((item) => (typeof item === "object" ? item.name || item.label : item)).join(", ");
   if (typeof v === "object") return v.name || v.label || JSON.stringify(v);
   return String(v);
 };
@@ -162,10 +164,11 @@ export default function OverviewPanel({
       xeroCode: practice.xeroCode || "",
       xeroCategory: practice.xeroCategory || "",
       patientListSize: String(practice.patientListSize ?? ""),
-      complianceGroup:
-        (typeof practice.complianceGroup === "object"
-          ? practice.complianceGroup?._id
-          : practice.complianceGroup) || "",
+      complianceGroup: Array.isArray(practice.complianceGroup)
+        ? practice.complianceGroup.map((g: any) => g._id || g)
+        : (typeof practice.complianceGroup === "object" && practice.complianceGroup !== null
+            ? [practice.complianceGroup._id]
+            : practice.complianceGroup ? [practice.complianceGroup] : []),
       systemAccessNotes: practice.systemAccessNotes || "",
       notes: practice.notes || "",
       priority: practice.priority || "normal",
@@ -182,7 +185,7 @@ export default function OverviewPanel({
     if (!editing) setForm(buildForm());
   }, [buildForm, editing]);
 
-  const set = (k: keyof PracticeForm) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: keyof PracticeForm) => (v: any) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
     setSaving(true);
@@ -199,23 +202,24 @@ export default function OverviewPanel({
   };
 
   // ensure currently-assigned compliance group is always represented
-  const currentGroup = typeof practice.complianceGroup === "object" ? practice.complianceGroup : null;
-  const currentGroupId = currentGroup?._id || (typeof practice.complianceGroup === "string" ? practice.complianceGroup : "");
-  const currentGroupName = currentGroup?.name || "";
+  const currentGroups = Array.isArray(practice.complianceGroup)
+    ? practice.complianceGroup
+    : practice.complianceGroup ? [practice.complianceGroup] : [];
 
   const groupOptions = useMemo(() => {
     const list = (groups || []).map((g) => ({
       value: g._id,
       label: g.name + (g.active === false ? " (inactive)" : ""),
     }));
-    if (currentGroupId && !list.some((o) => o.value === currentGroupId)) {
-      list.unshift({
-        value: currentGroupId,
-        label: (currentGroupName || currentGroupId) + " (current)",
-      });
-    }
+    currentGroups.forEach((cg: any) => {
+      const id = cg._id || cg;
+      const name = cg.name || id;
+      if (id && !list.some((o) => o.value === id)) {
+        list.unshift({ value: id, label: `${name} (current)` });
+      }
+    });
     return list;
-  }, [groups, currentGroupId, currentGroupName]);
+  }, [groups, currentGroups]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -260,6 +264,7 @@ export default function OverviewPanel({
 
         {editing ? (
           <div>
+            <DetailRow label="ICB (Read-only)" value={linkedClient.icb?.name || (practice as any).icb?.name || (practice as any).icb} hint="Derived from PCN" />
             <EditRow label="ODS Code" value={form.odsCode} onChange={set("odsCode")} />
             <EditRow label="FTE" value={form.fte} onChange={set("fte")} />
             <EditRow
@@ -292,25 +297,34 @@ export default function OverviewPanel({
               ]}
             />
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 py-2.5 border-b border-slate-50">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0">
-                Compliance Group
+            <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 py-2.5 border-b border-slate-50">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider sm:w-40 shrink-0 sm:pt-2">
+                Compliance Groups
               </span>
-              <div className="flex-1 flex items-center gap-2">
-                <select
-                  value={form.complianceGroup || ""}
-                  onChange={(e) => set("complianceGroup")(e.target.value)}
-                  disabled={groupsLoading}
-                  className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer disabled:bg-slate-50 disabled:cursor-wait"
-                >
-                  <option value="">None</option>
-                  {groupOptions.map((g) => (
-                    <option key={g.value} value={g.value}>
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-                {groupsLoading && <Spinner cls="border-slate-400" />}
+              <div className="flex-1">
+                {groupsLoading ? (
+                  <Spinner cls="border-slate-400" />
+                ) : (
+                  <div className="flex flex-col gap-2 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 [scrollbar-width:thin]">
+                    {groupOptions.length === 0 && <span className="text-xs text-slate-400">No groups available</span>}
+                    {groupOptions.map((g) => (
+                      <label key={g.value} className="flex items-center gap-2 cursor-pointer text-[13px] text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={form.complianceGroup.includes(g.value)}
+                          onChange={(e) => {
+                            const newGroups = new Set(form.complianceGroup);
+                            if (e.target.checked) newGroups.add(g.value);
+                            else newGroups.delete(g.value);
+                            set("complianceGroup")(Array.from(newGroups) as any);
+                          }}
+                          className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                        />
+                        <span>{g.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -321,27 +335,26 @@ export default function OverviewPanel({
         ) : (
           <div>
             <DetailRow label="ODS Code" value={practice.odsCode} />
-            <DetailRow label="ICB" value={linkedClient.icb?.name} />
+            <DetailRow label="ICB" value={linkedClient.icb?.name || (practice as any).icb?.name || (practice as any).icb} />
             <DetailRow
               label="Federation"
               value={linkedClient.federation?.name || "Direct to ICB"}
             />
             <DetailRow label="PCN / Client" value={linkedClient.name} />
             <DetailRow
-              label="Compliance Group"
+              label="Compliance Groups"
               value={
-                currentGroupName || (
-                  <span className="text-slate-400 italic">
-                    No compliance group assigned
-                  </span>
+                currentGroups.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 justify-end">
+                    {currentGroups.map((g: any, i: number) => (
+                      <span key={i} className="rounded-full border border-teal-100 bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">
+                        {g.name || g}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-slate-400 italic">No compliance groups assigned</span>
                 )
-              }
-              hint={
-                currentGroup?.documents?.length
-                  ? `${currentGroup.documents.length} document${
-                      currentGroup.documents.length !== 1 ? "s" : ""
-                    }`
-                  : null
               }
             />
             <DetailRow label="Contract Type" value={practice.contractType} />
@@ -393,45 +406,38 @@ export default function OverviewPanel({
               <ShieldCheck size={16} className="text-emerald-600" />
             </div>
           </div>
-          {currentGroupName ? (
-            <>
-              <p className="text-base font-bold text-slate-800">{currentGroupName}</p>
-              {currentGroup?.documents?.length ? (
-                <>
-                  <p className="text-xs text-slate-500 mt-1 mb-3">
-                    {currentGroup.documents.length} document
-                    {currentGroup.documents.length !== 1 ? "s" : ""} required
-                  </p>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 [scrollbar-width:thin]">
-                    {currentGroup.documents.map((d) => (
-                      <div
-                        key={d._id}
-                        className="flex items-center gap-2 text-xs text-slate-600"
-                      >
-                        <FileCheck
-                          size={12}
-                          className={
-                            d.mandatory ? "text-red-500" : "text-slate-400"
-                          }
-                        />
-                        <span className="truncate">{d.name}</span>
-                        {d.mandatory && (
-                          <span className="ml-auto text-[10px] bg-red-50 text-red-600 font-bold px-1.5 py-0.5 rounded">
-                            REQ
-                          </span>
-                        )}
+          {currentGroups.length > 0 ? (
+            <div className="space-y-4">
+              {currentGroups.map((group: any, idx: number) => (
+                <div key={idx} className="border-b border-slate-100 last:border-0 pb-4 last:pb-0">
+                  <p className="text-base font-bold text-slate-800">{group.name || group}</p>
+                  {group?.documents?.length ? (
+                    <>
+                      <p className="text-xs text-slate-500 mt-1 mb-3">
+                        {group.documents.length} document{group.documents.length !== 1 ? "s" : ""} required
+                      </p>
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 [scrollbar-width:thin]">
+                        {group.documents.map((d: any) => (
+                          <div key={d._id} className="flex items-center gap-2 text-xs text-slate-600">
+                            <FileCheck size={12} className={d.mandatory ? "text-red-500" : "text-slate-400"} />
+                            <span className="truncate">{d.name}</span>
+                            {d.mandatory && (
+                              <span className="ml-auto text-[10px] bg-red-50 text-red-600 font-bold px-1.5 py-0.5 rounded">
+                                REQ
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs text-slate-400 mt-1">
-                  Group has no documents defined
-                </p>
-              )}
-            </>
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-400 mt-1">Group has no documents defined</p>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
-            <p className="text-sm text-slate-400">No compliance group assigned</p>
+            <p className="text-sm text-slate-400">No compliance groups assigned</p>
           )}
         </div>
       </div>

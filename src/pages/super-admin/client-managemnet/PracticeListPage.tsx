@@ -43,18 +43,18 @@ interface ExistingPractice {
 
 interface PracticeForm {
   name: string;
-  pcn: string;
-  complianceGroup: string;
-  odsCode: string;
+  patientListSize: string;
+  complianceGroup: string[];
+  notes: string;
   address: string;
   city: string;
   postcode: string;
   fte: string;
   contractType: string;
+  pcn: string;
+  odsCode: string;
   xeroCode: string;
   xeroCategory: string;
-  patientListSize: string;
-  notes: string;
 }
 
 interface PracticeModalProps {
@@ -87,7 +87,7 @@ const FilterChip: React.FC<FilterChipProps> = ({ label, children }) => (
 const buildPracticeForm = (existing?: ExistingPractice | null): PracticeForm => ({
   name:            existing?.name                                                              || "",
   pcn:             existing?.client?._id || existing?.client || existing?.pcn?._id || existing?.pcn || "",
-  complianceGroup: existing?.complianceGroup?._id || existing?.complianceGroup                || "",
+  complianceGroup: Array.isArray(existing?.complianceGroup) ? existing.complianceGroup.map((g: any) => g._id || g) : (existing?.complianceGroup?._id ? [existing.complianceGroup._id] : (existing?.complianceGroup ? [existing.complianceGroup] : [])),
   odsCode:         existing?.odsCode                                                           || "",
   address:         existing?.address                                                           || "",
   city:            existing?.city                                                              || "",
@@ -153,13 +153,26 @@ const PracticeModal: React.FC<PracticeModalProps> = ({ existing, pcns, groups, o
             <F label="ODS Code">{input("odsCode", "P84001")}</F>
           </div>
 
-          <F label="Compliance Group">
-            <select value={form.complianceGroup} autoComplete="off"
-              onChange={(e) => setForm((c) => ({ ...c, complianceGroup: e.target.value }))}
-              className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[13px] focus:border-blue-400 focus:outline-none">
-              <option value="">None</option>
-              {groups.map((g) => <option key={g._id} value={g._id}>{g.name}</option>)}
-            </select>
+          <F label="Compliance Groups">
+            <div className="flex flex-col gap-2 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 [scrollbar-width:thin]">
+              {groups.length === 0 && <span className="text-xs text-slate-400">No groups available</span>}
+              {groups.map((g) => (
+                <label key={g._id} className="flex items-center gap-2 cursor-pointer text-[13px] text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.complianceGroup.includes(g._id)}
+                    onChange={(e) => {
+                      const set = new Set(form.complianceGroup);
+                      if (e.target.checked) set.add(g._id);
+                      else set.delete(g._id);
+                      setForm((c) => ({ ...c, complianceGroup: Array.from(set) }));
+                    }}
+                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                  />
+                  <span>{g.name}</span>
+                </label>
+              ))}
+            </div>
           </F>
 
           <F label="Address">{input("address", "15 Broad Street")}</F>
@@ -248,13 +261,13 @@ export default function PracticeListPage() {
         client.icb?.name,
         client.federation?.name,
         p.city, p.postcode,
-        p.complianceGroup?.name,
+        ...(Array.isArray(p.complianceGroup) ? p.complianceGroup.map((g: any) => g.name || g) : [p.complianceGroup?.name || p.complianceGroup]),
       ].filter(Boolean).join(" ").toLowerCase().includes(q);
 
       const matchPcn      = !filters.pcn          || String(client._id || client.id || p.client) === filters.pcn;
       const matchCity     = !filters.city         || String(p.city || "").toLowerCase().includes(filters.city.toLowerCase());
       const matchContract = !filters.contractType || p.contractType === filters.contractType;
-      const matchGroup    = !filters.group        || String(p.complianceGroup?._id || p.complianceGroup || "") === filters.group;
+      const matchGroup    = !filters.group        || (Array.isArray(p.complianceGroup) ? p.complianceGroup.some((g: any) => String(g._id || g) === filters.group) : String(p.complianceGroup?._id || p.complianceGroup || "") === filters.group);
 
       return matchSearch && matchPcn && matchCity && matchContract && matchGroup;
     });
@@ -335,13 +348,23 @@ export default function PracticeListPage() {
       cellClassName: "px-4 py-3 whitespace-nowrap text-slate-600 align-top",
     },
     {
-      header: "Compliance Group",
+      header: "Compliance Groups",
       id: "group",
       hideOnMobile: true,
-      render: (p: any) => p.complianceGroup?.name
-        ? <span className="rounded-full border border-teal-100 bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">{p.complianceGroup.name}</span>
-        : <span className="text-slate-400 text-sm">—</span>,
-      cellClassName: "px-4 py-3 whitespace-nowrap align-top",
+      render: (p: any) => {
+        const groups = Array.isArray(p.complianceGroup) ? p.complianceGroup : (p.complianceGroup ? [p.complianceGroup] : []);
+        if (groups.length === 0) return <span className="text-slate-400 text-sm">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {groups.map((g: any, i: number) => (
+              <span key={i} className="rounded-full border border-teal-100 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+                {g.name || g}
+              </span>
+            ))}
+          </div>
+        );
+      },
+      cellClassName: "px-4 py-3 align-top",
     },
     {
       header: "City",
