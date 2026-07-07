@@ -291,7 +291,7 @@ export const sidebarConfig: SidebarConfigType = {
   ],
 
   // ════════════════════════════════════════════════════════════════
-  training: [
+  training_manager: [
     {
       section: "MAIN",
       items: [
@@ -362,7 +362,7 @@ export const sidebarConfig: SidebarConfigType = {
   ],
 
   // ════════════════════════════════════════════════════════════════
-  workforce: [
+  workforce_manager: [
     {
       section: "MAIN",
       items: [

@@ -31,7 +31,7 @@ export const useAuth = (): AuthContextType => {
   const { user, token, initialized } = useAppSelector((state: any) => state.auth);
 
   const login = useCallback(
-    async (email: string, password: string, recaptchaToken?: string) => {
+    async (email: string, password: string, recaptchaToken?: string): Promise<{ token: string; redirectTo?: string; mustChangePassword?: boolean }> => {
       const { data } = await authService.login(email, password, recaptchaToken);
       const nextSession = { token: data.token, user: data.user };
       storage.setSession(nextSession);

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, ReactNode } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Database } from "lucide-react";
+import { Spinner } from "./Spinner";
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50];
 
@@ -78,44 +79,7 @@ function MobileCard<T>({ row, index, columns, renderMobileRow, getRowClassName }
   );
 }
 
-/* ── Skeleton ── */
-function SkeletonRow({ cols }: { cols: ColumnDef<any>[] }) {
-  return (
-    <tr className="animate-pulse border-b border-slate-100 last:border-0">
-      {cols.map((col, i) => (
-        <td key={col.id || i} className="px-5 py-4">
-          <div className={`h-3.5 rounded-full bg-slate-100 ${
-            i === 0 ? "w-4/5" : i % 3 === 1 ? "w-1/2" : "w-2/3"
-          }`} />
-          {i === 0 && <div className="h-2.5 rounded-full bg-slate-100/70 w-2/5 mt-2" />}
-        </td>
-      ))}
-    </tr>
-  );
-}
 
-function MobileSkeletonCard() {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm animate-pulse">
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-slate-200 rounded-l-2xl" />
-      <div className="px-4 pt-4 pb-3 pl-5 border-b border-slate-100 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-slate-100 shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3.5 bg-slate-100 rounded-full w-3/5" />
-          <div className="h-2.5 bg-slate-100/70 rounded-full w-2/5" />
-        </div>
-      </div>
-      <div className="px-4 pt-3 pb-4 pl-5 grid grid-cols-2 gap-3">
-        {[1,2,3,4].map((i) => (
-          <div key={i} className="space-y-1.5">
-            <div className="h-2 bg-slate-100 rounded-full w-1/2" />
-            <div className="h-3 bg-slate-100/80 rounded-full w-3/4" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export interface DataTableProps<T> {
   columns: ColumnDef<T>[];
@@ -227,7 +191,7 @@ export default function DataTable<T>({
     return range;
   }, [activePage, pageCount]);
 
-  const skeletonCount = Math.min(activePageSize, 8);
+
 
   /* ════════════════════════════════════════════════════════
      RENDER
@@ -268,9 +232,14 @@ export default function DataTable<T>({
             {/* ── Body ── */}
             <tbody>
               {loading ? (
-                Array.from({ length: skeletonCount }).map((_, i) => (
-                  <SkeletonRow key={i} cols={columns} />
-                ))
+                <tr>
+                  <td colSpan={columns.length} className="px-5 py-20 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <Spinner className="h-8 w-8 text-blue-600" />
+                      {loadingText && <p className="text-sm font-semibold text-slate-500">{loadingText}</p>}
+                    </div>
+                  </td>
+                </tr>
               ) : visibleRows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-5 py-20 text-center">
@@ -320,7 +289,10 @@ export default function DataTable<T>({
       {/* ══ MOBILE CARDS ═════════════════════════════════════ */}
       <div className="md:hidden w-full bg-slate-50/60 p-3 space-y-2.5">
         {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <MobileSkeletonCard key={i} />)
+          <div className="py-14 text-center">
+            <Spinner className="h-8 w-8 text-blue-600 mx-auto mb-3" />
+            {loadingText && <p className="text-sm font-semibold text-slate-500">{loadingText}</p>}
+          </div>
         ) : visibleRows.length === 0 ? (
           emptyState || (
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-14 text-center">

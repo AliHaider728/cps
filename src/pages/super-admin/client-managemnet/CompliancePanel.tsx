@@ -16,6 +16,7 @@ import {
   useDeleteDocumentGroup,
 } from "../../../hooks/useCompliance";
 import DataTable from "../../../components/ui/DataTable";
+import { useConfirm } from "../../../contexts/ConfirmContext";
 
 interface SpinnerProps {
   cls?: string;
@@ -354,6 +355,7 @@ const GroupListTab: React.FC<GroupListTabProps> = ({ groups, loading, onAdd, onE
 
 /* ── Main export ── */
 export default function CompliancePanelEnhanced() {
+    const confirm = useConfirm();
   const navigate    = useNavigate();
   const [groupModal, setGroupModal] = useState<any>(null);
 
@@ -372,7 +374,7 @@ export default function CompliancePanelEnhanced() {
     else          await createGroup.mutateAsync(form as any);
   };
   const handleDeleteGroup = async (id: string) => {
-    if (!confirm("Delete this document group?")) return;
+    if (!await confirm({ title: "Delete this document group?" })) return;
     await deleteGroup.mutateAsync(id);
   };
 

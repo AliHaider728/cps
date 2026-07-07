@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { federationAPI } from "../api/api";
 import { QK } from "../lib/queryKeys";
 

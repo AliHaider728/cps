@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useICB, useUpdateICB } from "../../../hooks/useICB";
 import ContactHistoryPanel from "./ContactHistoryPanel";
+import { toast } from "sonner";
+import { LoadingFallback } from "../../../components/ui/Spinner";
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS
@@ -87,16 +89,12 @@ export default function ICBDetailPage() {
     try {
       await updateICB.mutateAsync({ id: id || "", data: body });
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message);
     }
   }, [id, updateICB]);
 
   /* ── Loading / not found ── */
-  if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-9 h-9 border-[3px] border-blue-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (isLoading) return <LoadingFallback text="Loading ICB..." />;
   if (!icb) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh] text-slate-400 gap-3">
       <Building2 size={44} className="opacity-30" />

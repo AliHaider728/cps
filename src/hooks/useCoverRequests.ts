@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { coverService } from "../services/api/timesheetService";
 
 export function useOpenCoverRequests(): UseQueryResult<any, Error> {

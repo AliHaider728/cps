@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { authService } from "../services/api";
 import { QK } from "../lib/queryKeys";
 
@@ -25,6 +25,7 @@ export const useMe = (): UseQueryResult<UserData, Error> =>
 
 export const useAllUsers = (params: UserParams = {}): UseQueryResult<UserData[], Error> =>
   useQuery<UserData[], Error>({
+    placeholderData: keepPreviousData,
     queryKey: [...QK.USERS, params],
     // @ts-ignore
     queryFn:  () => authService.getAllUsers(params).then((r: { data: UserData[] }) => r.data),

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "../services/api/client";
 
 const BASE = "/time-entries";
@@ -31,6 +31,7 @@ export const useActiveTimeEntry = (): UseQueryResult<TimeEntry | null, Error> =>
 
 export const useTimeEntries = (params: TimeEntryParams = {}): UseQueryResult<TimeEntry[], Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: QK.list(params),
     queryFn: () =>
       apiClient

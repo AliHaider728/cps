@@ -89,7 +89,7 @@ const P = ({ roles, children }: PProps) => (
   </ProtectedRoute>
 );
 
-const CM_ROLES = ["super_admin", "director", "ops_manager", "training", "workforce"];
+const CM_ROLES = ["super_admin", "director", "ops_manager", "training_manager", "workforce_manager"];
 const LEAVE_ADMIN_ROLES = ["super_admin", "director", "ops_manager", "finance"];
 const CLINICIAN_ROLES = ["clinician", "super_admin"];
 const TS_ROLES = ["super_admin", "ops_manager", "finance", "director"];
@@ -171,7 +171,7 @@ const AppRouter = () => (
 
     {/* ── Module 5 — Rota Management ───────────────────── */}
     <Route path="/dashboard/rota"
-      element={<P roles={["super_admin", "ops_manager", "workforce", "finance", "training", "director"]}><RotaPage /></P>} />
+      element={<P roles={["super_admin", "ops_manager", "workforce_manager", "finance", "training_manager", "director"]}><RotaPage /></P>} />
     <Route path="/dashboard/rota-gaps"
       element={<Navigate to="/dashboard/rota?tab=gaps" replace />} />
 
@@ -185,8 +185,8 @@ const AppRouter = () => (
     <Route path="/dashboard/director" element={<P roles={["director", "super_admin"]}><DirectorDashboard /></P>} />
     <Route path="/dashboard/ops-manager" element={<P roles={["ops_manager", "super_admin"]}><OpsDashboard /></P>} />
     <Route path="/dashboard/finance" element={<P roles={["finance", "super_admin", "director"]}><FinanceDashboard /></P>} />
-    <Route path="/dashboard/training" element={<P roles={["training", "super_admin"]}><TrainingDashboard /></P>} />
-    <Route path="/dashboard/workforce" element={<P roles={["workforce", "super_admin"]}><WorkforceDashboard /></P>} />
+    <Route path="/dashboard/training" element={<P roles={["training_manager", "super_admin"]}><TrainingDashboard /></P>} />
+    <Route path="/dashboard/workforce" element={<P roles={["workforce_manager", "super_admin"]}><WorkforceDashboard /></P>} />
 
     {/* ── Clinician Portal ──────────────────────────────── */}
     <Route path="/portal/clinician" element={<P roles={CLINICIAN_ROLES}><ClinicianDashboard /></P>} />

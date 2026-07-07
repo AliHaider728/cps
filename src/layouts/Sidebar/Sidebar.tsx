@@ -23,8 +23,8 @@ const ROLE_META: Record<string, RoleMeta> = {
   director:    { label: "Director",       color: "#8b5cf6" },
   ops_manager: { label: "Ops Manager",    color: "#f97316" },
   finance:     { label: "Finance",        color: "#eab308" },
-  training:    { label: "Training & Dev", color: "#22c55e" },
-  workforce:   { label: "Workforce / VA", color: "#06b6d4" },
+  training_manager:  { label: "Training & Dev", color: "#22c55e" },
+  workforce_manager: { label: "Workforce / VA", color: "#06b6d4" },
   clinician:   { label: "Clinician",      color: "#64748b" },
 };
 

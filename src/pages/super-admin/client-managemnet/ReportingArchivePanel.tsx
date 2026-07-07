@@ -8,7 +8,8 @@ import {
   useAddToReportingArchive,
   useDeleteFromReportingArchive,
 } from "../../../hooks/useReportingArchive";
-import { uploadFileToSupabase } from "../../../lib/supabase"; 
+import { uploadFileToSupabase } from "../../../lib/supabase";
+import { useConfirm } from "../../../contexts/ConfirmContext";
 
 const fmtDate = (d: string | Date | null | undefined): string =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
@@ -155,6 +156,7 @@ export interface ReportingArchivePanelProps {
 
 /* ── Main panel ── */
 export default function ReportingArchivePanel({ entityType, entityId }: ReportingArchivePanelProps) {
+    const confirm = useConfirm();
   const [showUpload, setShowUpload] = useState<boolean>(false);
   const [filterYear, setFilterYear] = useState<string>("");
 
@@ -167,7 +169,7 @@ export default function ReportingArchivePanel({ entityType, entityId }: Reportin
   const filtered: any[] = filterYear ? archive.filter((r: any) => String(r.year) === filterYear) : archive;
 
   const handleDelete = async (reportId: string) => {
-    if (!confirm("Delete this report from the archive?")) return;
+    if (!await confirm({ title: "Delete this report from the archive?" })) return;
     await deleteReport.mutateAsync(reportId);
   };
 

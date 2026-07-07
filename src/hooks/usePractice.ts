@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { practiceAPI } from "../api/api";
 import { QK } from "../lib/queryKeys";
 
@@ -14,6 +14,7 @@ export interface PracticeParams {
 // ── GET: all practices (with optional filters e.g. { pcn: id })
 export const usePractices = (params: PracticeParams = {}): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [...QK.PRACTICES, params],
     queryFn: () => practiceAPI.getAll(params).then((r: { data: any }) => r.data),
   });

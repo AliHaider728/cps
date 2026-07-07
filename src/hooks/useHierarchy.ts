@@ -1,4 +1,4 @@
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { useQuery, UseQueryResult, keepPreviousData } from "@tanstack/react-query";
 import { clientManagementService } from "../services/api";
 import { QK } from "../lib/queryKeys";
 

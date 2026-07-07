@@ -12,6 +12,7 @@ import {
   useCreateComplianceDoc,
   useUpdateComplianceDoc,
 } from "../../../hooks/useCompliance";
+import { DebouncedSearchInput } from "../../../components/shared/DebouncedSearchInput";
 import DataTable from "../../../components/ui/DataTable";
 
 interface SpinnerProps {
@@ -62,9 +63,12 @@ interface FilterBarProps {
 const FilterBar: React.FC<FilterBarProps> = ({ search, setSearch, filters, setFilters, filterOptions }) => (
   <div className="flex flex-wrap items-center gap-3">
     <div className="relative min-w-[200px] flex-1">
-      <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search documents..."
-        className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm focus:border-blue-400 focus:outline-none" />
+      <DebouncedSearchInput 
+        value={search} 
+        onSearchChange={(val) => setSearch(val)} 
+        placeholder="Search documents..."
+        className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm focus:border-blue-400 focus:outline-none" 
+      />
     </div>
     {filterOptions.map(opt => (
       <div key={opt.key} className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
@@ -235,7 +239,7 @@ export default function ComplianceDocumentsListPage() {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
 
-  const { data: docsData, isLoading } = useComplianceDocs();
+  const { data: docsData, isLoading, isFetching } = useComplianceDocs();
   const createDoc = useCreateComplianceDoc();
   const updateDoc = useUpdateComplianceDoc();
 
@@ -341,7 +345,7 @@ export default function ComplianceDocumentsListPage() {
         columns={columns}
         data={filtered}
         rowKey="_id"
-        loading={isLoading}
+        loading={isLoading || isFetching}
         loadingText="Loading documents..."
         emptyTitle="No documents found"
         initialPageSize={10}

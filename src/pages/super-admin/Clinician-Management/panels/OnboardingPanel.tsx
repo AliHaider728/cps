@@ -5,6 +5,8 @@ import {
 } from "../../../../hooks/useClinician";
 import { Btn, FormField, Spinner, ToggleRow } from "./shared";
 import { fmtDate } from "../../../../lib/formatters";
+import { useConfirm } from "../../../../contexts/ConfirmContext";
+import { toast } from "sonner";
 
 const CHECKLIST = [
   ["mobilisationPlan",  "Mobilisation plan in place"],
@@ -35,6 +37,7 @@ interface OnboardingPanelProps {
 }
 
 export default function OnboardingPanel({ clinicianId, clinician, canManage }: OnboardingPanelProps) {
+    const confirm = useConfirm();
   const saveM    = useUpdateOnboarding(clinicianId);
   const welcomeM = useSendWelcomePack(clinicianId);
 
@@ -65,10 +68,10 @@ export default function OnboardingPanel({ clinicianId, clinician, canManage }: O
 
   const handleSendWelcome = async () => {
     if (!clinician?.email) {
-      alert("Clinician has no email on record.");
+      toast.error("Clinician has no email on record.");
       return;
     }
-    if (!window.confirm(`Send welcome pack to ${clinician.email}?`)) return;
+    if (!await confirm({ title: `Send welcome pack to ${clinician.email}?` })) return;
     await welcomeM.mutateAsync({ portalUrl: portal || undefined });
   };
 

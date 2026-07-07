@@ -1,10 +1,11 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "../services/api/client";
 
 const unwrap = (r: { data?: any }) => r?.data ?? {};
 
 export function useEnterMyHours(month: number | string, year: number | string): UseQueryResult<any[], Error> {
   return useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ["enter-my-hours", month, year],
     queryFn: () =>
       apiClient

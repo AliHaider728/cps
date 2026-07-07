@@ -24,6 +24,7 @@ import { apiClient } from "../../../services/api/client";
 import { QK } from "../../../lib/queryKeys";
 import { useAppSelector } from "../../../hooks/redux";
 import DataTable from "../../../components/ui/DataTable";
+import { toast } from "sonner";
 
 /* ─── helpers   */
 const fmtDate = (v: string | Date | null | undefined) => {
@@ -165,7 +166,7 @@ export default function RestrictedCliniciansPage() {
       clientQ.refetch();
       setRemoveModal(null);
     } catch (e: any) {
-      alert(e?.response?.data?.message || "Failed to remove restriction");
+      toast.error(e?.response?.data?.message || "Failed to remove restriction");
     } finally {
       setRemoving(false);
     }
@@ -436,7 +437,7 @@ export default function RestrictedCliniciansPage() {
             <DataTable
               columns={globalColumns}
               data={globalItems}
-              loading={isLoading}
+              loading={isLoading || isFetching}
             />
           </>
         ) : (
@@ -454,7 +455,7 @@ export default function RestrictedCliniciansPage() {
             <DataTable
               columns={clientColumns}
               data={clientItems}
-              loading={isLoading}
+              loading={isLoading || isFetching}
             />
           </>
         )}

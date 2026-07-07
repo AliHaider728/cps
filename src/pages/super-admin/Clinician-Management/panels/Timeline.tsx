@@ -13,6 +13,7 @@ import {
   Calendar, ChevronDown as ChevronDownIcon, TrendingUp, Layers,
   CheckCircle2, ArrowRight, LucideIcon
 } from "lucide-react";
+import { LoadingFallback } from "../../../../components/ui/Spinner";
 
 export interface Shift {
   id?: string;
@@ -217,14 +218,7 @@ function ProfessionalListView({ shifts, canManage, isLoading, monthLabel, stats,
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggle = (name: string) => setCollapsed(p => ({...p, [name]: !p[name]}));
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center h-48">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-indigo-500 animate-spin"/>
-        <p className="text-sm text-slate-400 font-medium">Loading shifts…</p>
-      </div>
-    </div>
-  );
+  if (isLoading) return <LoadingFallback text="Loading timeline..." />;
 
   if (!shifts.length) return (
     <div className="flex flex-col items-center justify-center py-20 px-5 text-center">

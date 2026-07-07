@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { useApproveTimesheet, useRejectTimesheet, useTimesheetDetail } from "../../../hooks/useTimesheet";
+import { useConfirm } from "../../../contexts/ConfirmContext";
 
 interface Clinician {
   full_name?: string;
@@ -37,6 +38,7 @@ interface Entry {
 }
 
 export default function TimesheetDetailPage() {
+    const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [rejecting, setRejecting] = useState(false);
@@ -51,7 +53,7 @@ export default function TimesheetDetailPage() {
   const summary: Summary = (data as { summary?: Summary })?.summary || ({} as Summary);
 
   const approveSheet = async () => {
-    if (window.confirm("Approve this timesheet?")) {
+    if (await confirm({ title: "Approve this timesheet?" })) {
       await approve.mutateAsync(idStr);
       navigate(-1);
     }

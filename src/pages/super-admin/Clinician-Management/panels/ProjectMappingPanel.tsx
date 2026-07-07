@@ -5,6 +5,7 @@ import { clinicianService } from "../../../../services/api/clinicianService";
 import { usePractices } from "../../../../hooks/usePractice";
 import { Btn, FormField, Spinner } from "./shared";
 import { ModalShell } from "../../../../components/ui/ModalShell";
+import { useConfirm } from "../../../../contexts/ConfirmContext";
 
 const PROJECT_OPTS = ["ARRS", "EA", "Direct", "COVER"];
 const TYPE_OPTS = ["Locums Contractor", "Employed", "Limited Company"];
@@ -36,6 +37,7 @@ interface ProjectMappingPanelProps {
 }
 
 export default function ProjectMappingPanel({ clinicianId, canManage }: ProjectMappingPanelProps) {
+    const confirm = useConfirm();
   const qc = useQueryClient();
   const practicesQ = usePractices();
 
@@ -168,8 +170,8 @@ export default function ProjectMappingPanel({ clinicianId, canManage }: ProjectM
                       {/* Delete */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm("Delete this project mapping?")) {
+                        onClick={async () => {
+                          if (await confirm({ title: "Delete this project mapping?" })) {
                             deleteM.mutate(m.id);
                           }
                         }}

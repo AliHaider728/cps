@@ -9,6 +9,8 @@ import {
   CheckCircle2, XCircle, Layers, Clock, Eye, EyeOff, Upload
 } from "lucide-react";
 import { useComplianceDoc, useUpdateComplianceDoc } from "../../../hooks/useCompliance";
+import { toast } from "sonner";
+import { LoadingFallback } from "../../../components/ui/Spinner";
 
 interface SpinnerProps {
   cls?: string;
@@ -98,17 +100,13 @@ export function ComplianceDocumentDetailPage() {
         setEditing(false);
       }
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message);
     } finally {
       setSaving(false);
     }
   };
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-9 h-9 border-[3px] border-blue-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (isLoading) return <LoadingFallback text="Loading document details..." />;
   if (!doc) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh] text-slate-400 gap-3">
       <FileText size={44} className="opacity-30" />

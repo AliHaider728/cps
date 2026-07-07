@@ -1,5 +1,5 @@
 // src/hooks/useHistory.ts
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { historyService } from "../services/api/clientManagement.service";
 
 /* ══════════════════════════════════════════════════════════════════
@@ -14,6 +14,7 @@ const historyKey = (entityType: string, entityId: string): [string, string, stri
 ══════════════════════════════════════════════════════════════════ */
 export const useHistory = (entityType: string, entityId: string, params: Record<string, unknown> = {}): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [...historyKey(entityType, entityId), params],
     queryFn:  () =>
       historyService.get(entityType, entityId, params).then((r: { data: any }) => r.data),

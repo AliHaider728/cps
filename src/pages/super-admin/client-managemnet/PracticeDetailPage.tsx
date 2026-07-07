@@ -37,6 +37,9 @@ import EntityDocumentsTab from "./EntityDocumentsTab";
 import ReportingArchivePanel from "./ReportingArchivePanel";
 import OverviewPanel from "./practice-tabs/OverviewPanel/OverviewPanel";
 import ContactsPanel from "./practice-tabs/ContactsPanel/ContactsPanel";
+import { useConfirm } from "../../../contexts/ConfirmContext";
+import { toast } from "sonner";
+import { LoadingFallback } from "../../../components/ui/Spinner";
 
 /* ══════════════════════════════════════════════════════════
    SHARED UI ATOMS — module-level, never re-created on render
@@ -213,7 +216,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ existing, onClose, onSave }
       await onSave(payload);
       onClose();
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message);
     } finally {
       setSaving(false);
     }
@@ -313,7 +316,7 @@ const AccessModal: React.FC<AccessModalProps> = ({ existing, onClose, onSave }) 
       await onSave({ ...(existing?._id ? { _id: existing._id } : {}), ...form });
       onClose();
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message);
     } finally {
       setSaving(false);
     }
@@ -391,7 +394,7 @@ const RestrictedAddModal: React.FC<RestrictedAddModalProps> = ({ onClose, onSave
       });
       onClose();
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message);
     } finally {
       setSaving(false);
     }
@@ -531,6 +534,7 @@ interface RestrictedPanelProps {
 }
 
 const RestrictedPanel: React.FC<RestrictedPanelProps> = ({ practice, patch }) => {
+    const confirm = useConfirm();
   const restricted = practice.restrictedClinicians || [];
   const [addModal, setAddModal] = useState(false);
 
@@ -539,7 +543,7 @@ const RestrictedPanel: React.FC<RestrictedPanelProps> = ({ practice, patch }) =>
   };
 
   const handleRemove = async (cid: string) => {
-    if (!confirm("Remove this restriction?")) return;
+    if (!await confirm({ title: "Remove this restriction?" })) return;
     const updated = restricted.filter((c: any) => {
       const id = typeof c === "object" ? c._id || c.id : c;
       return String(id) !== String(cid);
@@ -636,6 +640,7 @@ const TABS = [
    MAIN PAGE
 ══════════════════════════════════════════════════════════ */
 export default function PracticeDetailPage() {
+    const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -656,7 +661,7 @@ export default function PracticeDetailPage() {
       try {
         await updatePracticeMutation.mutateAsync({ id: id || "", data: body });
       } catch (e: any) {
-        alert(e.message);
+        toast.error(e.message);
       }
     },
     [id, updatePracticeMutation],
@@ -680,7 +685,7 @@ export default function PracticeDetailPage() {
 
   const deleteContact = useCallback(
     async (cid: string) => {
-      if (!confirm("Delete contact?")) return;
+      if (!await confirm({ title: "Delete contact?" })) return;
       await patch({
         contacts: (practice?.contacts || []).filter(
           (c: any) => (c?._id || c?.id) !== cid,
@@ -707,7 +712,7 @@ export default function PracticeDetailPage() {
 
   const deleteAccess = useCallback(
     async (sid: string) => {
-      if (!confirm("Remove system access record?")) return;
+      if (!await confirm({ title: "Remove system access record?" })) return;
       await patch({
         systemAccess: (practice?.systemAccess || []).filter((s: any) => s._id !== sid),
       });
@@ -716,11 +721,7 @@ export default function PracticeDetailPage() {
   );
 
   if (isLoading)
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-9 h-9 border-[3px] border-teal-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingFallback text="Loading Practice..." />;
 
   if (!practice)
     return (

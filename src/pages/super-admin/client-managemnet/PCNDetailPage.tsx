@@ -18,6 +18,7 @@ import ContactHistoryPanel from "./ContactHistoryPanel";
 import MassEmailModal from "./MassEmailModal";
 import EntityDocumentsTab from "./EntityDocumentsTab";
 import ReportingArchivePanel from "./ReportingArchivePanel";
+import { useConfirm } from "../../../contexts/ConfirmContext";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -28,6 +29,8 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "../../../components/ui/alert-dialog";
+import { toast } from "sonner";
+import { LoadingFallback } from "../../../components/ui/Spinner";
 
 /* ── helpers ─────────────────────────────────────────────────────── */
 const getId = (g: any): string => g?.id ?? g?._id ?? g;
@@ -145,40 +148,7 @@ const M_STATUS: Record<string, string> = {
   not_booked: "bg-slate-50 text-slate-500 border-slate-200",
 };
 
-/* ══════════════════════════════════════════════════════════
-   DELETE CONFIRM DIALOG (shadcn AlertDialog)
-══════════════════════════════════════════════════════════ */
-interface DeleteDialogProps {
-  open: boolean;
-  title: string;
-  description: string;
-  onConfirm: (() => void) | null;
-  onCancel: () => void;
-  loading: boolean;
-}
 
-const DeleteDialog = ({ open, title, description, onConfirm, onCancel, loading }: DeleteDialogProps) => (
-  <AlertDialog open={open}>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>{title || "Are you sure?"}</AlertDialogTitle>
-        <AlertDialogDescription>
-          {description || "This action cannot be undone."}
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel onClick={onCancel} disabled={loading}>Cancel</AlertDialogCancel>
-        <AlertDialogAction
-          onClick={onConfirm || undefined}
-          disabled={loading}
-          className="bg-red-500 hover:bg-red-600 text-white focus:ring-red-500">
-          {loading ? <Spinner /> : <Trash2 size={13} />}
-          Delete
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-);
 
 /* ══════════════════════════════════════════════════════════
    CONTACT MODAL
@@ -203,7 +173,7 @@ const ContactModal = ({ mode, existing, onClose, onSave }: ContactModalProps) =>
     if (!form.name.trim()) return;
     setSaving(true);
     try { await onSave(form); onClose(); }
-    catch (e: any) { alert(e.message); }
+    catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   };
 
@@ -280,7 +250,7 @@ const MeetingModal = ({ existing, onClose, onSave }: { existing?: any, onClose: 
         attendees: form.attendees.split(",").map((a: string) => a.trim()).filter(Boolean),
       });
       onClose();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   };
 
@@ -344,7 +314,7 @@ const TemplateModal = ({ existing, onClose, onSave }: { existing?: any, onClose:
   const handle = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    try { await onSave(form); onClose(); } catch (e: any) { alert(e.message); } finally { setSaving(false); }
+    try { await onSave(form); onClose(); } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
   };
 
   return (
@@ -386,6 +356,7 @@ export default function PCNDetailPage() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const confirm  = useConfirm();
 
   const { data, isLoading, refetch } = usePCN(id || "");
   const updatePCNMutation     = useUpdatePCN();
@@ -406,23 +377,7 @@ export default function PCNDetailPage() {
   const [templateModal, setTemplateModal] = useState<any>(null);
   const [contactModal,  setContactModal]  = useState<any>(null);
 
-  // Delete dialog state
-  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogProps>({ open: false, title: "", description: "", onConfirm: null, onCancel: () => {}, loading: false });
 
-  const showDeleteDialog = ({ title, description, onConfirm }: { title: string, description: string, onConfirm: () => Promise<void> | void }) => {
-    setDeleteDialog({ open: true, title, description, onConfirm, onCancel: closeDeleteDialog, loading: false });
-  };
-  const closeDeleteDialog = () => setDeleteDialog(d => ({ ...d, open: false, loading: false }));
-  const confirmDelete = async () => {
-    setDeleteDialog(d => ({ ...d, loading: true }));
-    try {
-      if (deleteDialog.onConfirm) {
-        await deleteDialog.onConfirm();
-      }
-      closeDeleteDialog();
-    }
-    catch (e: any) { alert(e.message); setDeleteDialog(d => ({ ...d, loading: false })); }
-  };
 
   const openAddContact  = () => setContactModal({ mode: "add" });
   const openEditContact = (c: any) => setContactModal({ mode: "edit", contact: c });
@@ -436,7 +391,7 @@ export default function PCNDetailPage() {
     if (!id) return;
     if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: true }));
     try { await updatePCNMutation.mutateAsync({ id, data: body }); }
-    catch (e: any) { alert(e.message); }
+    catch (e: any) { toast.error(e.message); }
     finally { if (fieldKey) setFieldSaving(s => ({ ...s, [fieldKey]: false })); }
   }, [id, updatePCNMutation]);
 
@@ -457,14 +412,9 @@ export default function PCNDetailPage() {
     await patch({ contacts });
   };
 
-  const deleteContact = (cid: string, name: string) => {
-    showDeleteDialog({
-      title: "Delete Contact",
-      description: `Are you sure you want to delete "${name}"? This cannot be undone.`,
-      onConfirm: async () => {
-        await patch({ contacts: (pcn?.contacts || []).filter((c: any) => c._id !== cid) });
-      },
-    });
+  const deleteContact = async (cid: string, name: string) => {
+    if (!await confirm({ title: "Delete Contact", description: `Are you sure you want to delete "${name}"? This cannot be undone.` })) return;
+    await patch({ contacts: (pcn?.contacts || []).filter((c: any) => c._id !== cid) });
   };
 
   const saveMeeting = async (form: any) => {
@@ -484,21 +434,12 @@ export default function PCNDetailPage() {
     await patch({ emailTemplates: templates });
   };
 
-  const deleteTemplate = (tid: string, name: string) => {
-    showDeleteDialog({
-      title: "Delete Template",
-      description: `Are you sure you want to delete "${name}"? This cannot be undone.`,
-      onConfirm: async () => {
-        await patch({ emailTemplates: (pcn?.emailTemplates || []).filter((t: any) => t._id !== tid) });
-      },
-    });
+  const deleteTemplate = async (tid: string, name: string) => {
+    if (!await confirm({ title: "Delete Template", description: `Are you sure you want to delete "${name}"? This cannot be undone.` })) return;
+    await patch({ emailTemplates: (pcn?.emailTemplates || []).filter((t: any) => t._id !== tid) });
   };
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-9 h-9 border-[3px] border-purple-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (isLoading) return <LoadingFallback text="Loading Client..." />;
   if (!pcn) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh] text-slate-400 gap-3">
       <Network size={44} className="opacity-30" />
@@ -571,7 +512,7 @@ export default function PCNDetailPage() {
     });
 
     const handleSave = async () => {
-      if (!form.name.trim()) { alert("Client name is required"); return; }
+      if (!form.name.trim()) { toast.error("Client name is required"); return; }
       setSaving(true);
       try {
         // ✅ IMPORTANT: contractStartDate is excluded from payload
@@ -961,19 +902,14 @@ export default function PCNDetailPage() {
         const updated = [...restricted, { _id:`manual-${Date.now()}`, name:newName.trim(), email:newEmail.trim(), role:newRole.trim()||"clinician", reason:newReason.trim() }];
         await patch({ restrictedClinicians: updated });
         setAddModal(false); resetForm();
-      } catch (e: any) { alert(e.message); }
+      } catch (e: any) { toast.error(e.message); }
       finally { setSaving(false); }
     };
 
-    const handleRemove = (cid: string, name: string) => {
-      showDeleteDialog({
-        title: "Remove Restriction",
-        description: `Remove restriction for "${name}"? They will no longer be blocked from bookings at this Client.`,
-        onConfirm: async () => {
-          const updated = restricted.filter((c: any) => String(typeof c==="object"?(c._id||c.id):c) !== String(cid));
-          await patch({ restrictedClinicians: updated });
-        },
-      });
+    const handleRemove = async (cid: string, name: string) => {
+      if (!await confirm({ title: "Remove Restriction", description: `Remove restriction for "${name}"? They will no longer be blocked from bookings at this Client.` })) return;
+      const updated = restricted.filter((c: any) => String(typeof c==="object"?(c._id||c.id):c) !== String(cid));
+      await patch({ restrictedClinicians: updated });
     };
 
     return (
@@ -1111,15 +1047,7 @@ export default function PCNDetailPage() {
 
       <div>{PANELS[tab]}</div>
 
-      {/* Global Delete Dialog */}
-      <DeleteDialog
-        open={deleteDialog.open}
-        title={deleteDialog.title}
-        description={deleteDialog.description}
-        onConfirm={confirmDelete}
-        onCancel={closeDeleteDialog}
-        loading={deleteDialog.loading}
-      />
+
 
       {contactModal !== null && (
         <ContactModal mode={contactModal.mode} existing={contactModal.mode==="edit"?contactModal.contact:null} onClose={closeContact} onSave={saveContact} />

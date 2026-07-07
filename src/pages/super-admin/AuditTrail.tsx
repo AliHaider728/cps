@@ -135,7 +135,7 @@ export default function AuditTrail() {
     ...(dateTo   && { dateTo }),
   }), [page, pageSize, action, resource, status, dateFrom, dateTo]);
 
-  const { data, isLoading, refetch } = useAuditLogs(params);
+  const { data, isLoading, isFetching, refetch } = useAuditLogs(params);
 
   const logs: AuditLog[]  = data?.logs              || [];
   const total: number = data?.pagination?.total || 0;
@@ -321,7 +321,7 @@ export default function AuditTrail() {
         columns={columns}
         data={filtered}
         rowKey="_id"
-        loading={isLoading}
+        loading={isLoading || isFetching}
         loadingText="Loading audit logs..."
         emptyTitle="No audit records found"
         controlledPage={page}

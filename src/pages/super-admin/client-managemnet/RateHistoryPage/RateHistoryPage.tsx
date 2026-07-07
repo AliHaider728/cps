@@ -6,6 +6,8 @@ import {
   Filter, X, Clock, ArrowUpRight, ArrowDownRight, Minus,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import DataTable from "../../../../components/ui/DataTable";
+import { DebouncedSearchInput } from "../../../../components/shared/DebouncedSearchInput";
 import { apiClient } from "../../../../services/api/client";
 
 // Interfaces
@@ -465,12 +467,11 @@ export default function RateHistoryPage() {
 
       {/* ── Search ── */}
       <div className="relative">
-        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
+        <DebouncedSearchInput
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by client name, ICB, or contract type…"
-          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100 shadow-sm transition-all"
+          onSearchChange={(val) => setSearch(val)}
+          placeholder="Search by client name, ICB, or contract type..."
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100 shadow-sm transition-all"
         />
         {search && (
           <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">

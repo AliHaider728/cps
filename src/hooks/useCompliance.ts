@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { complianceAPI, complianceDocsAPI, documentGroupsAPI, entityDocumentsAPI } from "../api/api";
 import { QK } from "../lib/queryKeys";
 
@@ -11,6 +11,7 @@ export const useComplianceStatus = (entityType: string, entityId: string): UseQu
 
 export const useExpiringDocs = (days: number = 30): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: QK.EXPIRING(days),
     queryFn:  () => complianceAPI.getExpiring(days).then((r: { data: any }) => r.data),
   });
@@ -55,12 +56,14 @@ export const useRunExpiryCheck = (): UseMutationResult<any, Error, void> => {
 
 export const useComplianceDocs = (params: Record<string, unknown> = {}): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [...QK.COMPLIANCE_DOCS, params],
     queryFn:  () => complianceDocsAPI.getAll(params).then((r: { data: any }) => r.data),
   });
 
 export const useComplianceDocStats = (): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [...QK.COMPLIANCE_DOCS, "stats"],
     queryFn:  () => complianceDocsAPI.getStats().then((r: { data: any }) => r.data),
   });
@@ -101,12 +104,14 @@ export const useDeleteComplianceDoc = (): UseMutationResult<any, Error, string> 
 
 export const useDocumentGroups = (params: Record<string, unknown> = {}): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [...QK.DOC_GROUPS, params],
     queryFn:  () => documentGroupsAPI.getAll(params).then((r: { data: any }) => r.data),
   });
 
 export const useDocumentGroupsForEntity = (entityType: string): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [...QK.DOC_GROUPS, "for-entity", entityType],
     queryFn:  () => documentGroupsAPI.getForEntity(entityType).then((r: { data: any }) => r.data),
     enabled:  !!entityType,

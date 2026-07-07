@@ -1,12 +1,16 @@
 import { useState, useEffect, ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar/Sidebar";
 import Header from "./Header/Header";
+import { useAuth } from "../context/AuthContext";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -36,6 +40,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     document.documentElement.classList.toggle("dark", next);
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
+
   // Effective sidebar width (accounts for hover-expand in Sidebar itself)
   // Layout only cares about collapsed vs expanded for margin
   const marginLeft = isCollapsed ? "md:ml-[68px]" : "md:ml-[256px]";
@@ -59,6 +68,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           }}
           onThemeToggle={handleThemeToggle}
           isDark={isDark}
+          user={user}
+          onLogout={handleLogout}
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
         />

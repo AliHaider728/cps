@@ -11,6 +11,7 @@ import {
   useToggleStar,
   useDeleteHistory,
 } from "../../../hooks/useHistory";
+import { useConfirm } from "../../../contexts/ConfirmContext";
 
 /* ══════════════════════════════════════════════════════════════════
    CONSTANTS
@@ -298,6 +299,7 @@ interface ContactHistoryPanelProps {
 }
 
 export default function ContactHistoryPanel({ entityType, entityId }: ContactHistoryPanelProps) {
+    const confirm = useConfirm();
   const [filterType, setFilterType] = useState("all");
   const [starred,    setStarred]    = useState(false);
   const [search,     setSearch]     = useState("");
@@ -348,8 +350,8 @@ export default function ContactHistoryPanel({ entityType, entityId }: ContactHis
   };
 
   /* ── Delete handler ── */
-  const handleDelete = (logId: string) => {
-    if (!window.confirm("Delete this log entry?")) return;
+  const handleDelete = async (logId: string) => {
+    if (!await confirm({ title: "Delete this log entry?" })) return;
     deleteHistory.mutate(logId);
   };
 

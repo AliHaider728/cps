@@ -35,7 +35,7 @@ export function AlertDialogOverlay({ className, ...props }: AlertDialogOverlayPr
     <AlertDialogPrimitive.Backdrop
       data-slot="alert-dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/10 duration-100 backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 z-[100] bg-black/50 duration-100 backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -59,7 +59,7 @@ export function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm",
+          "fixed top-1/2 left-1/2 z-[100] grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm",
           className
         )}
         {...props}
@@ -145,8 +145,10 @@ export function AlertDialogAction({ className, ...props }: AlertDialogActionProp
   );
 }
 
+import { ButtonProps } from "./Button";
+
 export interface AlertDialogCancelProps extends React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Close> {
-  variant?: "outline" | "default" | "destructive" | "secondary" | "ghost" | "link";
+  variant?: ButtonProps["variant"];
   size?: "default" | "sm" | "lg" | "icon";
 }
 

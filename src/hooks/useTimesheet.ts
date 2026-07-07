@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { timesheetService } from "../services/api/timesheetService";
 
 export interface Timesheet {
@@ -17,6 +17,7 @@ export interface TimesheetFilters {
 
 export function useMyTimesheet(month: number | string, year: number | string): UseQueryResult<Timesheet[], Error> {
   return useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ["my-timesheet", month, year],
     queryFn: () => timesheetService.getMyTimesheet(month, year),
     enabled: !!month && !!year,
@@ -40,6 +41,7 @@ export function useTimesheetDetail(id: string | number): UseQueryResult<Timeshee
 
 export function useTimesheetHistory(filters: TimesheetFilters = {}): UseQueryResult<Timesheet[], Error> {
   return useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ["timesheets", "history", filters],
     queryFn: () => timesheetService.getTimesheetHistory(filters),
   });
@@ -93,6 +95,7 @@ export function useRejectTimesheet(): UseMutationResult<any, Error, { id: string
 
 export function useAdminTimesheet(clinicianId: string | number, month: number | string, year: number | string): UseQueryResult<Timesheet[], Error> {
   return useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ["admin-timesheet", clinicianId, month, year],
     queryFn: () => timesheetService.getTimesheetHistory({ clinician_id: clinicianId, month, year }),
     enabled: !!clinicianId && !!month && !!year,

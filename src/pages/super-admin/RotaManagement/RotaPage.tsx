@@ -17,6 +17,7 @@ import {
   Loader2,
   LucideIcon
 } from "lucide-react";
+import { useConfirm } from "../../../contexts/ConfirmContext";
 
 interface Tab {
   key: string;
@@ -32,6 +33,7 @@ const TABS: Tab[] = [
 ];
 
 export default function RotaPage() {
+    const confirm = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab");
   const safeInitialTab = TABS.some((t) => t.key === initialTab) ? initialTab! : "monthly";
@@ -76,8 +78,8 @@ export default function RotaPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm(`Generate rota for ${month}/${year}?`)) {
+              onClick={async () => {
+                if (await confirm({ title: `Generate rota for ${month}/${year}?` })) {
                   generate.mutateAsync({ month, year });
                 }
               }}

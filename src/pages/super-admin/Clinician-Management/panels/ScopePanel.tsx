@@ -9,6 +9,7 @@ import { QK } from "../../../../lib/queryKeys";
 import { Btn, FormField, Spinner, StatusBadge, ToggleRow } from "./shared";
 import { ModalShell } from "../../../../components/ui/ModalShell";
 import { fmtDate } from "../../../../lib/formatters";
+import { useConfirm } from "../../../../contexts/ConfirmContext";
 
 const COMMON_WORKSTREAMS = [
   "SMR", "EHCH", "Enhanced Access", "QOF Reviews", "Care Homes",
@@ -28,6 +29,7 @@ interface ScopePanelProps {
 }
 
 export default function ScopePanel({ clinician, canRestrict, canManage }: ScopePanelProps) {
+    const confirm = useConfirm();
   const qc = useQueryClient();
   const id = clinician?._id;
 
@@ -86,7 +88,7 @@ export default function ScopePanel({ clinician, canRestrict, canManage }: ScopeP
   };
 
   const handleUnrestrict = async () => {
-    if (!window.confirm("Remove restriction from this clinician?")) return;
+    if (!await confirm({ title: "Remove restriction from this clinician?" })) return;
     await unrestrictM.mutateAsync();
   };
 

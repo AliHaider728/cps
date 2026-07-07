@@ -9,6 +9,7 @@ import {
 import { Btn, FormField, Spinner, RagBadge } from "./shared";
 import { ModalShell } from "../../../../components/ui/ModalShell";
 import { fmtDate } from "../../../../lib/formatters";
+import { useConfirm } from "../../../../contexts/ConfirmContext";
 
 // ✅ FIXED: Match backend ragStatus values exactly
 const RAG_OPTS: [string, string][] = [
@@ -45,6 +46,7 @@ interface SupervisionPanelProps {
 }
 
 export default function SupervisionPanel({ clinicianId, canManage, users = [] }: SupervisionPanelProps) {
+    const confirm = useConfirm();
   const { data, isLoading } = useClinicianSupervision(clinicianId || "");
   const addM = useAddSupervisionLog(clinicianId || "");
   const updM = useUpdateSupervisionLog(clinicianId || "");
@@ -185,8 +187,8 @@ export default function SupervisionPanel({ clinicianId, canManage, users = [] }:
                     <Btn variant="ghost" size="sm" onClick={() => open(l)}>Edit</Btn>
                     <Btn
                       variant="danger" size="sm"
-                      onClick={() => {
-                        if (window.confirm("Delete this supervision log?")) delM.mutate(l._id);
+                      onClick={async () => {
+                        if (await confirm({ title: "Delete this supervision log?" })) delM.mutate(l._id);
                       }}
                     >
                       <Trash2 size={12} />

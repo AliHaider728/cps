@@ -5,6 +5,7 @@ import {
   CheckCircle2, UserPlus, Activity,
   Building2, Stethoscope, Network, ArrowRight,
 } from "lucide-react";
+import { LoadingFallback } from "../../components/ui/Spinner";
 import { useClinicians }        from "../../hooks/useClinicians";
 import { usePendingTimesheets, useRotaGaps } from "../../hooks/useRota";
 import { useExpiringDocs }      from "../../hooks/useCompliance";
@@ -121,7 +122,7 @@ function StatCard({ icon: Icon, label, value, sub, gradient, ring, accent, glow,
   return (
     <button
       onClick={onClick}
-      className={`group relative overflow-hidden text-left rounded-2xl bg-white border p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-4 w-full
+      className={`group relative overflow-hidden text-left rounded-2xl bg-white border p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-4 w-full animate-[fadeInUp_0.4s_ease-out]
         ${alert ? "border-rose-200 bg-rose-50/30" : "border-slate-200"}
         ${ring || "ring-slate-100"}
         ${glow || ""}`}
@@ -222,19 +223,12 @@ function EmptyState({ icon: Icon = CheckCircle2, message }: { icon?: any, messag
   );
 }
 
-/* ─── Skeleton ──────────────────────────────────────────────────────────── */
-function SkeletonRows({ n = 3 }: { n?: number }) {
-  return (
-    <div className="p-4 space-y-3">
-      {[...Array(n)].map((_, i) => (
-        <div key={i} className="h-12 bg-slate-50 rounded-xl animate-pulse" />
-      ))}
-    </div>
-  );
-}
+/* ══════════════════════════════════════════════════════════════════════════
+   FULL-PAGE SKELETON — shown until every query has finished loading.
+   Shimmer effect via a moving gradient overlay (defined in globalStyles below).
+   ══════════════════════════════════════════════════════════════════════════ */
 
-/* ─── Loading Value helper ──────────────────────────────────────────────── */
-const val = (loading: boolean, v: number | string) => (loading ? "—" : v);
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN DASHBOARD
@@ -248,10 +242,19 @@ export default function SuperAdminDashboard() {
   /* ── All real hooks ───────────────────────────────────────────────────── */
   const { data: cliniciansData, isLoading: cliniciansLoading } = useClinicians({});
   const { data: pendingData,    isLoading: tsLoading          } = usePendingTimesheets();
-  const { data: gapsData                                      } = useRotaGaps();
+  const { data: gapsData,       isLoading: gapsLoading        } = useRotaGaps();
   const { data: expiryData,     isLoading: expiryLoading      } = useExpiringDocs(30);
   const { data: pcnData,        isLoading: pcnLoading         } = usePCNs({});
   const { data: practiceData,   isLoading: practiceLoading    } = usePractices({});
+
+  /* ── Combined loading gate — wait for EVERYTHING before rendering ──────── */
+  const isDashboardLoading =
+    cliniciansLoading ||
+    tsLoading ||
+    gapsLoading ||
+    expiryLoading ||
+    pcnLoading ||
+    practiceLoading;
 
   /* ── Derived ──────────────────────────────────────────────────────────── */
   const allClinicians: Clinician[] = useMemo(() => (cliniciansData as { clinicians?: Clinician[] })?.clinicians  || [], [cliniciansData]);
@@ -294,11 +297,16 @@ export default function SuperAdminDashboard() {
   const activePCNs       = allPCNs.filter((p) => !p.status || p.status === "active");
   const activePractices  = allPractices.filter((p) => !p.status || p.status === "active");
 
+  /* ── Show ONE unified skeleton until every request has resolved ────────── */
+  if (isDashboardLoading) {
+    return <LoadingFallback text="Loading Dashboard..." />;
+  }
+
   return (
     <div className="space-y-5 sm:space-y-6 pb-16 px-3 sm:px-0">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-[fadeInUp_0.4s_ease-out]">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">System Overview</h1>
           <div className="flex items-center gap-2 mt-1">
@@ -318,8 +326,8 @@ export default function SuperAdminDashboard() {
         <StatCard
           icon={Users}
           label="Total Clinicians"
-          value={val(cliniciansLoading, allClinicians.length)}
-          sub={cliniciansLoading ? "" : `${activeClinicians.length} active · ${onboardingCount} onboarding`}
+          value={allClinicians.length}
+          sub={`${activeClinicians.length} active · ${onboardingCount} onboarding`}
           gradient="from-indigo-500 to-indigo-700"
           ring="ring-indigo-100"
           accent="bg-indigo-50 text-indigo-700"
@@ -329,8 +337,8 @@ export default function SuperAdminDashboard() {
         <StatCard
           icon={Network}
           label="PCNs"
-          value={val(pcnLoading, allPCNs.length)}
-          sub={pcnLoading ? "" : `${activePCNs.length} active`}
+          value={allPCNs.length}
+          sub={`${activePCNs.length} active`}
           gradient="from-teal-500 to-emerald-600"
           ring="ring-teal-100"
           accent="bg-teal-50 text-teal-700"
@@ -340,8 +348,8 @@ export default function SuperAdminDashboard() {
         <StatCard
           icon={Building2}
           label="Practices"
-          value={val(practiceLoading, allPractices.length)}
-          sub={practiceLoading ? "" : `${activePractices.length} active`}
+          value={allPractices.length}
+          sub={`${activePractices.length} active`}
           gradient="from-purple-500 to-fuchsia-600"
           ring="ring-purple-100"
           accent="bg-purple-50 text-purple-700"
@@ -351,7 +359,7 @@ export default function SuperAdminDashboard() {
         <StatCard
           icon={CalendarDays}
           label="Restricted"
-          value={val(cliniciansLoading, restrictedCount)}
+          value={restrictedCount}
           sub="Clinicians flagged"
           gradient={restrictedCount > 0 ? "from-rose-500 to-red-700" : "from-slate-400 to-slate-600"}
           ring={restrictedCount > 0 ? "ring-rose-100" : "ring-slate-100"}
@@ -379,7 +387,7 @@ export default function SuperAdminDashboard() {
         <StatCard
           icon={FileText}
           label="Pending Timesheets"
-          value={val(tsLoading, pendingTs.length)}
+          value={pendingTs.length}
           sub="Awaiting approval"
           gradient="from-amber-400 to-orange-500"
           ring="ring-amber-100"
@@ -391,7 +399,7 @@ export default function SuperAdminDashboard() {
         <StatCard
           icon={Stethoscope}
           label="Compliance Expiring"
-          value={val(expiryLoading, expiringDocs.length)}
+          value={expiringDocs.length}
           sub={critical7.length > 0 ? `${critical7.length} expire within 7 days` : "30-day window"}
           gradient={critical7.length > 0 ? "from-red-500 to-rose-700" : "from-amber-400 to-orange-500"}
           ring={critical7.length > 0 ? "ring-red-100" : "ring-amber-100"}
@@ -403,7 +411,7 @@ export default function SuperAdminDashboard() {
         <StatCard
           icon={UserPlus}
           label="Onboarding"
-          value={val(cliniciansLoading, onboardingCount)}
+          value={onboardingCount}
           sub="New starters in progress"
           gradient="from-blue-500 to-blue-700"
           ring="ring-blue-100"
@@ -471,13 +479,11 @@ export default function SuperAdminDashboard() {
           <SectionHeader
             icon={FileText}
             title="Pending Timesheets"
-            count={tsLoading ? "—" : pendingTs.length}
+            count={pendingTs.length}
             countColor="bg-amber-50 text-amber-700"
             onViewAll={() => navigate("/dashboard/super-admin/timesheets")}
           />
-          {tsLoading ? (
-            <SkeletonRows />
-          ) : pendingTs.length === 0 ? (
+          {pendingTs.length === 0 ? (
             <EmptyState message="No pending timesheets" />
           ) : (
             <>
@@ -534,13 +540,11 @@ export default function SuperAdminDashboard() {
           <SectionHeader
             icon={Stethoscope}
             title="Compliance Expiring (30d)"
-            count={expiryLoading ? "—" : expiringDocs.length}
+            count={expiringDocs.length}
             countColor={critical7.length > 0 ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}
             onViewAll={() => navigate("/dashboard/clinicians?tab=compliance")}
           />
-          {expiryLoading ? (
-            <SkeletonRows />
-          ) : expiringDocs.length === 0 ? (
+          {expiringDocs.length === 0 ? (
             <EmptyState icon={CheckCircle2} message="No documents expiring in 30 days" />
           ) : (
             <>
@@ -636,8 +640,12 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
-
-

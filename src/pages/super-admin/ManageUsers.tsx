@@ -8,6 +8,7 @@ import {
 } from "../../hooks/useAuth";
 import { useClinicians } from "../../hooks/useClinicians";
 import DataTable from "../../components/ui/DataTable";
+import { useConfirm } from "../../contexts/ConfirmContext";
 
 interface RoleMeta {
   value: string;
@@ -58,6 +59,7 @@ export interface SystemUser {
 }
 
 export default function ManageUsers() {
+    const confirm = useConfirm();
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
   const [form, setForm] = useState<UserForm>(EMPTY);
@@ -128,7 +130,7 @@ export default function ManageUsers() {
   };
 
   const del = async (id: string) => {
-    if (!window.confirm("Delete this user permanently?")) return;
+    if (!await confirm({ title: "Delete this user permanently?" })) return;
     try {
       await deleteUserMutation.mutateAsync(id);
     } catch {}

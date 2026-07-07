@@ -17,3 +17,12 @@ export function Spinner({ className, cls, ...props }: SpinnerProps) {
     />
   );
 }
+
+export function LoadingFallback({ text = "Loading..." }: { text?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <Spinner className="h-8 w-8 text-blue-600 mb-4" />
+      {text && <p className="text-slate-500 font-medium">{text}</p>}
+    </div>
+  );
+}

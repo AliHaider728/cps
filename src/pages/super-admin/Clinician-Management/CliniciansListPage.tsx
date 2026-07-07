@@ -12,6 +12,8 @@ import DataTable from "../../../components/ui/DataTable";
 import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
 import { resetListFilters, setListFilter } from "../../../slices/clinicianSlice";
 import { apiClient } from "../../../services/api/client";
+import { DebouncedSearchInput } from "../../../components/shared/DebouncedSearchInput";
+import { useConfirm } from "../../../contexts/ConfirmContext";
 
 const TYPE_OPTS     = ["Pharmacist", "Technician", "IP"];
 const CONTRACT_OPTS = ["ARRS", "EA", "Direct", "Mixed"];
@@ -356,6 +358,7 @@ const ClinicianModal: React.FC<ClinicianModalProps> = ({ existing, users, onClos
 
 /* ══════════ MAIN PAGE ══════════ */
 export default function CliniciansListPage() {
+    const confirm = useConfirm();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const filters  = useAppSelector((s: any) => s.clinician?.listFilters || {});
@@ -411,7 +414,7 @@ export default function CliniciansListPage() {
   };
 
   const handleDelete = async (c: any) => {
-    if (!window.confirm(`Delete ${c.fullName}? This cannot be undone.`)) return;
+    if (!await confirm({ title: `Delete ${c.fullName}? This cannot be undone.` })) return;
     await deleteM.mutateAsync(c._id);
   };
 
@@ -672,12 +675,11 @@ export default function CliniciansListPage() {
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative sm:col-span-2 lg:col-span-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
+              <DebouncedSearchInput
                 value={filters.search || ""}
-                onChange={(e) => setFilter({ search: e.target.value })}
+                onSearchChange={(val) => setFilter({ search: val })}
                 placeholder="Search name, email, GPhC…"
-                className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white transition-all"
               />
             </div>
             <Select value={filters.type || ""} onChange={(e) => setFilter({ type: e.target.value })}>
@@ -725,7 +727,7 @@ export default function CliniciansListPage() {
         <DataTable
           columns={columns}
           data={items}
-          loading={isLoading}
+          loading={isLoading || isFetching}
           emptyTitle="No clinicians found"
           emptyDescription="Try adjusting your filters or add a new clinician."
         />

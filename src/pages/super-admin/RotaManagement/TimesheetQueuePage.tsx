@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
+import { DebouncedSearchInput } from "../../../components/shared/DebouncedSearchInput";
 import { Badge } from "../../../components/ui/Badge";
 import { usePendingTimesheets, useTimesheetHistory } from "../../../hooks/useTimesheet";
 
@@ -72,12 +73,14 @@ export default function TimesheetQueuePage() {
           }}
           className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
         />
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm flex-1">
           <Search size={14} className="text-slate-400" />
-          <input
-            placeholder="Clinician search…"
-            className="outline-none text-sm"
-            onChange={(e) => setFilters((f) => ({ ...f, clinician_id: e.target.value }))}
+          <DebouncedSearchInput
+            placeholder="Clinician search..."
+            className="outline-none text-sm w-full"
+            value={filters.clinician_id || ""}
+            onSearchChange={(val) => setFilters((f) => ({ ...f, clinician_id: val }))}
+            icon={false}
           />
         </label>
         <select

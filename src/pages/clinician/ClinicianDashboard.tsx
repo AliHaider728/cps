@@ -9,6 +9,8 @@ import {
   GraduationCap, Search, SlidersHorizontal, X,
   List, LayoutGrid, LucideIcon
 } from "lucide-react";
+import PageHeader from "../../components/shared/PageHeader";
+import { LoadingFallback } from "../../components/ui/Spinner";
 import { useAuth } from "../../context/AuthContext";
 import { useMyRota } from "../../hooks/useRota";
 import { usePractices } from "../../hooks/usePractice";
@@ -109,17 +111,6 @@ function resolveHours(shift: Shift): number {
   if (shift.hours != null && shift.hours !== "") return parseFloat(String(shift.hours)) || 0;
   if (shift.total_hours != null && shift.total_hours !== "") return parseFloat(String(shift.total_hours)) || 0;
   return 0;
-}
-
-/* ── Skeleton card ────────────────────────────────────────── */
-function SkeletonCard() {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-pulse">
-      <div className="h-3 w-24 bg-slate-200 rounded mb-4" />
-      <div className="h-8 w-16 bg-slate-200 rounded mb-2" />
-      <div className="h-3 w-20 bg-slate-100 rounded" />
-    </div>
-  );
 }
 
 /* ── Summary card ─────────────────────────────────────────── */
@@ -558,9 +549,7 @@ export default function ClinicianDashboard() {
 
       {/* ── Summary Cards (5) ──────────────────────────────── */}
       {rotaLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
-        </div>
+        <LoadingFallback text="Loading dashboard..." />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <SummaryCard

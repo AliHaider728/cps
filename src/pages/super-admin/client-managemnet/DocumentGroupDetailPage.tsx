@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useDocumentGroup, useUpdateDocumentGroup, useDeleteDocumentGroup, useComplianceDocs } from "../../../hooks/useCompliance";
 import DataTable from "../../../components/ui/DataTable";
+import { useConfirm } from "../../../contexts/ConfirmContext";
+import { toast } from "sonner";
 
 interface SpinnerProps {
   cls?: string;
@@ -51,6 +53,7 @@ interface DocumentGroupForm {
 }
 
 export default function DocumentGroupDetailPage() {
+    const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
@@ -102,14 +105,14 @@ export default function DocumentGroupDetailPage() {
     if (!id) return;
     setSaving(true);
     try { await updateGroup.mutateAsync({ id, data: form as any }); setEditing(false); }
-    catch (e: any) { alert(e.message); }
+    catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   };
   const handleDelete = async () => {
     if (!id) return;
-    if (!confirm(`Delete group "${group?.name}"?`)) return;
+    if (!await confirm({ title: `Delete group "${group?.name}"?` })) return;
     try { await deleteGroup.mutateAsync(id); navigate(-1); }
-    catch (e: any) { alert(e.message); }
+    catch (e: any) { toast.error(e.message); }
   };
 
   if (groupLoading) return (

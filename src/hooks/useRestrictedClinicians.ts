@@ -6,7 +6,7 @@
  * and the rota-facing lookup "which clinicians are blocked at this client?".
  */
 
-import { useMutation, useQuery, useQueryClient, UseQueryResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryResult, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "../services/api/client";
 import { QK } from "../lib/queryKeys";
 
@@ -24,6 +24,7 @@ export interface RestrictedClinician {
 /* ─── LIST ALL restrictions (with optional filters) ─────── */
 export const useAllRestrictedClinicians = (params: RestrictedCliniciansParams = {}): UseQueryResult<RestrictedClinician[], Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [QK.RESTRICTED_CLINICIANS, params],
     queryFn: () => apiClient.get(base, { params }).then((r: { data: RestrictedClinician[] }) => r.data),
   });

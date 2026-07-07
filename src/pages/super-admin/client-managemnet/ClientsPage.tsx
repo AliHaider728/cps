@@ -17,6 +17,7 @@ import {
 import { useHierarchy, useSearchClients } from "../../../hooks/useHierarchy";
 import { useAppDispatch, useAppSelector } from "../../../hooks/redux";
 import { setHierarchySearch } from "../../../slices/clientsSlice";
+import { LoadingFallback } from "../../../components/ui/Spinner";
 
 /* ---------------- Types ---------------- */
 
@@ -541,16 +542,7 @@ export default function ClientsPage() {
   };
 
   if (isLoading)
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 border-[3px] border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-400 font-medium">
-            Loading client hierarchy…
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingFallback text="Loading clients..." />;
 
   return (
     <div>

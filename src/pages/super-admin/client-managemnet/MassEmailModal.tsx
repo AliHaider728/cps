@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Mail, Send, Plus, Trash2, Check } from "lucide-react";
 import { useSendMassEmail } from "../../../hooks/useEmail";
+import { toast } from "sonner";
 
 interface Contact {
   name?: string;
@@ -48,7 +49,7 @@ export default function MassEmailModal({ entityType, entityId, contacts = [], on
       setSent(true);
       setTimeout(onClose, 1500);
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message);
     }
   };
 

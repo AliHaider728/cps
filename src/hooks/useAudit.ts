@@ -1,4 +1,4 @@
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { useQuery, UseQueryResult, keepPreviousData } from "@tanstack/react-query";
 import { auditAPI } from "../api/api";
 import { QK } from "../lib/queryKeys";
 
@@ -13,6 +13,7 @@ export interface AuditLogData {
 
 export const useAuditLogs = (params: AuditLogParams = {}): UseQueryResult<any, Error> =>
   useQuery<any, Error>({
+    placeholderData: keepPreviousData,
     queryKey: QK.AUDIT(params),
     queryFn:  () => auditAPI.getLogs(params).then((r: { data: any }) => r.data),
     refetchInterval: 10000,

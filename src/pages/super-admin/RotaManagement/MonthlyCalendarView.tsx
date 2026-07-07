@@ -16,6 +16,7 @@ import {
   Loader2,
   LucideIcon,
 } from "lucide-react";
+import { LoadingFallback } from "../../../components/ui/Spinner";
 
 /* ── Interfaces ──────────────────────────────────────────────────────── */
 export interface MonthlyCalendarViewProps {
@@ -325,14 +326,7 @@ export default function MonthlyCalendarView({
   const handleEventClick = (shift: any) => { setDetailShift(shift); setDetailOpen(true); };
   const handleGapClick   = (shift: any) => { setGapShift(shift);    setCoverOpen(true);  };
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center h-64 rounded-2xl border border-slate-200 bg-white">
-      <div className="flex items-center gap-3 text-slate-400 text-sm">
-        <Loader2 size={18} className="animate-spin" />
-        Loading rota…
-      </div>
-    </div>
-  );
+  if (isLoading) return <LoadingFallback text="Loading calendar..." />;
 
   if (isError) return (
     <div className="flex items-center justify-center h-32 rounded-2xl border border-red-200 bg-red-50 text-sm text-red-600">

@@ -5,7 +5,7 @@
  *   POST   /:entityType/:entityId/reporting-archive   (multipart)
  *   DELETE /:entityType/:entityId/reporting-archive/:reportId
  */
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { QK } from "../lib/queryKeys";
 import { reportingArchiveAPI } from "../api/api";
 

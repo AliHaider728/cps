@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { rotaService } from "../services/api/rotaService";
 import { QK } from "../lib/queryKeys";
 
@@ -29,6 +29,7 @@ export interface TimesheetEntry {
 
 export const useRotaList = (params: RotaParams = {}): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: keyRotaList(params),
     queryFn: () => {
       const { month, year, ...rest } = params || {};
@@ -39,6 +40,7 @@ export const useRotaList = (params: RotaParams = {}): UseQueryResult<any, Error>
 
 export const useMonthlyRota = (month: number | string, year: number | string): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ["rota", "monthly", month, year],
     queryFn: () => rotaService.getMonthlyRota(month, year).then(unwrap),
     enabled: !!month && !!year,
@@ -60,6 +62,7 @@ export const useMyRotaAll = (): UseQueryResult<any, Error> =>
 export const useMyRota = (month?: number | string | null, year?: number | string | null, options: any = {}): UseQueryResult<any, Error> => {
   const scopeAll = options.scope === "all" || month == null || year == null;
   return useQuery({
+    placeholderData: keepPreviousData,
     queryKey: scopeAll ? ["myRota", "all"] : ["myRota", month, year],
     queryFn: () =>
       scopeAll
@@ -80,6 +83,7 @@ export const useMyTimesheetAll = (): UseQueryResult<any, Error> =>
 export const useMyTimesheet = (month?: number | string | null, year?: number | string | null, options: any = {}): UseQueryResult<any, Error> => {
   const scopeAll = options.scope === "all" || month == null || year == null;
   return useQuery({
+    placeholderData: keepPreviousData,
     queryKey: scopeAll ? ["myTimesheet", "all"] : ["myTimesheet", month, year],
     queryFn: () =>
       scopeAll
@@ -105,6 +109,7 @@ export const useTimesheetDetail = (id: string | number): UseQueryResult<any, Err
 
 export const useClinicianTimesheet = (clinicianId: string | number, month: number | string, year: number | string): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ["clinicianTimesheet", clinicianId, month, year],
     queryFn: () => rotaService.getClinicianTimesheet(clinicianId, month, year).then(unwrap),
     enabled: !!clinicianId && !!month && !!year,
@@ -119,6 +124,7 @@ export const useRota = (id: string | number): UseQueryResult<RotaShift, Error> =
 
 export const useClinicianRota = (clinicianId: string | number, month: number | string, year: number | string, params: any = {}): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ["rota", "clinician", clinicianId, { month, year, ...params }],
     queryFn: () =>
       rotaService.getClinicianRota(clinicianId, month, year, params).then((r: any) => r.data),
@@ -133,6 +139,7 @@ export const useGapReport = (days: number = 14): UseQueryResult<any, Error> =>
 
 export const useCoverRequests = (params: any = {}): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: QK.ROTA_COVER_REQUESTS
       ? QK.ROTA_COVER_REQUESTS(params)
       : ["rota", "cover-requests", params],

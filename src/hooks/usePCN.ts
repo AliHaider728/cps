@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryResult, UseMutationResult, keepPreviousData } from "@tanstack/react-query";
 import { pcnService } from "../services/api";
 import { QK } from "../lib/queryKeys";
 
@@ -26,6 +26,7 @@ export interface PCNMeeting {
 
 export const usePCNs = (params: PCNParams = {}): UseQueryResult<any, Error> =>
   useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [...QK.PCNS, params],
     queryFn: () => pcnService.getAll(params).then((response: { data: any }) => response.data),
   });

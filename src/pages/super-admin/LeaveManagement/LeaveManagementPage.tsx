@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarOff, Check, X, Download, Search } from "lucide-react";
 import { leaveService } from "../../../services/api/leaveService";
 import { Button } from "../../../components/ui/Button";
+import { DebouncedSearchInput } from "../../../components/shared/DebouncedSearchInput";
 
 interface LeaveRow {
   _id?: string;
@@ -170,12 +171,11 @@ export default function LeaveManagementPage() {
 
       {tab !== "report" && (
         <div className="relative max-w-md">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
+          <DebouncedSearchInput
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search clinician name…"
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            onSearchChange={(val) => setSearch(val)}
+            placeholder="Search clinician name..."
+            className="w-full border-slate-200 bg-white text-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-xl"
           />
         </div>
       )}

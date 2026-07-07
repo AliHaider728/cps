@@ -1,123 +1,16 @@
 import React, { useState, useMemo } from "react";
 import {
-  Layers, Plus, Edit2, Trash2, X, Check,
-  ChevronRight, Building2, Search, SlidersHorizontal
+  Building2, Plus, Edit2, Trash2, X, Check, Search, SlidersHorizontal, ChevronRight, Layers
 } from "lucide-react";
+import { EntityFilterBar } from "../../../components/shared/EntityFilterBar";
 import { useNavigate } from "react-router-dom";
 import { useFederations, useCreateFederation, useUpdateFederation, useDeleteFederation } from "../../../hooks/useFederation";
 import { useICBs } from "../../../hooks/useICB";
 import DataTable from "../../../components/ui/DataTable";
 
-interface FedFormState {
-  name: string;
-  icb: string;
-  type: string;
-  notes: string;
-}
-
-interface FedModalProps {
-  existing?: any;
-  icbs: any[];
-  onClose: () => void;
-  onSave: (form: FedFormState) => Promise<void>;
-}
-
-const FedModal = ({ existing, icbs, onClose, onSave }: FedModalProps) => {
-  const [form, setForm] = useState<FedFormState>({
-    name: existing?.name || "",
-    icb: existing?.icb?._id || existing?.icb || "",
-    type: existing?.type || "federation",
-    notes: existing?.notes || "",
-  });
-  const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-
-  const handle = async () => {
-    if (!form.name.trim()) { setError("Name is required"); return; }
-    if (!form.icb) { setError("ICB is required"); return; }
-    setSaving(true); setError("");
-    try { await onSave(form); onClose(); } catch (e: any) { setError(e.message); } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h3 className="text-base font-bold text-slate-800">{existing ? "Edit Federation" : "Add Federation / INT"}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="p-6 space-y-4">
-          {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{error}</div>}
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Name *</label>
-            <input
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Salford Together Federation"
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">ICB *</label>
-            <select
-              value={form.icb}
-              onChange={e => setForm(f => ({ ...f, icb: e.target.value }))}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all cursor-pointer"
-            >
-              <option value="">Select ICB…</option>
-              {icbs.map(i => <option key={i._id} value={i._id}>{i.name}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Type</label>
-            <div className="grid grid-cols-3 gap-2">
-              {["federation", "INT", "other"].map(t => (
-                <button
-                  key={t}
-                  onClick={() => setForm(f => ({ ...f, type: t }))}
-                  className={`py-2.5 rounded-xl border text-sm font-semibold capitalize transition-all 
-                    ${form.type === t
-                      ? "bg-indigo-50 border-indigo-300 text-indigo-700"
-                      : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
-                    }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              rows={3}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-all resize-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3 px-6 pb-5">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
-          <button
-            onClick={handle}
-            disabled={saving}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-          >
-            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Check size={15} />}
-            {existing ? "Save" : "Create"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+import FedModal, { FedFormState } from "./modals/FedModal";
+import { useConfirm } from "../../../contexts/ConfirmContext";
+import { toast } from "sonner";
 
 const TYPE_STYLE: Record<string, string> = {
   federation: "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -126,6 +19,7 @@ const TYPE_STYLE: Record<string, string> = {
 };
 
 export default function FederationListPage() {
+    const confirm = useConfirm();
   const navigate = useNavigate();
   const [modal, setModal] = useState<any>(null);
   const [search, setSearch] = useState<string>("");
@@ -133,7 +27,7 @@ export default function FederationListPage() {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [showFilters, setShowFilters] = useState<boolean>(false);
 
-  const { data: fedData, isLoading } = useFederations();
+  const { data: fedData, isLoading, isFetching } = useFederations();
   const { data: icbData } = useICBs();
 
   const feds = fedData?.federations || [];
@@ -150,8 +44,8 @@ export default function FederationListPage() {
   };
 
   const handleDelete = async (fed: any) => {
-    if (!confirm(`Delete "${fed.name}"?`)) return;
-    try { await deleteFed.mutateAsync(fed._id); } catch (e: any) { alert(e.message); }
+    if (!await confirm({ title: `Delete "${fed.name}"?` })) return;
+    try { await deleteFed.mutateAsync(fed._id); } catch (e: any) { toast.error(e.message); }
   };
 
   // Client-side filtering
@@ -249,123 +143,60 @@ export default function FederationListPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-1">
-            <button onClick={() => navigate("/dashboard/super-admin/clients")} className="hover:text-blue-600 transition-colors">
-              Client Management
-            </button>
-            <ChevronRight size={13} />
-            <span className="text-slate-600 font-medium">Federations / INT</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800">Federations / INT</h1>
-          <p className="text-slate-500 text-sm mt-1">Intermediate tier between ICBs and Clients</p>
-        </div>
-        <button
-          onClick={() => setModal("add")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-all"
+
+      <EntityFilterBar
+        title="Federations / INT"
+        itemTypeLabel="federations"
+        breadcrumbs={[
+          { label: "Client Management", path: "/dashboard/super-admin/clients" },
+          { label: "Federations / INT" },
+        ]}
+        visibleCount={filteredFeds.length}
+        totalCount={feds.length}
+        onAdd={() => setModal("add")}
+        addButtonLabel="Add Federation"
+        searchPlaceholder="Search federations by name, ICB…"
+        searchValue={search}
+        onSearchChange={setSearch}
+      >
+        <select
+          value={icbFilter}
+          onChange={(e) => setIcbFilter(e.target.value)}
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-600 outline-none transition-colors focus:border-indigo-400"
         >
-          <Plus size={15} /> Add Federation
-        </button>
-      </div>
-
-      {/* Filter bar */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search federations by name, ICB…"
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:border-indigo-400 transition-all"
-          />
-        </div>
-
-        <button
-          onClick={() => setShowFilters(v => !v)}
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-            showFilters || icbFilter || typeFilter
-              ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-          }`}
+          <option value="">All ICBs</option>
+          {icbs.map((i: any) => (
+            <option key={i._id} value={i._id}>{i.name}</option>
+          ))}
+        </select>
+        
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-600 outline-none transition-colors focus:border-indigo-400"
         >
-          <SlidersHorizontal size={14} />
-          Filters
-          {(icbFilter || typeFilter) && (
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-          )}
-        </button>
+          <option value="">All Types</option>
+          <option value="federation">Federation</option>
+          <option value="INT">INT</option>
+          <option value="other">Other</option>
+        </select>
 
-        {hasActiveFilters && (
+        {(icbFilter || typeFilter) && (
           <button
-            onClick={() => { setSearch(""); setIcbFilter(""); setTypeFilter(""); }}
-            className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            onClick={() => { setIcbFilter(""); setTypeFilter(""); }}
+            className="flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-2 text-[13px] font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
           >
-            Clear all
+            Clear Filters
           </button>
         )}
-      </div>
-
-      {/* Expanded filters */}
-      {showFilters && (
-        <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">ICB</label>
-            <select
-              value={icbFilter}
-              onChange={e => setIcbFilter(e.target.value)}
-              className="text-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-600 focus:outline-none focus:border-indigo-400 cursor-pointer min-w-[200px]"
-            >
-              <option value="">All ICBs</option>
-              {icbs.map((i: any) => <option key={i._id} value={i._id}>{i.name}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</label>
-            <div className="flex items-center gap-2 pt-1">
-              {["federation", "INT", "other"].map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTypeFilter(v => v === t ? "" : t)}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold capitalize transition-all ${
-                    typeFilter === t
-                      ? (t === "federation" ? "bg-indigo-50 border-indigo-300 text-indigo-700" :
-                         t === "INT" ? "bg-amber-50 border-amber-300 text-amber-700" :
-                         "bg-slate-100 border-slate-300 text-slate-700")
-                      : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stats row */}
-      {!isLoading && (
-        <div className="mb-4 flex items-center gap-3 flex-wrap">
-          <span className="text-xs text-slate-400">
-            {filteredFeds.length} of {feds.length} federations
-            {hasActiveFilters && " (filtered)"}
-          </span>
-          {typeFilter && (
-            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${TYPE_STYLE[typeFilter] || TYPE_STYLE.other}`}>
-              {typeFilter}
-              <button onClick={() => setTypeFilter("")} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
-            </span>
-          )}
-        </div>
-      )}
+      </EntityFilterBar>
 
       {/* DataTable */}
       <DataTable
         columns={columns}
         data={filteredFeds}
         rowKey="_id"
-        loading={isLoading}
+        loading={isLoading || isFetching}
         loadingText="Loading federations…"
         emptyTitle="No federations found"
         emptyDescription={hasActiveFilters ? "Try adjusting your filters." : "Click 'Add Federation' to get started."}
