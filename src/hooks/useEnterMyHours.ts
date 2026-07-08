@@ -42,3 +42,22 @@ export function useSubmitEnterMyHours(): UseMutationResult<any, Error, { month: 
 }
 
 
+
+export function useAdminManualTimesheets(): UseQueryResult<any[], Error> {
+  return useQuery({
+    queryKey: ["admin-manual-timesheets"],
+    queryFn: () =>
+      apiClient.get("/enter-my-hours/manager").then((r: { data?: { entries?: unknown[] } }) => unwrap(r).entries || []),
+  });
+}
+
+export function useBulkReviewManualTimesheets(): UseMutationResult<any, Error, { clinicianId: string; month: number; year: number; action: "approve" | "reject"; reason?: string }> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiClient.post("/enter-my-hours/manager/bulk-review", payload).then((r: { data?: unknown }) => unwrap(r)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-manual-timesheets"] });
+    },
+  });
+}
