@@ -62,8 +62,13 @@ export default function OnboardingPanel({ clinicianId, clinician, canManage }: O
   const set = (patch: Partial<OnboardingState>) => { setState((s) => ({ ...s, ...patch } as OnboardingState)); setDirty(true); };
 
   const handleSave = async () => {
-    await saveM.mutateAsync({ ...state });
-    setDirty(false);
+    try {
+      await saveM.mutateAsync({ ...state });
+      toast.success("Onboarding updated successfully");
+      setDirty(false);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || "Failed to update onboarding");
+    }
   };
 
   const handleSendWelcome = async () => {
@@ -72,7 +77,12 @@ export default function OnboardingPanel({ clinicianId, clinician, canManage }: O
       return;
     }
     if (!await confirm({ title: `Send welcome pack to ${clinician.email}?` })) return;
-    await welcomeM.mutateAsync({ portalUrl: portal || undefined });
+    try {
+      await welcomeM.mutateAsync({ portalUrl: portal || undefined });
+      toast.success("Welcome pack sent successfully");
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || "Failed to send welcome pack");
+    }
   };
 
   const completedCount = CHECKLIST.filter(([k]) => !!state[k as keyof OnboardingState]).length;

@@ -8,6 +8,7 @@ import { OutlookConnectModal } from "../components/layout/OutlookConnectModal";
 import { InviteMemberModal } from "../components/layout/InviteMemberModal";
 import { Copy, RefreshCw, CheckCircle2, XCircle, Mail, Users, UserPlus, Wifi } from "lucide-react";
 import { getInitials, formatSmartDate } from "../lib/utils";
+import { toast } from "sonner";
 
 export default function Team() {
   const { data, isLoading, refetch } = useListTeamMembers();
@@ -133,7 +134,15 @@ export default function Team() {
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => syncOutlook({ data: { memberId: member.id } }, { onSuccess: refetch })}
+                          onClick={() => syncOutlook({ data: { memberId: member.id } }, { 
+                            onSuccess: () => {
+                              refetch();
+                              toast.success("Outlook sync triggered successfully");
+                            },
+                            onError: (err: any) => {
+                              toast.error(err.response?.data?.message || "Failed to trigger sync. Please try again.");
+                            }
+                          })}
                           disabled={isSyncing}
                         >
                           <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} /> Force Sync

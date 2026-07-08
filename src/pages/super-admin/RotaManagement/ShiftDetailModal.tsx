@@ -8,7 +8,11 @@ import {
   Loader2,
   AlertCircle,
   Clock,
+  PoundSterling,
+  Building2,
+  User,
 } from "lucide-react";
+import { toast } from "sonner";
 import ShiftStatusBadge from "../../../components/ui/ShiftStatusBadge";
 
 const STATUS_OPTIONS = [
@@ -178,7 +182,12 @@ export default function ShiftDetailModal({ open, onClose, shift, readOnly = fals
                 </button>
                 <button
                   type="button"
-                  onClick={() => { del.mutate(shift.id as string | number); onClose?.(); }}
+                  onClick={() => {
+                    del.mutate(shift.id as string | number, {
+                      onSuccess: () => { toast.success("Shift deleted successfully"); onClose?.(); },
+                      onError: (err: any) => toast.error(err.response?.data?.message || "Failed to delete shift")
+                    });
+                  }}
                   disabled={del.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60 transition-all"
                 >
@@ -213,7 +222,15 @@ export default function ShiftDetailModal({ open, onClose, shift, readOnly = fals
             {!effectiveReadOnly && (
               <button
                 type="button"
-                onClick={() => update.mutate({ id: shift.id as string | number, data: { status, workstreams_notes: notes } })}
+                onClick={() => {
+                  update.mutate(
+                    { id: shift.id as string | number, data: { status, workstreams_notes: notes } },
+                    {
+                      onSuccess: () => { toast.success("Shift updated successfully"); onClose?.(); },
+                      onError: (err: any) => toast.error(err.response?.data?.message || "Failed to update shift")
+                    }
+                  );
+                }}
                 disabled={update.isPending}
                 className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:shadow-md transition-all active:scale-95 disabled:opacity-60"
               >

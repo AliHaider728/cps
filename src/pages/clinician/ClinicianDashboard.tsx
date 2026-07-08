@@ -684,7 +684,7 @@ export default function ClinicianDashboard() {
             shadow-lg shadow-blue-200 active:scale-[0.98] transition-all"
         >
           <Clock size={17} />
-          Enter My Hours
+          Log My Hours
         </button>
         <button
           onClick={() => navigate("/portal/clinician/apply-leave")}

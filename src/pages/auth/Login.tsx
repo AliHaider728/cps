@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { GoogleReCaptchaProvider, useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import { useAuth } from "../../context/AuthContext";
 import ForceChangePassword from "./ForceChangePassword";
@@ -72,10 +73,12 @@ const LoginForm: React.FC = () => {
 
       const result = await login(formData.email, formData.password, recaptchaToken);
       if (result.mustChangePassword) {
+        toast.success("Login successful. Please change your password.");
         setTempToken(result.token);
         setPendingRedirect(result.redirectTo || "");
         setShowForceChange(true);
       } else {
+        toast.success("Logged in successfully");
         navigate(result.redirectTo || "/dashboard");
       }
     } catch (err: any) {
@@ -83,6 +86,8 @@ const LoginForm: React.FC = () => {
 
       const status  = err.response?.status;
       const message = err.response?.data?.message || err.message || "Invalid email or password";
+
+      toast.error(message);
 
       if (status === 429) {
         setIsRateLimited(true);

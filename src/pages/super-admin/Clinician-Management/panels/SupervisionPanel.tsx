@@ -8,8 +8,9 @@ import {
 } from "../../../../hooks/useClinicianSupervision";
 import { Btn, FormField, Spinner, RagBadge } from "./shared";
 import { ModalShell } from "../../../../components/ui/ModalShell";
-import { fmtDate } from "../../../../lib/formatters";
 import { useConfirm } from "../../../../contexts/ConfirmContext";
+import { fmtDate } from "../../../../lib/formatters";
+import { toast } from "sonner";
 
 // ✅ FIXED: Match backend ragStatus values exactly
 const RAG_OPTS: [string, string][] = [
@@ -71,17 +72,26 @@ export default function SupervisionPanel({ clinicianId, canManage, users = [] }:
   };
 
   const submit = async () => {
-    // ✅ FIXED: Send backend field names
+    if (!form.sessionDate || !form.supervisor) return;
     const payload = {
       sessionDate: form.sessionDate,
+      supervisor:  form.supervisor,
       ragStatus:   form.ragStatus,
-      supervisor:  form.supervisor || null,
       notes:       form.notes,
       actionItems: form.actionItems || [],
     };
-    if (form._id) await updM.mutateAsync({ logId: form._id, data: payload });
-    else          await addM.mutateAsync(payload);
-    setModal(null);
+    try {
+      if (form._id) {
+        await updM.mutateAsync({ logId: form._id, data: payload });
+        toast.success("Supervision log updated successfully");
+      } else {
+        await addM.mutateAsync(payload);
+        toast.success("Supervision log created successfully");
+      }
+      setModal(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save supervision log");
+    }
   };
 
   // Action items helpers
@@ -188,7 +198,14 @@ export default function SupervisionPanel({ clinicianId, canManage, users = [] }:
                     <Btn
                       variant="danger" size="sm"
                       onClick={async () => {
-                        if (await confirm({ title: "Delete this supervision log?" })) delM.mutate(l._id);
+                        if (await confirm({ title: "Delete this supervision log?" })) {
+                          try {
+                            await delM.mutateAsync(l._id);
+                            toast.success("Supervision log deleted successfully");
+                          } catch (err: any) {
+                            toast.error(err.response?.data?.message || "Failed to delete log");
+                          }
+                        }
                       }}
                     >
                       <Trash2 size={12} />

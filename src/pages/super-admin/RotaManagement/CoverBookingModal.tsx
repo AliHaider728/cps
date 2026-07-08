@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useAssignCover } from "../../../hooks/useRota";
+import { toast } from "sonner";
 import {
   X,
   UserCheck,
@@ -139,7 +140,12 @@ export default function CoverBookingModal({ open, onClose, gapShift, onAssign }:
         experienceLevel:    expLevel,
       },
       {
-        onSuccess: () => { onClose(); onAssign?.(); },
+        onSuccess: () => {
+          toast.success("Cover assigned successfully");
+          onClose();
+          onAssign?.();
+        },
+        onError: (err: any) => toast.error(err.response?.data?.message || "Failed to assign cover")
       }
     );
   };

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useClinicianLeave } from "../../hooks/useClinicianLeave";
 import { useClinicianSupervision, useUpdateSupervisionLog } from "../../hooks/useClinicianSupervision";
 import { useAllUsers } from "../../hooks/useAuth";
+import { toast } from "sonner";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 
@@ -43,12 +44,17 @@ export default function ClinicianSupervisionPage() {
   const logs = data?.logs || (Array.isArray(data) ? data : []);
 
   const submitReflection = async (logId: string) => {
-    await updateM.mutateAsync({
-      logId,
-      data: { reflection: reflectionText, reflectionSubmittedAt: new Date().toISOString() },
-    });
-    setReflectionId(null);
-    setReflectionText("");
+    try {
+      await updateM.mutateAsync({
+        logId,
+        data: { reflection: reflectionText, reflectionSubmittedAt: new Date().toISOString() },
+      });
+      toast.success("Reflection submitted successfully");
+      setReflectionId(null);
+      setReflectionText("");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to submit reflection. Please try again.");
+    }
   };
 
   if (!clinicianId) {

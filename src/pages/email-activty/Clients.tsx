@@ -10,6 +10,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { Search, Plus, Building2, Phone, Mail, ChevronRight } from "lucide-react";
 import { formatSmartDate, getInitials } from "../lib/utils";
 import DataTable from "../components/ui/DataTable";
+import { toast } from "sonner";
 
 export default function Clients() {
   const [search, setSearch] = useState("");
@@ -24,7 +25,15 @@ export default function Clients() {
     const fd = new FormData(e.currentTarget);
     createClient(
       { data: { name: fd.get("name") as string, pcnNumber: fd.get("pcnNumber") as string, surgeryName: fd.get("surgeryName") as string, email: fd.get("email") as string, phone: fd.get("phone") as string } },
-      { onSuccess: () => setModalOpen(false) }
+      { 
+        onSuccess: () => {
+          setModalOpen(false);
+          toast.success("Client created successfully");
+        },
+        onError: (err: any) => {
+          toast.error(err.response?.data?.message || "Failed to create client. Please try again.");
+        }
+      }
     );
   };
 

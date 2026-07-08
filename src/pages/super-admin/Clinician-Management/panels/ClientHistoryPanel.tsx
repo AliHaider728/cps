@@ -6,6 +6,7 @@ import { fmtDate } from "../../../../lib/formatters";
 import { clinicianService } from "../../../../services/api";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
+import { toast } from "sonner";
 
 interface ClientHistoryForm {
   pcnId?: string;
@@ -74,8 +75,13 @@ export default function ClientHistoryPanel({ clinicianId, canManage, pcns = [], 
   const submitAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!form.pcnId && !form.practiceId) return;
-    await addM.mutateAsync(form);
-    setModal(null);
+    try {
+      await addM.mutateAsync(form);
+      toast.success("Client assignment added successfully");
+      setModal(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to add client assignment");
+    }
   };
 
   const openEnd = (h: any) => {
@@ -86,8 +92,13 @@ export default function ClientHistoryPanel({ clinicianId, canManage, pcns = [], 
   const submitEnd = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!form.histId || !form.endDate) return;
-    await endM.mutateAsync({ histId: form.histId, endDate: form.endDate, reason: form.reason || "" });
-    setModal(null);
+    try {
+      await endM.mutateAsync({ histId: form.histId, endDate: form.endDate, reason: form.reason || "" });
+      toast.success("Client assignment ended successfully");
+      setModal(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to end client assignment");
+    }
   };
 
   const pcnOpts: [string, string][]      = pcns.map((p: any)      => [p._id, p.pcnName || p.name]);

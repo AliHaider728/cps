@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useClinician, useUpdateClinician } from "../../../hooks/useClinician";
 import { clinicianService } from "../../../services/api/clinicianService";
 import { QK } from "../../../lib/queryKeys";
+import { toast } from "sonner";
 import { useAllUsers } from "../../../hooks/useAuth";
 import { usePCNs } from "../../../hooks/usePCN";
 import { usePractices } from "../../../hooks/usePractice";
@@ -136,14 +137,25 @@ export default function CliniciansDetailPage() {
 
   const handlePatch = async (patch: any) => {
     if (id) {
-      await updateM.mutateAsync({ id, data: patch });
+      try {
+        await updateM.mutateAsync({ id, data: patch });
+        toast.success("Clinician updated successfully");
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || "Failed to update clinician. Please try again.");
+        throw err;
+      }
     }
   };
 
   const handleLinkUser = async (userId: string) => {
     if (id) {
-      await clinicianService.linkUser(id, userId);
-      await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
+      try {
+        await clinicianService.linkUser(id, userId);
+        await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
+        toast.success("User linked successfully");
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || "Failed to link user. Please try again.");
+      }
     }
   };
 

@@ -9,6 +9,7 @@ import {
   useEntityDocuments,
   useUpdateEntityDocumentUpload,
 } from "../../../hooks/useCompliance";
+import { toast } from "sonner";
 import { uploadFilesToSupabase, uploadFileToSupabase } from "../../../lib/supabase"; 
 import DataTable from "../../../components/ui/DataTable";
 import { LoadingFallback } from "../../../components/ui/Spinner";
@@ -777,6 +778,36 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
   const updateUpload = useUpdateEntityDocumentUpload(entityType, entityId);
   const deleteUpload = useDeleteEntityDocumentUpload(entityType, entityId);
 
+  const handleAddUpload = async (args: { groupId: string; documentId: string; data: any }) => {
+    try {
+      await addUploads.mutateAsync(args);
+      toast.success("Document uploaded successfully");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to upload document. Please try again.");
+      throw err;
+    }
+  };
+
+  const handleUpdateUpload = async (args: { groupId: string; documentId: string; uploadId: string; data: any }) => {
+    try {
+      await updateUpload.mutateAsync(args);
+      toast.success("Document updated successfully");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to update document. Please try again.");
+      throw err;
+    }
+  };
+
+  const handleDeleteUpload = async (args: { groupId: string; documentId: string; uploadId: string }) => {
+    try {
+      await deleteUpload.mutateAsync(args);
+      toast.success("Document deleted successfully");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to delete document. Please try again.");
+      throw err;
+    }
+  };
+
   const data: any = apiData || { groups: [], documents: [], summary: { total: 0, uploaded: 0, pending: 0, expired: 0 } };
   const groups  = data?.groups  || [];
   const summary = data?.summary || { total: 0, uploaded: 0, pending: 0, expired: 0 };
@@ -1005,8 +1036,7 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
         <UploadModal
           row={uploadRow} accent={accent}
           onClose={() => setUploadRow(null)}
-          onSave={({ groupId, documentId, data: d }) =>
-            addUploads.mutateAsync({ groupId, documentId, data: d as any })}
+          onSave={handleAddUpload}
           saving={addUploads.isPending}
         />
       )}
@@ -1016,12 +1046,9 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
         <UploadsModal
           row={manageRow} accent={accent}
           onClose={() => setManageRow(null)}
-          onSave={({ groupId, documentId, uploadId, data: d }) =>
-            updateUpload.mutateAsync({ groupId, documentId, uploadId, data: d as any })}
-          onDelete={({ groupId, documentId, uploadId }) =>
-            deleteUpload.mutateAsync({ groupId, documentId, uploadId })}
-          onAdd={({ groupId, documentId, data: d }) =>
-            addUploads.mutateAsync({ groupId, documentId, data: d as any })}
+          onSave={handleUpdateUpload}
+          onDelete={handleDeleteUpload}
+          onAdd={handleAddUpload}
           saving={updateUpload.isPending || deleteUpload.isPending || addUploads.isPending}
         />
       )}
@@ -1032,13 +1059,10 @@ export default function EntityDocumentsTab({ entityType, entityId, accent = "blu
           allDocuments={data?.documents || []}
           accent={accent}
           onClose={() => setBulkOpen(false)}
-          onSave={({ groupId, documentId, data: d }) =>
-            addUploads.mutateAsync({ groupId, documentId, data: d as any })}
+          onSave={handleAddUpload}
           saving={addUploads.isPending}
         />
       )}
     </div>
   );
 }
-
-

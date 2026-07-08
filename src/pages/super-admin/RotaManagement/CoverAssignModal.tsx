@@ -4,6 +4,7 @@ import { useClinicians } from "../../../hooks/useClinicians"; // ✅ Added hook 
 import { rotaService } from "../../../services/api/rotaService";
 import { useAuth } from "../../../context/AuthContext";
 import { User, ChevronDown, X } from "lucide-react"; // ✅ Added icons
+import { toast } from "sonner";
 
 const SERVICE_CODES = ["PCN", "GP", "EA"];
 
@@ -95,17 +96,22 @@ export default function CoverAssignModal({ open, onClose, gapShift }: CoverAssig
       setBlockedMessage("Compliance override required.");
       return;
     }
-    await assign.mutateAsync({
-      gapId: gapShift?.id,
-      clinicianId,
-      project_code: "COVER",
-      surgery_id: gapShift?.surgery_id || gapShift?.practice_id,
-      service_code: serviceCode,
-      cover_reason: reason,
-      compliance_override_by: override ? user?._id || user?.id : null,
-      compliance_override_reason: override ? overrideReason : null,
-    });
-    onClose?.();
+    try {
+      await assign.mutateAsync({
+        gapId: gapShift?.id,
+        clinicianId,
+        project_code: "COVER",
+        surgery_id: gapShift?.surgery_id || gapShift?.practice_id,
+        service_code: serviceCode,
+        cover_reason: reason,
+        compliance_override_by: override ? user?._id || user?.id : null,
+        compliance_override_reason: override ? overrideReason : null,
+      });
+      toast.success("Cover assigned successfully");
+      onClose?.();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to assign cover");
+    }
   };
 
   if (!canRender) return null;

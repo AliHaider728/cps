@@ -12,6 +12,7 @@ import {
   useCreateComplianceDoc,
   useUpdateComplianceDoc,
 } from "../../../hooks/useCompliance";
+import { toast } from "sonner";
 import { DebouncedSearchInput } from "../../../components/shared/DebouncedSearchInput";
 import DataTable from "../../../components/ui/DataTable";
 
@@ -258,8 +259,17 @@ export default function ComplianceDocumentsListPage() {
     .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
 
   const handleSaveDoc = async (formData: DocFormData) => {
-    if (formData._id) await updateDoc.mutateAsync({ id: formData._id, data: formData as any });
-    else              await createDoc.mutateAsync(formData as any);
+    try {
+      if (formData._id) {
+        await updateDoc.mutateAsync({ id: formData._id, data: formData as any });
+        toast.success("Document updated successfully");
+      } else {
+        await createDoc.mutateAsync(formData as any);
+        toast.success("Document created successfully");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save document. Please try again.");
+    }
   };
 
   const columns = [

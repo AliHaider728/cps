@@ -11,6 +11,7 @@ import {
   useToggleStar,
   useDeleteHistory,
 } from "../../../hooks/useHistory";
+import { toast } from "sonner";
 import { useConfirm } from "../../../contexts/ConfirmContext";
 
 /* ══════════════════════════════════════════════════════════════════
@@ -340,19 +341,41 @@ export default function ContactHistoryPanel({ entityType, entityId }: ContactHis
     setEditingLog(null);
   };
 
-  /* ── Save handler ── */
+  /* 🔹 Save handler 🔹 */
   const handleSave = async (form: FormState) => {
-    if (modalMode === "edit" && editingLog) {
-      await updateHistory.mutateAsync({ logId: editingLog._id || editingLog.id || "", data: form as any });
-    } else {
-      await addHistory.mutateAsync(form as any);
+    try {
+      if (modalMode === "edit" && editingLog) {
+        await updateHistory.mutateAsync({ logId: editingLog._id || editingLog.id || "", data: form as any });
+        toast.success("Log updated successfully");
+      } else {
+        await addHistory.mutateAsync(form as any);
+        toast.success("Log added successfully");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save log. Please try again.");
+      throw err; // Re-throw to let LogModal catch it
     }
   };
 
-  /* ── Delete handler ── */
+  /* 🔹 Delete handler 🔹 */
   const handleDelete = async (logId: string) => {
     if (!await confirm({ title: "Delete this log entry?" })) return;
-    deleteHistory.mutate(logId);
+    try {
+      await deleteHistory.mutateAsync(logId);
+      toast.success("Log deleted successfully");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to delete log. Please try again.");
+    }
+  };
+
+  /* 🔹 Star handler 🔹 */
+  const handleToggleStar = async (logId: string) => {
+    try {
+      await toggleStar.mutateAsync(logId);
+      toast.success("Star status updated");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to update star status. Please try again.");
+    }
   };
 
   /* ── Client-side search filter ── */
@@ -534,7 +557,7 @@ export default function ContactHistoryPanel({ entityType, entityId }: ContactHis
                       {/* Action buttons */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <button
-                          onClick={() => toggleStar.mutate(log._id ?? log.id ?? "")}
+                          onClick={() => handleToggleStar(log._id ?? log.id ?? "")}
                           className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all
                             ${log.starred ? "text-amber-500 bg-amber-50" : "text-slate-400 hover:text-amber-500 hover:bg-amber-50"}`}
                         >

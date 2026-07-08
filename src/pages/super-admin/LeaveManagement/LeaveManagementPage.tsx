@@ -4,6 +4,7 @@ import { CalendarOff, Check, X, Download, Search } from "lucide-react";
 import { leaveService } from "../../../services/api/leaveService";
 import { Button } from "../../../components/ui/Button";
 import { DebouncedSearchInput } from "../../../components/shared/DebouncedSearchInput";
+import { toast } from "sonner";
 
 interface LeaveRow {
   _id?: string;
@@ -118,17 +119,24 @@ export default function LeaveManagementPage() {
   const renderActions = (row: LeaveRow) => {
     const id = leaveRowId(row);
     if (!id) return null;
-    return (
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => reviewM.mutate({ id, action: "approve" })}
-          disabled={reviewM.isPending}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 hover:bg-emerald-100"
-        >
-          <Check size={12} /> Approve
-        </button>
-        <button
+      return (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await reviewM.mutateAsync({ id, action: "approve" });
+                toast.success("Leave request approved");
+              } catch (err: any) {
+                toast.error(err.response?.data?.message || "Failed to approve leave request");
+              }
+            }}
+            disabled={reviewM.isPending}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 hover:bg-emerald-100"
+          >
+            <Check size={12} /> Approve
+          </button>
+          <button
           type="button"
           onClick={() => setRejectId(id)}
           disabled={reviewM.isPending}
@@ -337,18 +345,25 @@ export default function LeaveManagementPage() {
             />
             <div className="mt-4 flex gap-2 justify-end">
               <Button variant="secondary" onClick={() => setRejectId(null)}>Cancel</Button>
-              <Button
-                variant="danger"
-                onClick={() =>
-                  reviewM.mutate({
-                    id: rejectId,
-                    action: "reject",
-                    rejection_note: rejectNote,
-                  })
-                }
-              >
-                Confirm reject
-              </Button>
+                <Button
+                  variant="danger"
+                  onClick={async () => {
+                    try {
+                      await reviewM.mutateAsync({
+                        id: rejectId,
+                        action: "reject",
+                        rejection_note: rejectNote,
+                      });
+                      toast.success("Leave request rejected");
+                      setRejectId(null);
+                      setRejectNote("");
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.message || "Failed to reject leave request");
+                    }
+                  }}
+                >
+                  Confirm reject
+                </Button>
             </div>
           </div>
         </div>

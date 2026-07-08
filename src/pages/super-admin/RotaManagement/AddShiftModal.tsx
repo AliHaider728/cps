@@ -9,6 +9,7 @@ import { useClinicians } from "../../../hooks/useClinicians";
 import { usePractices } from "../../../hooks/usePractice";
 import { useQuery } from "@tanstack/react-query";
 import { clinicianService } from "../../../services/api/clinicianService";
+import { toast } from "sonner";
 
 interface AddShiftModalProps {
   open: boolean;
@@ -59,31 +60,6 @@ const serviceCodeFromContract = (contract: string) => {
   return "PCN";
 };
 
-/* ── Toast ── */
-function Toast({ type = "success", message, onDismiss }: { type?: "success" | "error"; message: string; onDismiss: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onDismiss, 3500);
-    return () => clearTimeout(t);
-  }, [onDismiss]);
-  const isSuccess = type === "success";
-  return (
-    <div className="fixed bottom-6 right-6 z-[9999] animate-in slide-in-from-bottom-4 fade-in duration-300">
-      <div className={`flex items-center gap-3 bg-white border shadow-lg rounded-2xl px-5 py-3.5 min-w-[280px] ${isSuccess ? "border-emerald-200 shadow-emerald-100/60" : "border-rose-200 shadow-rose-100/60"}`}>
-        <div className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 ${isSuccess ? "bg-emerald-100" : "bg-rose-100"}`}>
-          <CheckCircle2 size={16} className={isSuccess ? "text-emerald-600" : "text-rose-600"} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-800">{isSuccess ? "Done!" : "Error"}</p>
-          <p className="text-xs text-slate-500 truncate">{message}</p>
-        </div>
-        <button onClick={onDismiss} className="shrink-0 h-6 w-6 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 inline-flex items-center justify-center">
-          <X size={12} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /* ══════════════════════════════════════════════
    MAIN — AddShiftModal (also handles Edit mode)
 ══════════════════════════════════════════════ */
@@ -128,7 +104,6 @@ export default function AddShiftModal({ open, onClose, clinicianId, date, editSh
   const [confirmDelete,       setConfirmDelete]       = useState(false);
 
   const [validationError, setValidationError] = useState("");
-  const [toast,           setToast]           = useState<{ type: "success" | "error"; message: string } | null>(null); // { type, message }
 
   /* ── derived ── */
   const selectedClinician = clinicians.find(c => String(c._id ?? c.id) === String(selectedClinicianId));
@@ -258,8 +233,8 @@ export default function AddShiftModal({ open, onClose, clinicianId, date, editSh
           clinician_id:    status === "gap" ? null : (selectedClinicianId || null),
         },
       }, {
-        onSuccess: () => { setToast({ type: "success", message: "Shift updated successfully" }); onClose?.(); },
-        onError: (err: any) => setValidationError(err?.response?.data?.message || err?.message || "Update failed"),
+        onSuccess: () => { toast.success("Shift updated successfully"); onClose?.(); },
+        onError: (err: any) => toast.error(err?.response?.data?.message || err?.message || "Update failed"),
       });
     } else {
       create.mutate({
@@ -282,29 +257,29 @@ export default function AddShiftModal({ open, onClose, clinicianId, date, editSh
         onSuccess: (data: any) => {
           const count = data?.created ?? data?.count ?? data?.data?.length ?? "";
           const practice = selectedPractice?.name ?? "";
-          setToast({ type: "success", message: [count ? `${count} shift${count !== 1 ? "s" : ""} added` : "Shifts added", practice ? `at ${practice}` : ""].filter(Boolean).join(" ") });
+          toast.success([count ? `${count} shift${count !== 1 ? "s" : ""} added` : "Shifts added", practice ? `at ${practice}` : ""].filter(Boolean).join(" "));
           onClose?.();
         },
-        onError: (err: any) => setValidationError(err?.response?.data?.message || err?.message || "Failed to create shifts"),
+        onError: (err: any) => toast.error(err?.response?.data?.message || err?.message || "Failed to create shifts"),
       });
     }
   };
 
   const handleDelete = () => {
     del.mutate(editShift.id, {
-      onSuccess: () => { setToast({ type: "success", message: "Shift deleted" }); onClose?.(); },
-      onError: (err: any) => setValidationError(err?.response?.data?.message || err?.message || "Delete failed"),
+      onSuccess: () => { toast.success("Shift deleted"); onClose?.(); },
+      onError: (err: any) => toast.error(err?.response?.data?.message || err?.message || "Delete failed"),
     });
   };
 
-  if (!open && !toast) return null;
+  if (!open) return null;
 
   const isPending = create.isPending || update.isPending;
   const canSubmit = !isPending && !!selectedPracticeId && !!dateFrom && !!dateTo && !!totalHours && (isEditMode || daysOfWeek.length > 0);
 
   return (
     <>
-      {toast && <Toast type={toast.type} message={toast.message} onDismiss={() => setToast(null)} />}
+      
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

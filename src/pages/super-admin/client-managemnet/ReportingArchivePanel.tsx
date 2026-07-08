@@ -10,6 +10,7 @@ import {
 } from "../../../hooks/useReportingArchive";
 import { uploadFileToSupabase } from "../../../lib/supabase";
 import { useConfirm } from "../../../contexts/ConfirmContext";
+import { toast } from "sonner";
 
 const fmtDate = (d: string | Date | null | undefined): string =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
@@ -170,12 +171,23 @@ export default function ReportingArchivePanel({ entityType, entityId }: Reportin
 
   const handleDelete = async (reportId: string) => {
     if (!await confirm({ title: "Delete this report from the archive?" })) return;
-    await deleteReport.mutateAsync(reportId);
+    try {
+      await deleteReport.mutateAsync(reportId);
+      toast.success("Report deleted successfully");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to delete report. Please try again.");
+    }
   };
 
   const handleUpload = async (jsonPayload: UploadPayload) => {
-    await addReport.mutateAsync(jsonPayload);
-    setShowUpload(false);
+    try {
+      await addReport.mutateAsync(jsonPayload);
+      toast.success("Report uploaded successfully");
+      setShowUpload(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to upload report. Please try again.");
+      throw err;
+    }
   };
 
   return (

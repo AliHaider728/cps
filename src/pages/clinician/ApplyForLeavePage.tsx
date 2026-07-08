@@ -6,8 +6,9 @@ import {
   ChevronRight, CalendarCheck, BarChart3, AlertTriangle,
   LucideIcon
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/Button";
-import { useClinicianLeave, useAddLeave } from "../../hooks/useClinicianLeave";
+import { useClinicianLeave, useAddLeave, useDeleteLeave } from "../../hooks/useClinicianLeave";
 import { dayCount } from "../../lib/leaveDays";
 
 /* ── Interfaces ────────────────────────────────────────────────────────────── */
@@ -237,6 +238,7 @@ export default function ApplyForLeavePage() {
   const { data, refetch }   = useClinicianLeave();
   const clinicianId         = data?.clinicianId;
   const addLeaveM           = useAddLeave(clinicianId);
+  const deleteLeaveM        = useDeleteLeave(clinicianId);
 
   const [form, setForm] = useState({
     contract  : "ARRS",
@@ -262,7 +264,7 @@ export default function ApplyForLeavePage() {
     [data, form.contract]
   );
 
-  /* Weekend warning */
+  /* ── Weekend warning ── */
   const startIsWeekend = form.startDate && isWeekend(form.startDate);
   const endIsWeekend   = form.endDate   && isWeekend(form.endDate);
 
@@ -317,26 +319,33 @@ export default function ApplyForLeavePage() {
         notes     : form.notes,
       });
       setForm({ contract: "ARRS", leaveType: "annual", startDate: "", endDate: "", notes: "" });
+      const msg = res?.autoApproved ? "Leave auto-approved - no clashes found." : "Request submitted. Awaiting manager approval.";
+      toast.success(msg);
       setMessage({
-        text: res?.autoApproved
-          ? "Leave auto-approved — no clashes found."
-          : "Request submitted. Awaiting manager approval.",
+        text: msg,
         type: "success",
       });
       refetch();
     } catch (err: any) {
       const payload = err?.response?.data;
-      setMessage({ text: payload?.message || err.message || "Unable to submit. Try again.", type: "error" });
+      const msg = payload?.message || "Unable to submit. Try again.";
+      toast.error(msg);
+      setMessage({ text: msg, type: "error" });
     }
   };
 
-  /* ── Cancel pending ── */
+  /* 🔹 Cancel pending 🔹 */
   const cancelRequest = async (id: string) => {
     setCancellingId(id);
     try {
-      // Call your cancel endpoint here
+      await deleteLeaveM.mutateAsync(id);
+      toast.success("Leave request cancelled successfully");
       await refetch();
-    } finally { setCancellingId(null); }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to cancel leave request. Please try again.");
+    } finally { 
+      setCancellingId(null); 
+    }
   };
 
   /* ── Counts for status tabs ── */
@@ -699,5 +708,6 @@ export default function ApplyForLeavePage() {
     </div>
   );
 }
+
 
 

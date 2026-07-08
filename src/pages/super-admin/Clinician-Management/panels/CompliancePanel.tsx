@@ -13,6 +13,7 @@ import {
 } from "../../../../hooks/useClinicianCompliance";
 import { useDocumentGroups } from "../../../../hooks/useCompliance";
 import { Btn, FormField, Spinner, StatusBadge } from "./shared";
+import { toast } from "sonner";
 import { ModalShell } from "../../../../components/ui/ModalShell";
 import { fmtDate } from "../../../../lib/formatters";
 
@@ -77,9 +78,11 @@ export default function CompliancePanel({ clinicianId, canManage }: CompliancePa
     setAssignError("");
     try {
       await assignM.mutateAsync({ groupIds: selectedGroups });
+      toast.success("Groups assigned successfully");
       setAssignModal(false);
     } catch (e: any) {
       setAssignError(e?.response?.data?.message || "Failed to assign groups");
+      toast.error(e?.response?.data?.message || "Failed to assign groups");
     }
   };
 
@@ -90,7 +93,7 @@ export default function CompliancePanel({ clinicianId, canManage }: CompliancePa
     );
   };
 
-  /* ── Upload modal ── */
+  /* ── Upload/Approve/Reject ── */
   const openUpload = (doc: any, groupId: string | null) => {
     setForm({
       docName:    doc?.name    || doc?.docName || "",
@@ -113,22 +116,36 @@ export default function CompliancePanel({ clinicianId, canManage }: CompliancePa
     if (file)            fd.append("file",        file);
     try {
       await upsertM.mutateAsync({ docId: form.docId || "new", data: fd });
+      toast.success("Document uploaded successfully");
       setModal(null);
-    } catch (e) {
-      // error shown by mutation
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Failed to upload document");
     }
   };
 
-  /* ── Reject modal ── */
   const openReject = (doc: any) => {
-    setForm({ reason: "", _id: doc.docId || doc._id });
+    setForm({ _id: doc.docId || doc._id, reason: "" });
     setModal({ mode: "reject", doc });
   };
 
   const submitReject = async () => {
     if (!form.reason?.trim() || !form._id) return;
-    await rejectM.mutateAsync({ docId: form._id, reason: form.reason });
-    setModal(null);
+    try {
+      await rejectM.mutateAsync({ docId: form._id, reason: form.reason });
+      toast.success("Document rejected successfully");
+      setModal(null);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Failed to reject document");
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    try {
+      await approveM.mutateAsync(id);
+      toast.success("Document approved successfully");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Failed to approve document");
+    }
   };
 
   /* ── Loading state ── */
@@ -300,7 +317,7 @@ export default function CompliancePanel({ clinicianId, canManage }: CompliancePa
                                     <Btn
                                       variant="success"
                                       size="sm"
-                                      onClick={() => approveM.mutate(doc.docId)}
+                                      onClick={() => handleApprove(doc.docId)}
                                       disabled={approveM.isPending}
                                     >
                                       <Check size={12} /> Approve
@@ -368,7 +385,7 @@ export default function CompliancePanel({ clinicianId, canManage }: CompliancePa
                       {(d.status === "uploaded" || d.status === "pending") && (
                         <>
                           <Btn variant="success" size="sm"
-                            onClick={() => approveM.mutate(d._id)} disabled={approveM.isPending}>
+                            onClick={() => handleApprove(d._id)} disabled={approveM.isPending}>
                             <Check size={12} /> Approve
                           </Btn>
                           <Btn variant="danger" size="sm" onClick={() => openReject(d)}>

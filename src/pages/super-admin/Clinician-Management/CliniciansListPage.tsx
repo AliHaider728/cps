@@ -14,6 +14,7 @@ import { resetListFilters, setListFilter } from "../../../slices/clinicianSlice"
 import { apiClient } from "../../../services/api/client";
 import { DebouncedSearchInput } from "../../../components/shared/DebouncedSearchInput";
 import { useConfirm } from "../../../contexts/ConfirmContext";
+import { toast } from "sonner";
 
 const TYPE_OPTS     = ["Pharmacist", "Technician", "IP"];
 const CONTRACT_OPTS = ["ARRS", "EA", "Direct", "Mixed"];
@@ -391,31 +392,44 @@ export default function CliniciansListPage() {
 
   const handleSave = async (form: ClinicianForm, loginInfo: any) => {
     setUserError(null);
-    if (modal?.clinician) {
-      await updateM.mutateAsync({ id: modal.clinician._id, data: form });
-    } else {
-      await createM.mutateAsync(form as any);
-      if (loginInfo?.email && loginInfo?.password) {
-        try {
-          await createUserM.mutateAsync({
-            name:     form.fullName,
-            email:    loginInfo.email,
-            password: loginInfo.password,
-            role:     "clinician",
-          });
-        } catch (userErr: any) {
-          setUserError(
-            userErr?.response?.data?.message ||
-            "Clinician saved, but login account creation failed. Create it manually in Manage Users."
-          );
+    try {
+      if (modal?.clinician) {
+        await updateM.mutateAsync({ id: modal.clinician._id, data: form });
+        toast.success("Clinician updated successfully");
+      } else {
+        await createM.mutateAsync(form as any);
+        toast.success("Clinician created successfully");
+        if (loginInfo?.email && loginInfo?.password) {
+          try {
+            await createUserM.mutateAsync({
+              name:     form.fullName,
+              email:    loginInfo.email,
+              password: loginInfo.password,
+              role:     "clinician",
+            });
+            toast.success("Login account created successfully");
+          } catch (userErr: any) {
+            setUserError(
+              userErr?.response?.data?.message ||
+              "Clinician saved, but login account creation failed. Create it manually in Manage Users."
+            );
+          }
         }
       }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save clinician. Please try again.");
+      throw err; // throw to be caught by the modal
     }
   };
 
   const handleDelete = async (c: any) => {
     if (!await confirm({ title: `Delete ${c.fullName}? This cannot be undone.` })) return;
-    await deleteM.mutateAsync(c._id);
+    try {
+      await deleteM.mutateAsync(c._id);
+      toast.success("Clinician deleted successfully");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to delete clinician. Please try again.");
+    }
   };
 
   const hasActiveFilters = filters.search || filters.type || filters.contract || filters.restricted;

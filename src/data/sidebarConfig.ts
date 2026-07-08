@@ -422,7 +422,7 @@ export const sidebarConfig: SidebarConfigType = {
       section: "MY WORK",
       items: [
         { icon: "Clock",         label: "My Timesheet",     path: "/portal/clinician/my-timesheet" },
-        { icon: "Timer",         label: "Enter My Hours",    path: "/portal/clinician/enter-hours" },
+        { icon: "Timer",         label: "Log My Hours",    path: "/portal/clinician/enter-hours" },
         { icon: "CalendarOff",   label: "Apply for Leave",  path: "/portal/clinician/apply-leave"  },
         { icon: "CalendarCheck", label: "My Leave Balance", path: "/portal/clinician/leave-balance" },
       ],

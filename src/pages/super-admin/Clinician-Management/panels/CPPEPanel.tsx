@@ -5,6 +5,7 @@ import {
 } from "../../../../hooks/useClinician";
 import { Btn, FormField, Spinner, ToggleRow } from "./shared";
 import { fmtDate } from "../../../../lib/formatters";
+import { toast } from "sonner";
 
 const MOD_STATUS = ["pending", "in_progress", "completed"];
 
@@ -84,14 +85,19 @@ export default function CPPEPanel({ clinicianId, canManage }: CPPEPanelProps) {
   };
 
   const handleSave = async () => {
-    await saveM.mutateAsync({
-      enrolled:  !!state.enrolled,
-      exempt:    !!state.exempt,
-      completed: !!state.completed,
-      modules:   state.modules || [],
-      notes:     state.notes || "",
-    });
-    setDirty(false);
+    try {
+      await saveM.mutateAsync({
+        enrolled:  !!state.enrolled,
+        exempt:    !!state.exempt,
+        completed: !!state.completed,
+        modules:   state.modules || [],
+        notes:     state.notes || "",
+      });
+      toast.success("CPPE training updated successfully");
+      setDirty(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to update CPPE training. Please try again.");
+    }
   };
 
   if (isLoading) {

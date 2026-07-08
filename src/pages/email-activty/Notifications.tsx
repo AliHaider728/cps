@@ -7,6 +7,7 @@ import { Badge } from "../components/ui/Badge";
 import { Spinner } from "../components/ui/Spinner";
 import { Bell, MousePointerClick, MailOpen, Download, ArrowDownLeft, Check, CheckCheck, RefreshCw, LucideIcon } from "lucide-react";
 import { formatRelative } from "../lib/utils";
+import { toast } from "sonner";
 
 export default function Notifications() {
   const queryClient  = useQueryClient();
@@ -28,11 +29,27 @@ export default function Notifications() {
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
   }, [refetch]);
 
-  const handleMarkOne = (id: string) => markRead({ notificationId: id }, { onSuccess: refetch });
+  const handleMarkOne = (id: string) => markRead({ notificationId: id }, { 
+    onSuccess: () => {
+      refetch();
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Failed to mark as read. Please try again.");
+    }
+  });
 
   const handleMarkAll = () => {
-    notifications.filter((n: any) => !n.isRead).forEach((n: any) => markRead({ notificationId: n.id }, {}));
-    setTimeout(refetch, 500);
+    let hasError = false;
+    notifications.filter((n: any) => !n.isRead).forEach((n: any) => {
+      markRead({ notificationId: n.id }, {
+        onError: () => { hasError = true; }
+      });
+    });
+    setTimeout(() => {
+      refetch();
+      if (hasError) toast.error("Some notifications failed to mark as read.");
+      else toast.success("All notifications marked as read");
+    }, 500);
   };
 
   const getIcon = (type: string) => {

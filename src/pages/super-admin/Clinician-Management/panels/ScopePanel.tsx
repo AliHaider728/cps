@@ -10,6 +10,7 @@ import { Btn, FormField, Spinner, StatusBadge, ToggleRow } from "./shared";
 import { ModalShell } from "../../../../components/ui/ModalShell";
 import { fmtDate } from "../../../../lib/formatters";
 import { useConfirm } from "../../../../contexts/ConfirmContext";
+import { toast } from "sonner";
 
 const COMMON_WORKSTREAMS = [
   "SMR", "EHCH", "Enhanced Access", "QOF Reviews", "Care Homes",
@@ -82,14 +83,24 @@ export default function ScopePanel({ clinician, canRestrict, canManage }: ScopeP
 
   const submitRestrict = async () => {
     if (!reason.trim()) return;
-    await restrictM.mutateAsync(reason);
-    setRestrictModal(false);
-    setReason("");
+    try {
+      await restrictM.mutateAsync(reason);
+      toast.success("Clinician restricted successfully");
+      setRestrictModal(false);
+      setReason("");
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || "Failed to restrict clinician");
+    }
   };
 
   const handleUnrestrict = async () => {
     if (!await confirm({ title: "Remove restriction from this clinician?" })) return;
-    await unrestrictM.mutateAsync();
+    try {
+      await unrestrictM.mutateAsync();
+      toast.success("Restriction removed successfully");
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || "Failed to remove restriction");
+    }
   };
 
   // ─── Scope edit helpers ────────────────────────────────────
@@ -119,7 +130,10 @@ export default function ScopePanel({ clinician, canRestrict, canManage }: ScopeP
         systemsInUse:       systemsInUse,
         shadowingAvailable: shadowingAvailable,
       });
+      toast.success("Scope of practice updated successfully");
       setEditing(false);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || "Failed to update scope of practice");
     } finally {
       setSaving(false);
     }

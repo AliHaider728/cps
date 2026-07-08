@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { KeyRound, Loader2, Check, Eye, EyeOff } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useChangePassword } from "../../hooks/useAuth";
 
 interface ForceChangePasswordProps {
@@ -30,9 +31,12 @@ export default function ForceChangePassword({ token, onDone }: ForceChangePasswo
         newPassword,
         config: { headers: { Authorization: `Bearer ${token}` } },
       });
+      toast.success("Password changed successfully");
       onDone();
     } catch (err: any) {
-      setError(err.response?.data?.message || "Something went wrong");
+      const msg = err.response?.data?.message || "Failed to change password. Please try again.";
+      toast.error(msg);
+      setError(msg);
     }
   };
 

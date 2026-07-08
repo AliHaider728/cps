@@ -8,6 +8,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { ComposeEmailModal } from "../components/layout/ComposeEmailModal";
 import { ArrowLeft, Mail, Phone, Calendar, ArrowUpRight, ArrowDownLeft, StickyNote, MousePointerClick, Send, LucideIcon } from "lucide-react";
 import { formatSmartDate, getInitials } from "../lib/utils";
+import { toast } from "sonner";
 
 const TABS = [
   { value: "all",            label: "All" },
@@ -36,7 +37,16 @@ export default function ClientDetail() {
 
   const handleAddNote = () => {
     if (!note.trim()) return;
-    addNote({ data: { clientId, content: note } }, { onSuccess: () => { setNote(""); refetch(); } });
+    addNote({ data: { clientId, content: note } }, { 
+      onSuccess: () => { 
+        setNote(""); 
+        refetch(); 
+        toast.success("Note added successfully");
+      },
+      onError: (err: any) => {
+        toast.error(err.response?.data?.message || "Failed to add note. Please try again.");
+      }
+    });
   };
 
   if (loadingClient) return <div className="flex justify-center p-20"><Spinner className="w-10 h-10" /></div>;

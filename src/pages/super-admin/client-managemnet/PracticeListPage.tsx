@@ -86,20 +86,31 @@ export default function PracticeListPage() {
     });
   }, [filters, practices]);
 
-  const handleSave = async (form: PracticeForm) => {
-    if (modal && typeof modal === 'object' && modal._id) {
-      await updatePractice.mutateAsync({ id: modal._id, data: form });
-    } else {
-      await createPractice.mutateAsync(form);
-    }
-    setModal(null);
-  };
-
-  const handleDelete = async (practice: any) => {
-    if (!await confirm({ title: `Delete "${practice.name}"?` })) return;
-    try   { await deletePractice.mutateAsync(practice._id); }
-    catch (e: any) { toast.error(e.message); }
-  };
+    const handleSave = async (form: PracticeForm) => {
+      try {
+        if (modal && typeof modal === 'object' && modal._id) {
+          await updatePractice.mutateAsync({ id: modal._id, data: form });
+          toast.success("Practice updated successfully");
+        } else {
+          await createPractice.mutateAsync(form);
+          toast.success("Practice created successfully");
+        }
+        setModal(null);
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || "Failed to save practice. Please try again.");
+        throw err;
+      }
+    };
+  
+    const handleDelete = async (practice: any) => {
+      if (!await confirm({ title: `Delete "${practice.name}"?` })) return;
+      try { 
+        await deletePractice.mutateAsync(practice._id);
+        toast.success("Practice deleted successfully");
+      } catch (err: any) { 
+        toast.error(err.response?.data?.message || "Failed to delete practice. Please try again."); 
+      }
+    };
 
   /* ─── Columns ─────────────────────────────────────────────────────── */
   const columns = [

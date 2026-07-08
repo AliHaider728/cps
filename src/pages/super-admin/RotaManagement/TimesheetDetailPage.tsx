@@ -5,6 +5,7 @@ import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { useApproveTimesheet, useRejectTimesheet, useTimesheetDetail } from "../../../hooks/useTimesheet";
 import { useConfirm } from "../../../contexts/ConfirmContext";
+import { toast } from "sonner";
 
 interface Clinician {
   full_name?: string;
@@ -54,15 +55,25 @@ export default function TimesheetDetailPage() {
 
   const approveSheet = async () => {
     if (await confirm({ title: "Approve this timesheet?" })) {
-      await approve.mutateAsync(idStr);
-      navigate(-1);
+      try {
+        await approve.mutateAsync(idStr);
+        toast.success("Timesheet approved successfully");
+        navigate(-1);
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || "Failed to approve timesheet");
+      }
     }
   };
 
   const rejectSheet = async () => {
     if (!reason.trim()) return;
-    await reject.mutateAsync({ id: idStr, reason });
-    navigate(-1);
+    try {
+      await reject.mutateAsync({ id: idStr, reason });
+      toast.success("Timesheet rejected successfully");
+      navigate(-1);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to reject timesheet");
+    }
   };
 
   return (

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Edit2, FileCheck, Save, ShieldCheck, X, MapPin } from "lucide-react";
+import { toast } from "sonner";
 
 interface Document {
   _id: string;
@@ -191,7 +192,10 @@ export default function OverviewPanel({
     setSaving(true);
     try {
       await patch(form);
+      toast.success("Practice overview updated successfully");
       setEditing(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to update practice. Please try again.");
     } finally {
       setSaving(false);
     }

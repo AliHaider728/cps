@@ -8,6 +8,7 @@ import {
   CalendarDays, Send, Save,
   Building2, ClipboardList, Loader2, ChevronRight
 } from "lucide-react";
+import { toast } from "sonner";
 
 const now = new Date();
 const defaultMonth = now.getMonth() + 1;
@@ -99,13 +100,23 @@ export default function EnterMyHoursPage() {
         dateWorked:   String(shift.shift_date || shift.date || "").slice(0, 10),
         startTime, endTime, breakDurationMinutes, notes,
       });
+      toast.success("Hours saved successfully");
       setEditing((prev) => ({ ...prev, [sid]: {} }));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save hours. Please try again.");
     } finally {
       setSavingShiftId(null);
     }
   };
 
-  const onSubmitMonth = async () => { await submitM.mutateAsync({ month, year }); };
+  const onSubmitMonth = async () => {
+    try {
+      await submitM.mutateAsync({ month, year });
+      toast.success("Month submitted successfully");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to submit month. Please try again.");
+    }
+  };
 
   const isLoading = rotaLoading || rowsLoading;
 
@@ -199,12 +210,18 @@ export default function EnterMyHoursPage() {
           </div>
         )}
         {!isLoading && shifts.length === 0 && (
-          <div className="card p-8 flex flex-col items-center text-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-              <CalendarDays size={22} className="text-slate-300 dark:text-slate-600" />
+          <div className="card p-10 flex flex-col items-center text-center gap-4 bg-slate-50/50 dark:bg-slate-800/50 border-dashed border-2 border-slate-200 dark:border-slate-700">
+            <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center">
+              <CalendarDays size={26} className="text-blue-500" />
             </div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No shifts for this period</p>
-            <p className="text-xs text-slate-400 dark:text-slate-600">Try a different month or year</p>
+            <div>
+              <p className="text-[15px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                No shifts assigned for {MONTH_NAMES[month - 1]} {year} yet
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Try selecting a different month from the dropdown above
+              </p>
+            </div>
           </div>
         )}
         {!isLoading && shifts.map((shift: any) => {
@@ -331,12 +348,19 @@ export default function EnterMyHoursPage() {
               )}
               {!isLoading && shifts.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                        <CalendarDays size={18} className="text-slate-300 dark:text-slate-600" />
+                  <td colSpan={12} className="py-16 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                        <CalendarDays size={26} className="text-blue-500" />
                       </div>
-                      <p className="text-sm font-semibold text-slate-400">No shifts for this period</p>
+                      <div>
+                        <p className="text-[15px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          No shifts assigned for {MONTH_NAMES[month - 1]} {year} yet
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          Try selecting a different month from the filters above
+                        </p>
+                      </div>
                     </div>
                   </td>
                 </tr>

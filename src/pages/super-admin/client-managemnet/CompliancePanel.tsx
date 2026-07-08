@@ -15,6 +15,7 @@ import {
   useUpdateDocumentGroup,
   useDeleteDocumentGroup,
 } from "../../../hooks/useCompliance";
+import { toast } from "sonner";
 import DataTable from "../../../components/ui/DataTable";
 import { useConfirm } from "../../../contexts/ConfirmContext";
 
@@ -370,12 +371,26 @@ export default function CompliancePanelEnhanced() {
   const deleteGroup = useDeleteDocumentGroup();
 
   const handleSaveGroup = async (form: DocumentGroupForm) => {
-    if (form._id) await updateGroup.mutateAsync({ id: form._id, data: form as any });
-    else          await createGroup.mutateAsync(form as any);
+    try {
+      if (form._id) {
+        await updateGroup.mutateAsync({ id: form._id, data: form as any });
+        toast.success("Document group updated successfully");
+      } else {
+        await createGroup.mutateAsync(form as any);
+        toast.success("Document group created successfully");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save document group. Please try again.");
+    }
   };
   const handleDeleteGroup = async (id: string) => {
     if (!await confirm({ title: "Delete this document group?" })) return;
-    await deleteGroup.mutateAsync(id);
+    try {
+      await deleteGroup.mutateAsync(id);
+      toast.success("Document group deleted successfully");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to delete document group. Please try again.");
+    }
   };
 
   const activeDocs = docs.filter((d: any) => d.active);

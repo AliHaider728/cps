@@ -5,6 +5,7 @@ import store from "../store";
 import { ReactNode } from "react";
 import { ConfirmDialogProvider } from "../contexts/ConfirmContext";
 import { Toaster } from "sonner";
+import IdleSessionManager from "../components/layout/IdleSessionManager";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +27,7 @@ const AppProviders = ({ children }: AppProvidersProps) => (
     <QueryClientProvider client={queryClient}>
       <ConfirmDialogProvider>
         {children}
+        <IdleSessionManager />
         <Toaster richColors position="top-right" />
       </ConfirmDialogProvider>
       <ReactQueryDevtools initialIsOpen={false} />

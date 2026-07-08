@@ -9,6 +9,7 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Paperclip, Loader2,
   RefreshCcw, AlertCircle, FileBadge
 } from "lucide-react";
+import { toast } from "sonner";
 
 const STATUS_CONFIG: Record<string, any> = {
   missing: {
@@ -112,7 +113,10 @@ export default function ClinicianCertificatesPage() {
     setUploadingId(id);
     try {
       await upsertDoc({ docId: id || "new", data: formData });
+      toast.success("Document uploaded successfully");
       setSelectedFiles((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to upload document. Please try again.");
     } finally { setUploadingId(null); }
   };
 

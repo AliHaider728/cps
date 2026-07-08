@@ -6,6 +6,7 @@ import { usePractices } from "../../../../hooks/usePractice";
 import { Btn, FormField, Spinner } from "./shared";
 import { ModalShell } from "../../../../components/ui/ModalShell";
 import { useConfirm } from "../../../../contexts/ConfirmContext";
+import { toast } from "sonner";
 
 const PROJECT_OPTS = ["ARRS", "EA", "Direct", "COVER"];
 const TYPE_OPTS = ["Locums Contractor", "Employed", "Limited Company"];
@@ -108,11 +109,18 @@ export default function ProjectMappingPanel({ clinicianId, canManage }: ProjectM
     setForm(emptyForm);
   };
 
-  const handleSave = () => {
-    if (modal === "edit" && editing) {
-      updateM.mutate({ mappingId: editing.id, payload: form });
-    } else {
-      createM.mutate(form);
+  const handleSave = async () => {
+    try {
+      if (modal === "edit" && editing) {
+        await updateM.mutateAsync({ mappingId: editing.id, payload: form });
+        toast.success("Project mapping updated successfully");
+      } else {
+        await createM.mutateAsync(form);
+        toast.success("Project mapping created successfully");
+      }
+      setModal(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save project mapping. Please try again.");
     }
   };
 
@@ -172,7 +180,12 @@ export default function ProjectMappingPanel({ clinicianId, canManage }: ProjectM
                         type="button"
                         onClick={async () => {
                           if (await confirm({ title: "Delete this project mapping?" })) {
-                            deleteM.mutate(m.id);
+                            try {
+                              await deleteM.mutateAsync(m.id);
+                              toast.success("Project mapping deleted successfully");
+                            } catch (err: any) {
+                              toast.error(err.response?.data?.message || "Failed to delete mapping. Please try again.");
+                            }
                           }
                         }}
                         disabled={deleteM.isPending}
