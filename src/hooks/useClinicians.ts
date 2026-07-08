@@ -26,7 +26,7 @@ export const useDeleteClinician = (): UseMutationResult<any, Error, string> => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => clinicianService.delete(id).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.CLINICIANS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.CLINICIANS }),
   });
 };
 

@@ -26,8 +26,8 @@ export const useUpdateScope = (id: string): UseMutationResult<ScopeData, Error, 
   return useMutation<ScopeData, Error, Partial<ScopeData>>({
     mutationFn: (data) =>
       clinicianService.updateScope(id, data).then((r: { data: ScopeData }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_SCOPE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_SCOPE(id) });
       // Sync the denormalised fields on the clinician record
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
@@ -48,8 +48,8 @@ export const useAddRestrictedClient = (id: string): UseMutationResult<Restricted
   return useMutation<RestrictedClientData, Error, Partial<RestrictedClientData>>({
     mutationFn: (data) =>
       clinicianService.addRestrictedClient(id, data).then((r: { data: RestrictedClientData }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_RESTRICTED_CLIENTS(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_RESTRICTED_CLIENTS(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIANS });
     },
@@ -62,8 +62,8 @@ export const useRemoveRestrictedClient = (id: string): UseMutationResult<any, Er
   return useMutation<unknown, Error, string>({
     mutationFn: (recordId) =>
       clinicianService.removeRestrictedClient(id, recordId).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_RESTRICTED_CLIENTS(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_RESTRICTED_CLIENTS(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });
@@ -75,8 +75,8 @@ export const useRestrictClinician = (id: string): UseMutationResult<any, Error, 
   return useMutation<unknown, Error, string>({
     mutationFn: (reason) =>
       clinicianService.restrict(id, reason).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIANS });
     },
   });
@@ -87,8 +87,8 @@ export const useUnrestrictClinician = (id: string): UseMutationResult<any, Error
   return useMutation<unknown, Error, void>({
     mutationFn: () =>
       clinicianService.unrestrict(id).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIANS });
     },
   });

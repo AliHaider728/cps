@@ -23,8 +23,8 @@ export const useUpsertClinicianDoc = (id: string): UseMutationResult<any, Error,
     mutationFn: ({ docId, data }) =>
       // @ts-ignore
       clinicianService.upsertComplianceDoc(id, docId || "new", data).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
       qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
     },
   });
@@ -35,8 +35,8 @@ export const useApproveClinicianDoc = (id: string): UseMutationResult<any, Error
   return useMutation<unknown, Error, string>({
     mutationFn: (docId) =>
       clinicianService.approveComplianceDoc(id, docId).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
       qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
     },
   });
@@ -47,8 +47,8 @@ export const useRejectClinicianDoc = (id: string): UseMutationResult<any, Error,
   return useMutation<unknown, Error, { docId: string; reason: string }>({
     mutationFn: ({ docId, reason }) =>
       clinicianService.rejectComplianceDoc(id, docId, reason).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
       qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
     },
   });
@@ -67,8 +67,8 @@ export const useAssignComplianceGroups = (id: string): UseMutationResult<any, Er
   return useMutation<unknown, Error, { groupIds: string[] }>({
     mutationFn: ({ groupIds }) =>
       clinicianService.assignComplianceGroups(id, groupIds).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["clinician", id, "compliance-groups"] });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN_COMPLIANCE(id) });
     },
   });

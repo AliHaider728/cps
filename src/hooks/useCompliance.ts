@@ -21,8 +21,7 @@ export const useUpsertComplianceDoc = (entityType: string, entityId: string): Us
   return useMutation({
     mutationFn: ({ docKey, data }: { docKey: string; data: Record<string, unknown> }) =>
       complianceAPI.upsertDoc(entityType, entityId, docKey, data).then((r: { data: any }) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: QK.COMPLIANCE(entityType, entityId) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.COMPLIANCE(entityType, entityId) }),
   });
 };
 
@@ -31,8 +30,7 @@ export const useApproveComplianceDoc = (entityType: string, entityId: string): U
   return useMutation({
     mutationFn: (docKey: string) =>
       complianceAPI.approveDoc(entityType, entityId, docKey).then((r: { data: any }) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: QK.COMPLIANCE(entityType, entityId) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.COMPLIANCE(entityType, entityId) }),
   });
 };
 
@@ -41,8 +39,7 @@ export const useRejectComplianceDoc = (entityType: string, entityId: string): Us
   return useMutation({
     mutationFn: ({ docKey, reason }: { docKey: string; reason: string }) =>
       complianceAPI.rejectDoc(entityType, entityId, docKey, reason).then((r: { data: any }) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: QK.COMPLIANCE(entityType, entityId) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.COMPLIANCE(entityType, entityId) }),
   });
 };
 
@@ -50,7 +47,7 @@ export const useRunExpiryCheck = (): UseMutationResult<any, Error, void> => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => complianceAPI.runExpiryCheck().then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ["compliance"] }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.COMPLIANCE_DOCS }),
   });
 };
 
@@ -79,7 +76,7 @@ export const useCreateComplianceDoc = (): UseMutationResult<any, Error, Record<s
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => complianceDocsAPI.create(data).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.COMPLIANCE_DOCS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.COMPLIANCE_DOCS }),
   });
 };
 
@@ -98,7 +95,7 @@ export const useDeleteComplianceDoc = (): UseMutationResult<any, Error, string> 
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => complianceDocsAPI.delete(id).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.COMPLIANCE_DOCS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.COMPLIANCE_DOCS }),
   });
 };
 
@@ -128,7 +125,7 @@ export const useCreateDocumentGroup = (): UseMutationResult<any, Error, Record<s
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => documentGroupsAPI.create(data).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
   });
 };
 
@@ -147,7 +144,7 @@ export const useDeleteDocumentGroup = (): UseMutationResult<any, Error, string> 
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => documentGroupsAPI.delete(id).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
   });
 };
 
@@ -155,7 +152,7 @@ export const useDuplicateDocumentGroup = (): UseMutationResult<any, Error, { id:
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => documentGroupsAPI.duplicate(id, { name }).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.DOC_GROUPS }),
   });
 };
 
@@ -185,9 +182,9 @@ export const useUpsertEntityDocument = (entityType: string, entityId: unknown): 
     mutationFn: ({ documentId, data }: { documentId: string; data: Record<string, unknown> }) =>
       // @ts-ignore
       entityDocumentsAPI.update(entityType, id, documentId, data).then((r: { data: any }) => r.data),
-    onSuccess: () => {
+    onSuccess: async () => {
       // @ts-ignore
-      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
+      await qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
       // @ts-ignore
       qc.invalidateQueries({ queryKey: QK.PCN(id) });
       // @ts-ignore
@@ -203,9 +200,9 @@ export const useAddEntityDocumentUploads = (entityType: string, entityId: unknow
     mutationFn: ({ groupId, documentId, data }: { groupId: string; documentId: string; data: Record<string, unknown> }) =>
       // @ts-ignore
       entityDocumentsAPI.addUploads(entityType, id, groupId, documentId, data).then((r: { data: any }) => r.data),
-    onSuccess: () => {
+    onSuccess: async () => {
       // @ts-ignore
-      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
+      await qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
       // @ts-ignore
       qc.invalidateQueries({ queryKey: QK.PCN(id) });
       // @ts-ignore
@@ -221,9 +218,9 @@ export const useUpdateEntityDocumentUpload = (entityType: string, entityId: unkn
     mutationFn: ({ groupId, documentId, uploadId, data }: { groupId: string; documentId: string; uploadId: string; data: Record<string, unknown> }) =>
       // @ts-ignore
       entityDocumentsAPI.updateUpload(entityType, id, groupId, documentId, uploadId, data).then((r: { data: any }) => r.data),
-    onSuccess: () => {
+    onSuccess: async () => {
       // @ts-ignore
-      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
+      await qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
       // @ts-ignore
       qc.invalidateQueries({ queryKey: QK.PCN(id) });
       // @ts-ignore
@@ -239,9 +236,9 @@ export const useDeleteEntityDocumentUpload = (entityType: string, entityId: unkn
     mutationFn: ({ groupId, documentId, uploadId }: { groupId: string; documentId: string; uploadId: string }) =>
       // @ts-ignore
       entityDocumentsAPI.deleteUpload(entityType, id, groupId, documentId, uploadId).then((r: { data: any }) => r.data),
-    onSuccess: () => {
+    onSuccess: async () => {
       // @ts-ignore
-      qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
+      await qc.invalidateQueries({ queryKey: QK.ENTITY_DOCUMENTS(entityType, id) });
       // @ts-ignore
       qc.invalidateQueries({ queryKey: QK.PCN(id) });
       // @ts-ignore

@@ -18,7 +18,7 @@ export function useCreateBasePattern(): UseMutationResult<BasePatternData, Error
   const queryClient = useQueryClient();
   return useMutation<BasePatternData, Error, Partial<BasePatternData>>({
     mutationFn: (data) => basePatternService.create(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["base-patterns"] }); },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["base-patterns"] }); },
   });
 }
 
@@ -26,7 +26,7 @@ export function useUpdateBasePattern(): UseMutationResult<BasePatternData, Error
   const queryClient = useQueryClient();
   return useMutation<BasePatternData, Error, { id: string; data: Partial<BasePatternData> }>({
     mutationFn: ({ id, data }) => basePatternService.update(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["base-patterns"] }); },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["base-patterns"] }); },
   });
 }
 

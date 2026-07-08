@@ -30,8 +30,7 @@ export const useAddHistory = (entityType: string, entityId: string): UseMutation
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       historyService.add(entityType, entityId, data).then((r: { data: any }) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
   });
 };
 
@@ -43,8 +42,7 @@ export const useUpdateHistory = (entityType: string, entityId: string): UseMutat
   return useMutation({
     mutationFn: ({ logId, data }: { logId: string; data: Record<string, unknown> }) =>
       historyService.update(logId, data).then((r: { data: any }) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
   });
 };
 
@@ -56,8 +54,7 @@ export const useToggleStar = (entityType: string, entityId: string): UseMutation
   return useMutation({
     mutationFn: (logId: string) =>
       historyService.toggleStar(logId).then((r: { data: any }) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
   });
 };
 
@@ -69,8 +66,7 @@ export const useDeleteHistory = (entityType: string, entityId: string): UseMutat
   return useMutation({
     mutationFn: (logId: string) =>
       historyService.delete(logId).then((r: { data: any }) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: historyKey(entityType, entityId) }),
   });
 };
 

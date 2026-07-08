@@ -18,8 +18,8 @@ export const useUpdateCPPE = (id: string): UseMutationResult<CPPEData, Error, Pa
   return useMutation<CPPEData, Error, Partial<CPPEData>>({
     mutationFn: (data) =>
       clinicianService.updateCPPE(id, data).then((r: { data: CPPEData }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_CPPE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_CPPE(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });

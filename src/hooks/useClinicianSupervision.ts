@@ -14,8 +14,8 @@ export const useAddSupervisionLog = (id: string): UseMutationResult<any, Error, 
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       clinicianService.addSupervision(id, data).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_SUPERVISION(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_SUPERVISION(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });
@@ -26,7 +26,7 @@ export const useUpdateSupervisionLog = (id: string): UseMutationResult<any, Erro
   return useMutation({
     mutationFn: ({ logId, data }: { logId: string; data: Record<string, unknown> }) =>
       clinicianService.updateSupervision(id, logId, data).then((r: { data: any }) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.CLINICIAN_SUPERVISION(id) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.CLINICIAN_SUPERVISION(id) }),
   });
 };
 
@@ -35,7 +35,7 @@ export const useDeleteSupervisionLog = (id: string): UseMutationResult<any, Erro
   return useMutation({
     mutationFn: (logId: string) =>
       clinicianService.deleteSupervision(id, logId).then((r: { data: any }) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.CLINICIAN_SUPERVISION(id) }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.CLINICIAN_SUPERVISION(id) }),
   });
 };
 

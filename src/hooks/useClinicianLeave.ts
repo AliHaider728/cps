@@ -24,8 +24,8 @@ export const useAddLeave = (id: string): UseMutationResult<LeaveData, Error, Par
       if (!id) throw new Error("Clinician profile not linked");
       return clinicianService.addLeave(id, data).then((r: { data: LeaveData }) => r.data);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_LEAVE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_LEAVE(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIANS });
     },
@@ -37,8 +37,8 @@ export const useUpdateLeave = (id: string): UseMutationResult<LeaveData, Error, 
   return useMutation<LeaveData, Error, { entryId: string; data: Partial<LeaveData> }>({
     mutationFn: ({ entryId, data }) =>
       clinicianService.updateLeave(id, entryId, data).then((r: { data: LeaveData }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_LEAVE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_LEAVE(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });
@@ -49,8 +49,8 @@ export const useDeleteLeave = (id: string): UseMutationResult<any, Error, string
   return useMutation<unknown, Error, string>({
     mutationFn: (entryId) =>
       clinicianService.deleteLeave(id, entryId).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_LEAVE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_LEAVE(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });

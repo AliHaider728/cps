@@ -12,7 +12,7 @@ export const useCreateFederation = (): UseMutationResult<any, Error, Record<stri
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => federationAPI.create(data).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.FEDERATIONS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.FEDERATIONS }),
   });
 };
 
@@ -20,7 +20,7 @@ export const useUpdateFederation = (): UseMutationResult<any, Error, { id: strin
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => federationAPI.update(id, data).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.FEDERATIONS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.FEDERATIONS }),
   });
 };
 
@@ -28,7 +28,7 @@ export const useDeleteFederation = (): UseMutationResult<any, Error, string> => 
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => federationAPI.delete(id).then((r: { data: any }) => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: QK.FEDERATIONS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.FEDERATIONS }),
   });
 };
 

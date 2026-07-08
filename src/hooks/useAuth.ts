@@ -42,7 +42,7 @@ export const useCreateUser = (): UseMutationResult<UserData, Error, Partial<User
   const queryClient = useQueryClient();
   return useMutation<UserData, Error, Partial<UserData>>({
     mutationFn: (data) => authService.createUser(data).then((r: { data: UserData }) => r.data),
-    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: QK.USERS }); },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: QK.USERS }); },
   });
 };
 
@@ -61,7 +61,7 @@ export const useDeleteUser = (): UseMutationResult<any, Error, string> => {
   const queryClient = useQueryClient();
   return useMutation<unknown, Error, string>({
     mutationFn: (id) => authService.deleteUser(id).then((r: { data: any }) => r.data),
-    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: QK.USERS }); },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: QK.USERS }); },
   });
 };
 
@@ -69,7 +69,7 @@ export const useAnonymiseUser = (): UseMutationResult<any, Error, string> => {
   const queryClient = useQueryClient();
   return useMutation<unknown, Error, string>({
     mutationFn: (id) => authService.anonymiseUser(id).then((r: { data: any }) => r.data),
-    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: QK.USERS }); },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: QK.USERS }); },
   });
 };
 

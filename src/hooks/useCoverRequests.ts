@@ -12,7 +12,7 @@ export function useCreateCoverRequest(): UseMutationResult<any, Error, Record<st
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => coverService.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cover", "open"] }),
+    onSuccess: async () => await queryClient.invalidateQueries({ queryKey: ['cover', 'open'] }),
   });
 }
 
@@ -20,7 +20,7 @@ export function useAssignCover(): UseMutationResult<any, Error, { id: string; cl
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, clinician_id }: { id: string; clinician_id: string }) => coverService.assign(id, clinician_id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cover", "open"] }),
+    onSuccess: async () => await queryClient.invalidateQueries({ queryKey: ['cover', 'open'] }),
   });
 }
 

@@ -7,8 +7,8 @@ export const useUpdateOnboarding = (id: string): UseMutationResult<any, Error, R
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       clinicianService.updateOnboarding(id, data).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });
 };
@@ -18,8 +18,8 @@ export const useSendWelcomePack = (id: string): UseMutationResult<any, Error, Re
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       clinicianService.sendWelcomePack(id, data).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });
 };

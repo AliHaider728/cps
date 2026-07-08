@@ -51,8 +51,8 @@ export function useUpdateTimesheetEntry(): UseMutationResult<any, Error, { entry
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ entryId, data }: { entryId: string | number; data: any }) => timesheetService.updateEntry(entryId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-timesheet"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["my-timesheet"] });
       queryClient.invalidateQueries({ queryKey: ["timesheet"] });
     },
   });
@@ -62,8 +62,8 @@ export function useSubmitTimesheet(): UseMutationResult<any, Error, string | num
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (timesheetId: string | number) => timesheetService.submitTimesheet(timesheetId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-timesheet"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["my-timesheet"] });
       queryClient.invalidateQueries({ queryKey: ["timesheets"] });
     },
   });
@@ -75,8 +75,8 @@ export function useApproveTimesheet(): UseMutationResult<any, Error, string | nu
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string | number) => timesheetService.approveTimesheet(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["timesheets"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["timesheets"] });
       queryClient.invalidateQueries({ queryKey: ["timesheet"] });
     },
   });
@@ -86,8 +86,8 @@ export function useRejectTimesheet(): UseMutationResult<any, Error, { id: string
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string | number; reason: string }) => timesheetService.rejectTimesheet(id, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["timesheets"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["timesheets"] });
       queryClient.invalidateQueries({ queryKey: ["timesheet"] });
     },
   });

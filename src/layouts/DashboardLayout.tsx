@@ -15,9 +15,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
   // Desktop par hamesha open rakho resize par
   useEffect(() => {
     const onResize = () => {
+      setIsMobile(window.innerWidth < 768);
       if (window.innerWidth >= 768) setSidebarOpen(true);
     };
     window.addEventListener("resize", onResize);
@@ -45,9 +48,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     navigate("/login", { replace: true });
   };
 
-  // Effective sidebar width (accounts for hover-expand in Sidebar itself)
-  // Layout only cares about collapsed vs expanded for margin
-  const marginLeft = isCollapsed ? "md:ml-[68px]" : "md:ml-[256px]";
+  // Use inline style to guarantee margin is applied without relying on JIT
+  const ml = isMobile ? 0 : (isCollapsed ? 70 : 260);
 
   return (
     <div className={`flex min-h-screen ${isDark ? "bg-slate-950" : "bg-slate-50"}`}>
@@ -60,7 +62,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       />
 
       {/* Main content — transitions with sidebar width */}
-      <div className={`flex-1 flex flex-col transition-all duration-[280ms] ease-[cubic-bezier(.4,0,.2,1)] ${marginLeft}`}>
+      <div 
+        className="flex-1 flex flex-col transition-all duration-[280ms] ease-[cubic-bezier(.4,0,.2,1)]"
+        style={{ marginLeft: `${ml}px` }}
+      >
         <Header
           onMenuClick={() => {
             // Mobile: toggle drawer; Desktop: no-op (collapse handled in Header)

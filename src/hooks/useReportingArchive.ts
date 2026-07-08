@@ -29,8 +29,8 @@ export function useAddToReportingArchive(entityType: string, entityId: string | 
   return useMutation({
     mutationFn: (formData: any) =>
       reportingArchiveAPI.add(entityType, entityId, formData).then((r: { data: any }) => r.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QK.REPORTING_ARCHIVE(entityType, entityId) });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QK.REPORTING_ARCHIVE(entityType, entityId) });
       // Also refresh the parent entity so reportingArchive summary updates
       queryClient.invalidateQueries({ queryKey: QK.PCN(entityId) });
       queryClient.invalidateQueries({ queryKey: QK.PRACTICE(entityId) });
@@ -44,8 +44,8 @@ export function useDeleteFromReportingArchive(entityType: string, entityId: stri
   return useMutation({
     mutationFn: (reportId: string | number) =>
       reportingArchiveAPI.delete(entityType, entityId, reportId).then((r: { data: void }) => r.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QK.REPORTING_ARCHIVE(entityType, entityId) });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QK.REPORTING_ARCHIVE(entityType, entityId) });
       queryClient.invalidateQueries({ queryKey: QK.PCN(entityId) });
       queryClient.invalidateQueries({ queryKey: QK.PRACTICE(entityId) });
     },

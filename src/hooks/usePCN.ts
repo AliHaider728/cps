@@ -69,7 +69,7 @@ export const useCreatePCN = (): UseMutationResult<PCN, Error, Partial<PCN>> => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<PCN>) => pcnService.create(data).then((response: { data: PCN }) => response.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QK.PCNS }),
+    onSuccess: async () => await queryClient.invalidateQueries({ queryKey: QK.PCNS }),
   });
 };
 
@@ -99,7 +99,7 @@ export const useDeletePCN = (): UseMutationResult<void, Error, string | number> 
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string | number) => pcnService.delete(id).then((response: { data: void }) => response.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QK.PCNS }),
+    onSuccess: async () => await queryClient.invalidateQueries({ queryKey: QK.PCNS }),
   });
 };
 
@@ -117,7 +117,7 @@ export const useUpsertMeeting = (pcnId: string | number): UseMutationResult<PCNM
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<PCNMeeting>) => pcnService.upsertMeeting(pcnId, data).then((response: { data: PCNMeeting }) => response.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QK.PCN_MEETINGS(pcnId) }),
+    onSuccess: async () => await queryClient.invalidateQueries({ queryKey: QK.PCNS }),
   });
 };
 

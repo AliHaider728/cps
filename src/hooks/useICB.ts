@@ -28,7 +28,7 @@ export const useCreateICB = (): UseMutationResult<ICB, Error, Partial<ICB>> => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<ICB>) => icbAPI.create(data).then((r: { data: ICB }) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.ICBS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.ICBS }),
   });
 };
 
@@ -49,7 +49,7 @@ export const useDeleteICB = (): UseMutationResult<void, Error, string | number> 
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string | number) => icbAPI.delete(id).then((r: { data: void }) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.ICBS }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.ICBS }),
   });
 };
 

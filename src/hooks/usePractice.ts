@@ -32,7 +32,7 @@ export const useCreatePractice = (): UseMutationResult<Practice, Error, Partial<
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Practice>) => practiceAPI.create(data).then((r: { data: Practice }) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.PRACTICES }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.PRACTICES }),
   });
 };
 
@@ -61,7 +61,7 @@ export const useDeletePractice = (): UseMutationResult<void, Error, string | num
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string | number) => practiceAPI.delete(id).then((r: { data: void }) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.PRACTICES }),
+    onSuccess: async () => await qc.invalidateQueries({ queryKey: QK.PRACTICES }),
   });
 };
 

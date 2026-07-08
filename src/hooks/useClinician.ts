@@ -63,8 +63,8 @@ export const useUpdateClinicianCPPE = (id: string): UseMutationResult<CPPEData, 
   return useMutation<CPPEData, Error, Partial<CPPEData>>({
     mutationFn: (data) =>
       clinicianService.updateCPPE(id, data).then((r: { data: CPPEData }) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.CLINICIAN_CPPE(id) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: QK.CLINICIAN_CPPE(id) });
       qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) });
     },
   });
@@ -76,7 +76,7 @@ export const useUpdateOnboarding = (id: string): UseMutationResult<any, Error, R
   return useMutation<unknown, Error, Record<string, unknown>>({
     mutationFn: (data) =>
       clinicianService.updateOnboarding(id, data).then((r: { data: any }) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) }); },
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) }); },
   });
 };
 
@@ -85,7 +85,7 @@ export const useSendWelcomePack = (id: string): UseMutationResult<any, Error, Re
   return useMutation<unknown, Error, Record<string, unknown>>({
     mutationFn: (data) =>
       clinicianService.sendWelcomePack(id, data).then((r: { data: any }) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) }); },
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: QK.CLINICIAN(id) }); },
   });
 };
 
