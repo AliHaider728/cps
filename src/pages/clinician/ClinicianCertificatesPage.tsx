@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useAppSelector } from "../../hooks/redux";
+import { LoadingFallback } from "../../components/ui/Spinner";
 import {
   useClinicianCompliance,
   useUpsertClinicianDoc,
@@ -133,18 +134,7 @@ export default function ClinicianCertificatesPage() {
       </div>
     );
 
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl gradient-blue-indigo flex items-center justify-center
-            shadow-[0_4px_16px_rgba(59,130,246,0.35)] animate-pulse">
-            <FileBadge size={18} className="text-white" />
-          </div>
-          <p className="text-sm text-slate-400 font-semibold">Loading documents…</p>
-        </div>
-      </div>
-    );
+  if (isLoading) return <LoadingFallback text="Loading documents..." />;
 
   if (error)
     return (

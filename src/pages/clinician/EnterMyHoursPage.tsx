@@ -10,6 +10,7 @@ import {
   Loader2, Pencil, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { LoadingFallback } from "../../components/ui/Spinner";
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -28,9 +29,11 @@ const calcHours = (startTime: any, endTime: any) => {
 };
 
 function getRowStatus(existing: any, total: string) {
-  if (existing?.submissionStatus === "submitted") return { label: "Submitted", cls: "bg-violet-50 text-violet-600 border border-violet-200" };
-  if (existing?.submissionStatus === "approved")  return { label: "Approved",  cls: "bg-emerald-50 text-emerald-600 border border-emerald-200" };
-  if (existing?.submissionStatus === "rejected")  return { label: "Rejected",  cls: "bg-red-50 text-red-600 border border-red-200" };
+  if (existing?.submissionStatus === "submitted") {
+    if (existing?.managerApprovalStatus === "approved")  return { label: "Approved",  cls: "bg-emerald-50 text-emerald-600 border border-emerald-200" };
+    if (existing?.managerApprovalStatus === "rejected")  return { label: "Rejected",  cls: "bg-red-50 text-red-600 border border-red-200" };
+    return { label: "Pending Review", cls: "bg-amber-50 text-amber-600 border border-amber-200" };
+  }
   return Number(total) > 0
     ? { label: "Ready", cls: "bg-emerald-50 text-emerald-600 border border-emerald-200" }
     : { label: "Draft", cls: "bg-amber-50 text-amber-600 border border-amber-200" };
@@ -73,7 +76,9 @@ export default function EnterMyHoursPage() {
   const [editing, setEditing]             = useState<Record<string, any>>({});
   const [savingShiftId, setSavingShiftId] = useState<string | null>(null);
   const [search, setSearch]     = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // all | ready | draft
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [approvalFilter, setApprovalFilter] = useState("all");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters]   = useState(false);
   const [page, setPage]         = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -117,7 +122,13 @@ export default function EnterMyHoursPage() {
     all:       derived.length,
     ready:     derived.filter((d) => d.status.label === "Ready").length,
     draft:     derived.filter((d) => d.status.label === "Draft").length,
-    submitted: derived.filter((d) => d.status.label === "Submitted").length,
+    submitted: derived.filter((d) => ["Pending Review", "Approved", "Rejected"].includes(d.status.label)).length,
+  }), [derived]);
+
+  const approvalStats = useMemo(() => ({
+    approved: derived.filter((d) => d.status.label === "Approved").length,
+    pending:  derived.filter((d) => d.status.label === "Pending Review").length,
+    rejected: derived.filter((d) => d.status.label === "Rejected").length,
   }), [derived]);
 
   const filtered = useMemo(() => {
@@ -192,6 +203,15 @@ export default function EnterMyHoursPage() {
     }
   };
 
+  const toggleExpandedRow = (sid: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(sid)) next.delete(sid);
+      else next.add(sid);
+      return next;
+    });
+  };
+
   const onSaveAllDrafts = async () => {
     const dirtyShiftIds = Object.keys(editing).filter((sid) => editing[sid] && Object.keys(editing[sid]).length > 0);
     if (dirtyShiftIds.length === 0) {
@@ -219,6 +239,10 @@ export default function EnterMyHoursPage() {
   const cardCls   = "rounded-2xl border border-slate-200 bg-white shadow-sm";
   const primaryBtnCls  = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors";
   const outlineBtnCls  = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold transition-colors";
+
+  if (isLoading) {
+    return <LoadingFallback text="Loading shifts..." />;
+  }
 
   return (
     <div className="min-h-full bg-slate-50 space-y-5 pb-10">
@@ -301,6 +325,7 @@ export default function EnterMyHoursPage() {
         <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
           {[
             { key: "all",   label: "All Shifts" },
+            { key: "approval", label: "Approval Status" },
             { key: "ready", label: "Ready" },
             { key: "draft", label: "Draft" },
           ].map((opt) => (
@@ -355,124 +380,158 @@ export default function EnterMyHoursPage() {
       </div>
 
       {showFilters && (
-        <div className={`${cardCls} p-4 flex flex-wrap items-center gap-3 text-sm text-slate-500`}>
-          Additional filters can go here (e.g. min hours, PCN, shift type).
+        <div className="w-full pt-2 flex flex-wrap gap-4 border-t border-slate-100">
+          {/* Extended filters could go here */}
+          {statusFilter === "approval" && (
+            <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+              {[
+                { key: "all",      label: "All Statuses" },
+                { key: "approved", label: "Approved" },
+                { key: "pending",  label: "Pending Review" },
+                { key: "rejected", label: "Rejected" },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => { setApprovalFilter(opt.key); setPage(1); }}
+                  className={`px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5 ${
+                    approvalFilter === opt.key ? "bg-blue-50 text-blue-600" : "bg-white text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── Table ── */}
+
+      {/* 📅 Data table 📅 */}
       <div className={`${cardCls} overflow-hidden`}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">Practice / Surgery</th>
-                <th className="text-left px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                  <span className="inline-flex items-center gap-1">Date <ArrowUpDown size={11} /></span>
-                </th>
-                <th className="text-left px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">Start</th>
-                <th className="text-left px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">End</th>
-                <th className="text-left px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">Total Hours</th>
-                <th className="text-left px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">Notes</th>
-                <th className="text-left px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">Status</th>
-                <th className="text-left px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">Actions</th>
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <tr>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Shift Details</th>
+                <th className="px-4 py-3 text-center">Start</th>
+                <th className="px-4 py-3 text-center">End</th>
+                <th className="px-4 py-3 text-center">Hours</th>
+                <th className="px-4 py-3">Notes</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {isLoading && (
+              {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center">
-                    <div className="flex items-center justify-center gap-2 text-slate-400">
-                      <Loader2 size={18} className="animate-spin text-blue-500" />
-                      <span className="text-sm font-medium">Loading…</span>
-                    </div>
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                    No shifts found matching your filters.
                   </td>
                 </tr>
-              )}
-              {!isLoading && pageRows.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-16 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
-                        <CalendarClock size={26} className="text-blue-500" />
-                      </div>
-                      <p className="text-[15px] font-bold text-slate-700">No shifts match your filters</p>
-                      <p className="text-sm text-slate-500">Try adjusting the month, year, or search terms.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {!isLoading && pageRows.map((row) => {
-                const { shift, sid, startTime, endTime, total, status, practiceName, existing } = row;
-                const draft     = editing[sid] || {};
-                const isSaving  = savingShiftId === sid;
-                // locked = already saved and clinician hasn't tapped "Edit" yet -> fields are read-only
-                const isLocked  = !!existing?._id && !unlockedSids.has(sid);
-                const readOnlyCls = "text-slate-600 bg-slate-50";
-
-                return (
-                  <tr key={sid} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-semibold text-slate-800">{practiceName}</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtDate(shift.shift_date || shift.date)}</td>
-                    <td className="px-3 py-2">
-                      <TimeField
-                        value={startTime}
-                        disabled={isLocked}
-                        locked={isLocked}
-                        onChange={(v) => onField(sid, "startTime", v)}
-                        onBlur={() => onFieldBlur(shift)}
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <TimeField
-                        value={endTime}
-                        disabled={isLocked}
-                        locked={isLocked}
-                        onChange={(v) => onField(sid, "endTime", v)}
-                        onBlur={() => onFieldBlur(shift)}
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="font-bold text-blue-600">{total || "0.00"} h</span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input type="text"
-                        value={draft.notes ?? row.notes ?? ""}
-                        disabled={isLocked}
-                        onChange={(e) => onField(sid, "notes", e.target.value)}
-                        onBlur={() => onFieldBlur(shift)}
-                        className={`${inputCls} w-40 ${isLocked ? readOnlyCls : ""}`} placeholder="—" />
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${status.cls}`}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      {isSaving ? (
-                        <span className="text-slate-400 text-xs inline-flex items-center gap-1">
-                          <Loader2 size={12} className="animate-spin" /> Saving…
-                        </span>
-                      ) : isLocked ? (
-                        <button
-                          type="button"
-                          onClick={() => setUnlockedSids((prev) => new Set(prev).add(sid))}
-                          className="text-blue-600 hover:text-blue-700 font-semibold text-xs inline-flex items-center gap-1"
-                        >
-                          <Pencil size={12} /> Edit
-                        </button>
-                      ) : (
-                        <span className="text-emerald-500 text-xs font-semibold">Auto-saves on change</span>
+              ) : (
+                pageRows.map((d) => {
+                  const isLocked = !unlockedSids.has(d.sid) && d.existing;
+                  const isEditing = editing[d.sid];
+                  const expanded = expandedRows.has(d.sid);
+                  return (
+                    <React.Fragment key={d.sid}>
+                      <tr className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-semibold text-slate-900">{fmtDate(d.shift.shift_date || d.shift.date)}</p>
+                          <p className="text-xs text-slate-500">{String(d.shift.start_time || "").slice(0, 5)} - {String(d.shift.end_time || "").slice(0, 5)}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-medium text-slate-900">{d.practiceName}</p>
+                          <p className="text-xs text-slate-500">Ref: {d.sid.slice(0, 8)}</p>
+                        </td>
+                        <td className="px-4 py-3 w-32">
+                          <TimeField
+                            value={d.startTime}
+                            locked={isLocked}
+                            disabled={isLocked || d.status.label === "Submitted" || d.status.label === "Approved" || d.status.label === "Pending Review"}
+                            onChange={(val) => onField(d.sid, "startTime", val)}
+                            onBlur={() => onFieldBlur(d.shift)}
+                          />
+                        </td>
+                        <td className="px-4 py-3 w-32">
+                          <TimeField
+                            value={d.endTime}
+                            locked={isLocked}
+                            disabled={isLocked || d.status.label === "Submitted" || d.status.label === "Approved" || d.status.label === "Pending Review"}
+                            onChange={(val) => onField(d.sid, "endTime", val)}
+                            onBlur={() => onFieldBlur(d.shift)}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-semibold text-slate-700">{d.total || ""}</span>
+                        </td>
+                        <td className="px-4 py-3 min-w-[200px]">
+                          <input
+                            type="text"
+                            value={d.notes}
+                            disabled={isLocked || d.status.label === "Submitted" || d.status.label === "Approved" || d.status.label === "Pending Review"}
+                            placeholder="Add notes..."
+                            className={`w-full px-3 py-1.5 text-sm bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded ${isLocked ? "text-slate-500" : "text-slate-700"}`}
+                            onChange={(e) => onField(d.sid, "notes", e.target.value)}
+                            onBlur={() => onFieldBlur(d.shift)}
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${d.status.cls}`}>
+                            {d.status.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {d.status.label === "Rejected" && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpandedRow(d.sid)}
+                                className="px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                              >
+                                View Reason
+                              </button>
+                            )}
+                            {isLocked && !["Submitted", "Approved", "Pending Review"].includes(d.status.label) && (
+                              <button
+                                type="button"
+                                onClick={() => setUnlockedSids((prev) => { const next = new Set(prev); next.add(d.sid); return next; })}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="Edit Row"
+                              >
+                                <Pencil size={15} />
+                              </button>
+                            )}
+                            {(isEditing && !isLocked) && (
+                              <button
+                                type="button"
+                                disabled={savingShiftId === d.sid}
+                                onClick={() => onSave(d.shift)}
+                                className="px-3 py-1.5 text-xs font-semibold rounded bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 disabled:opacity-50"
+                              >
+                                {savingShiftId === d.sid ? "Saving..." : "Save"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded && d.status.label === "Rejected" && (
+                        <tr className="bg-red-50/50">
+                          <td colSpan={8} className="px-4 py-3 text-sm text-red-800 border-l-2 border-red-400">
+                            <strong>Rejection Reason:</strong> {d.existing?.rejectionReason || "No reason provided."}
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
+                    </React.Fragment>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
       </div>
-
       {/* ── Pagination ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
         <p>
@@ -512,7 +571,7 @@ export default function EnterMyHoursPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <span>Rows per page:</span>
+          <span>Rows:</span>
           <select
             value={rowsPerPage}
             onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1); }}

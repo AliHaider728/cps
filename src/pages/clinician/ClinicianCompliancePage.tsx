@@ -3,6 +3,7 @@ import { useClinicianLeave } from "../../hooks/useClinicianLeave";
 import { useQuery } from "@tanstack/react-query";
 import { clinicianService } from "../../services/api/clinicianService";
 import { Badge } from "../../components/ui/Badge";
+import { LoadingFallback } from "../../components/ui/Spinner";
 
 const statusColor: Record<string, "success" | "warning" | "danger" | "blue" | "default"> = {
   valid: "success",
@@ -23,7 +24,7 @@ interface ComplianceDoc {
 }
 
 export default function ClinicianCompliancePage() {
-  const { data: leaveData } = useClinicianLeave();
+  const { data: leaveData, isLoading: leaveLoading } = useClinicianLeave();
   const clinicianId = leaveData?.clinicianId;
 
   const { data, isLoading } = useQuery({
@@ -39,6 +40,10 @@ export default function ClinicianCompliancePage() {
   ).length;
   const pct = docs.length ? Math.round((validCount / docs.length) * 100) : 0;
 
+  if (leaveLoading || isLoading) {
+    return <LoadingFallback text="Loading compliance documents..." />;
+  }
+
   if (!clinicianId) {
     return <p className="text-sm text-slate-600">No clinician profile linked.</p>;
   }
@@ -53,7 +58,6 @@ export default function ClinicianCompliancePage() {
         </div>
         <p className="text-xs text-slate-500 mt-1">{pct}% · {validCount}/{docs.length} documents</p>
       </div>
-      {isLoading && <p className="text-sm text-slate-500">Loading documents…</p>}
       <div className="space-y-3">
         {docs.map((doc) => (
           <div

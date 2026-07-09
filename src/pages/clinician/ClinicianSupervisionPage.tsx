@@ -5,6 +5,7 @@ import { useAllUsers } from "../../hooks/useAuth";
 import { toast } from "sonner";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
+import { LoadingFallback } from "../../components/ui/Spinner";
 
 interface RagConfig {
   label: string;
@@ -25,10 +26,10 @@ const SESSION_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function ClinicianSupervisionPage() {
-  const { data: leaveData } = useClinicianLeave();
+  const { data: leaveData, isLoading: leaveLoading } = useClinicianLeave();
   const clinicianId = leaveData?.clinicianId;
   const { data, isLoading } = useClinicianSupervision(clinicianId);
-  const { data: usersData } = useAllUsers();
+  const { data: usersData, isLoading: usersLoading } = useAllUsers();
   const updateM = useUpdateSupervisionLog(clinicianId);
   const [reflectionId, setReflectionId] = useState<string | null>(null);
   const [reflectionText, setReflectionText] = useState("");
@@ -57,6 +58,10 @@ export default function ClinicianSupervisionPage() {
     }
   };
 
+  if (leaveLoading || isLoading || usersLoading) {
+    return <LoadingFallback text="Loading sessions..." />;
+  }
+
   if (!clinicianId) {
     return (
       <p className="text-sm text-slate-600">
@@ -68,7 +73,6 @@ export default function ClinicianSupervisionPage() {
   return (
     <div className="mx-auto max-w-full space-y-6 pb-12">
       <h1 className="text-2xl font-bold text-slate-900">My Supervision</h1>
-      {isLoading && <p className="text-sm text-slate-500">Loading sessions…</p>}
       <div className="space-y-4">
         {logs.map((log: any) => {
           const rag = log.ragStatus || "green";

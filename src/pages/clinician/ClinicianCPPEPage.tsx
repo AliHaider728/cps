@@ -2,6 +2,7 @@ import React from "react";
 import { useClinicianLeave } from "../../hooks/useClinicianLeave";
 import { useClinicianCPPE } from "../../hooks/useClinicianCPPE";
 import { Badge } from "../../components/ui/Badge";
+import { LoadingFallback } from "../../components/ui/Spinner";
 
 interface Module {
   name: string;
@@ -19,7 +20,7 @@ interface CPPEData {
 }
 
 export default function ClinicianCPPEPage() {
-  const { data: leaveData } = useClinicianLeave();
+  const { data: leaveData, isLoading: leaveLoading } = useClinicianLeave();
   const clinicianId = leaveData?.clinicianId;
 
   const { data, isLoading } = useClinicianCPPE(clinicianId);
@@ -31,6 +32,10 @@ export default function ClinicianCPPEPage() {
   const completedAt = cppeData.completedAt;
   const modules = cppeData.modules || [];
 
+  if (leaveLoading || isLoading) {
+    return <LoadingFallback text="Loading CPPE progress..." />;
+  }
+
   if (!clinicianId) {
     return <p className="text-sm text-slate-600">No clinician profile linked.</p>;
   }
@@ -38,8 +43,7 @@ export default function ClinicianCPPEPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-12">
       <h1 className="text-2xl font-bold text-slate-900">My CPPE Progress</h1>
-      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
-      {!isLoading && !isEnrolled ? (
+      {!isEnrolled ? (
         <div className="rounded-xl border border-slate-200 bg-white p-10 text-center">
           <div className="text-4xl mb-3">📚</div>
           <h3 className="font-semibold text-slate-700">Not Yet Enrolled in CPPE</h3>

@@ -86,7 +86,7 @@ export default function TimesheetQueuePage() {
         groups[key] = {
           id: key,
           clinician_id: entry.clinician,
-          clinician_name: clinician?.full_name || "Unknown Clinician",
+          clinician_name: clinician?.fullName || clinician?.full_name || "Unknown Clinician",
           role: clinician?.clinician_type || "",
           month: Number(entry.month),
           year: Number(entry.year),

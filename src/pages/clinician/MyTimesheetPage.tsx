@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { RefreshCw, Calendar, Clock, MapPin, CalendarDays } from "lucide-react";
+import { LoadingFallback } from "../../components/ui/Spinner";
 import { Badge } from "../../components/ui/Badge";
 import { useMyTimesheet, useMyRota } from "../../hooks/useRota";
 import { usePractices } from "../../hooks/usePractice";
@@ -109,6 +110,10 @@ export default function MyTimesheetPage() {
     const list = timesheetAllQuery.data?.timesheets;
     return Array.isArray(list) ? list : [];
   }, [timesheetAllQuery.data]);
+
+  if (isLoading) {
+    return <LoadingFallback text="Loading timesheet..." />;
+  }
 
   return (
     <div className="space-y-5 pb-10 max-w-full mx-auto px-1 overflow-x-hidden animate-fade-up">
@@ -267,16 +272,7 @@ export default function MyTimesheetPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {isLoading && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500 text-sm">
-                    <RefreshCw size={18} className="spin-arc inline-block text-blue-500 mr-2" />
-                    Loading shifts...
-                  </td>
-                </tr>
-              )}
-
-              {!isLoading && rows.length === 0 && (
+              {rows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-4">
@@ -296,7 +292,7 @@ export default function MyTimesheetPage() {
                 </tr>
               )}
 
-              {!isLoading && rows.map((entry) => (
+              {rows.map((entry) => (
                 <tr key={entry.id} className="hover:bg-slate-50/40">
                   <td className="px-4 py-3 text-xs font-semibold text-gray-800 whitespace-nowrap">
                     {fmtDate(entry.shift_date)}

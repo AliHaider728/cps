@@ -1,6 +1,7 @@
 import React from "react";
 import { CalendarCheck, TrendingUp, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { useClinicianLeave } from "../../hooks/useClinicianLeave";
+import { LoadingFallback } from "../../components/ui/Spinner";
 
 const contracts = ["ARRS", "EA", "Direct"];
 
@@ -47,18 +48,7 @@ export default function MyLeaveBalancePage() {
   const balanceFor = (contract: string) =>
     balances.find((item) => item.contract === contract) || { used: 0, total: 0 };
 
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl gradient-blue-indigo flex items-center justify-center
-            shadow-[0_4px_16px_rgba(59,130,246,0.35)] animate-pulse">
-            <CalendarCheck size={18} className="text-white" />
-          </div>
-          <p className="text-sm text-slate-400 font-semibold">Loading leave balances…</p>
-        </div>
-      </div>
-    );
+  if (isLoading) return <LoadingFallback text="Loading leave balances..." />;
 
   return (
     <div className="space-y-6 pb-12 animate-fade-up">

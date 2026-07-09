@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/Button";
+import { LoadingFallback } from "../../components/ui/Spinner";
 import { useClinicianLeave, useAddLeave, useDeleteLeave } from "../../hooks/useClinicianLeave";
 import { dayCount } from "../../lib/leaveDays";
 
@@ -235,7 +236,7 @@ const HistoryItem = ({ entry, onCancel, cancelling }: { entry: LeaveEntry, onCan
 
 /* ── Main Page ──────────────────────────────────────────────────────────────── */
 export default function ApplyForLeavePage() {
-  const { data, refetch }   = useClinicianLeave();
+  const { data, isLoading: dataLoading, refetch }   = useClinicianLeave();
   const clinicianId         = data?.clinicianId;
   const addLeaveM           = useAddLeave(clinicianId);
   const deleteLeaveM        = useDeleteLeave(clinicianId);
@@ -352,6 +353,10 @@ export default function ApplyForLeavePage() {
   const pendingCount  = allEntries.filter((e) => !e.approved && !e.rejected).length;
   const approvedCount = allEntries.filter((e) => e.approved).length;
   const rejectedCount = allEntries.filter((e) => e.rejected).length;
+
+  if (dataLoading) {
+    return <LoadingFallback text="Loading leave history..." />;
+  }
 
   return (
     <div className="space-y-6 pb-12 animate-fade-up">
