@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { useAppSelector } from "../../hooks/redux";
 import { LoadingFallback } from "../../components/ui/Spinner";
 import {
-  useClinicianCompliance,
+  useClinicianComplianceGroups,
   useUpsertClinicianDoc,
 } from "../../hooks/useClinicianCompliance";
 import {
@@ -65,17 +65,19 @@ interface Document {
   rejectionReason?: string;
 }
 
-const docIdOf = (doc: Document) => doc?._id || doc?.id;
+const docIdOf = (doc: any) => doc?.docId || doc?._id || doc?.id;
 
 const fmtDate = (d: string | Date | undefined) => {
   if (!d) return "—";
   try {
     const raw      = String(d);
-    const dateOnly = raw.includes("T") ? raw.split("T")[0] : raw.slice(0, 10);
-    const dt       = new Date(dateOnly);
-    if (Number.isNaN(dt.getTime())) return dateOnly;
-    return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  } catch { return String(d); }
+    const datePart = raw.includes("T") ? raw.split("T")[0] : raw;
+    const [y, m, day] = datePart.split("-");
+    if (y && m && day) return `${day}/${m}/${y}`;
+    return datePart;
+  } catch {
+    return String(d);
+  }
 };
 
 export default function ClinicianCertificatesPage() {
@@ -85,12 +87,10 @@ export default function ClinicianCertificatesPage() {
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({});
   const [uploadingId,   setUploadingId]   = useState<string | null>(null);
 
-  const { data, isLoading, error } = useClinicianCompliance(clinicianId);
-  const { mutateAsync: upsertDoc } = useUpsertClinicianDoc(clinicianId);
+  const { data, isLoading, error } = useClinicianComplianceGroups(clinicianId);
+  const docs: Document[] = data?.groups?.flatMap((g: any) => g.docs) || [];
 
-  const docs: Document[] = data?.docs || data || [];
-  const approvedCount = docs.filter((d) => (d.status || d.approvalStatus) === "approved").length;
-  const progress      = docs.length > 0 ? Math.round((approvedCount / docs.length) * 100) : 0;
+  const { mutateAsync: upsertDoc } = useUpsertClinicianDoc(clinicianId);
 
   const canUpload = (doc: Document) => {
     const status = doc.status || doc.approvalStatus || "missing";
@@ -103,7 +103,7 @@ export default function ClinicianCertificatesPage() {
     }
   };
 
-  const handleUpload = async (doc: Document) => {
+  const handleUpload = async (doc: any) => {
     const id   = docIdOf(doc);
     if (!id) return;
     const file = selectedFiles[id];
@@ -111,9 +111,10 @@ export default function ClinicianCertificatesPage() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("docName", doc.docName || doc.name || "Document");
+    formData.append("docKey", id);
     setUploadingId(id);
     try {
-      await upsertDoc({ docId: id || "new", data: formData });
+      await upsertDoc({ docId: id, data: formData });
       toast.success("Document uploaded successfully");
       setSelectedFiles((prev) => { const n = { ...prev }; delete n[id]; return n; });
     } catch (err: any) {
@@ -163,44 +164,25 @@ export default function ClinicianCertificatesPage() {
         </p>
       </div>
 
-      {/* ── Progress bar ── */}
+      {/* Progress bar */}
       {docs.length > 0 && (
         <div className="card p-5 animate-scale-in">
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-[13px] font-bold text-slate-700">Compliance Progress</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                {approvedCount} of {docs.length} documents approved
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-black text-slate-900 leading-none">{progress}</span>
-              <span className="text-sm text-slate-400 ml-0.5">%</span>
-            </div>
+            <h2 className="text-[13px] font-bold text-slate-700">Compliance Progress</h2>
+            <span className="text-[12px] font-medium text-slate-500">
+              {data?.totalUploaded || 0} of {data?.totalDocs || 0} completed
+            </span>
           </div>
-          <div className="progress-track">
+          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
             <div
-              className="progress-fill"
-              style={{
-                width: `${progress}%`,
-                background: progress === 100
-                  ? "linear-gradient(90deg,#16a34a,#22c55e)"
-                  : progress > 50
-                    ? "linear-gradient(90deg,#3b82f6,#6366f1)"
-                    : "linear-gradient(90deg,#f59e0b,#f97316)",
-              }}
+              className="h-full bg-blue-500 rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${data?.totalDocs ? Math.round(((data?.totalUploaded || 0) / data.totalDocs) * 100) : 0}%` }}
             />
           </div>
-          {progress === 100 && (
-            <div className="flex items-center gap-2 mt-3 text-sm text-green-600 font-semibold">
-              <CheckCircle2 size={14} />
-              All documents approved — ready for shift assignment
-            </div>
-          )}
         </div>
       )}
 
-      {/* ── Empty state ── */}
+      {/* Empty state */}
       {docs.length === 0 && (
         <div className="card flex flex-col items-center justify-center py-16 text-center">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">

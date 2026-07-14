@@ -40,6 +40,7 @@ const RestrictedCliniciansPage = lazy(() => import("../pages/super-admin/Clinici
 const DirectorDashboard = lazy(() => import("../pages/director/DirectorDashboard"));
 const OpsDashboard = lazy(() => import("../pages/ops/OpsDashboard"));
 const FinanceDashboard = lazy(() => import("../pages/finance/FinanceDashboard"));
+const XeroCodesPage = lazy(() => import("../pages/finance/XeroCodesPage"));
 const TrainingDashboard = lazy(() => import("../pages/training/TrainingDashboard"));
 const WorkforceDashboard = lazy(() => import("../pages/workforce/WorkforceDashboard"));
 const ClinicianDashboard = lazy(() => import("../pages/clinician/ClinicianDashboard"));
@@ -185,6 +186,9 @@ const AppRouter = () => (
     <Route path="/dashboard/director" element={<P roles={["director", "super_admin"]}><DirectorDashboard /></P>} />
     <Route path="/dashboard/ops-manager" element={<P roles={["ops_manager", "super_admin"]}><OpsDashboard /></P>} />
     <Route path="/dashboard/finance" element={<P roles={["finance", "super_admin", "director"]}><FinanceDashboard /></P>} />
+          <Route path="/dashboard/xero" element={<P roles={["finance", "super_admin"]}><XeroCodesPage /></P>} />
+          <Route path="/dashboard/staff-xero" element={<P roles={["finance", "super_admin"]}><XeroCodesPage /></P>} />
+          <Route path="/dashboard/client-xero" element={<P roles={["finance", "super_admin"]}><XeroCodesPage /></P>} />
     <Route path="/dashboard/training" element={<P roles={["training_manager", "super_admin"]}><TrainingDashboard /></P>} />
     <Route path="/dashboard/workforce" element={<P roles={["workforce_manager", "super_admin"]}><WorkforceDashboard /></P>} />
 

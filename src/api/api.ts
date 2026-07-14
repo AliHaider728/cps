@@ -210,3 +210,15 @@ export const timeEntryAPI = {
   list:             (params?: Record<string, unknown>)      => timeEntryService.list(params),
   getAdminSummary:  ()            => timeEntryService.getAdminSummary(),
 };
+
+
+export const xeroApi = {
+  getStatus: () => api.get("/xero/status").then((r) => r.data),
+  connectUrl: () => api.get("/xero/connect").then((r) => r.data.url),
+  disconnect: () => api.post("/xero/disconnect").then((r) => r.data),
+  getContacts: () => api.get("/xero/contacts").then((r) => r.data),
+  getSyncStatus: () => api.get("/xero/sync-status").then((r) => r.data),
+  syncContact: (payload: { id: string; type: string; name: string; xeroCode?: string }) => 
+    api.post("/xero/sync", payload).then((r) => r.data),
+  getAuditLog: () => api.get("/xero/audit-log").then((r) => r.data),
+};
