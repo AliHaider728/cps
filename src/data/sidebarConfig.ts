@@ -73,6 +73,7 @@ export const sidebarConfig: SidebarConfigType = {
         { icon: "Clock",      label: "Timesheets",         path: "/dashboard/timesheets" },
         { icon: "Receipt",    label: "Invoices",           path: "/dashboard/invoices"   },
         { icon: "Hash",       label: "Xero Codes",         path: "/dashboard/xero"       },
+        { icon: "Link",       label: "HubSpot",            path: "/dashboard/hubspot"    },
         { icon: "TrendingUp", label: "Headcount",          path: "/dashboard/headcount"  },
         
       ],

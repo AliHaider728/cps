@@ -81,9 +81,13 @@ export default function XeroCodesPage() {
   const connectMutation = useMutation({
     mutationFn: xeroApi.connectUrl,
     onSuccess: (url) => {
+      console.log("Xero connect url returned:", url);
       window.location.href = url;
     },
-    onError: () => toast.error("Failed to initiate connection"),
+    onError: (err) => {
+      console.error("Xero connect error:", err);
+      toast.error("Failed to initiate connection");
+    }
   });
 
   const disconnectMutation = useMutation({
